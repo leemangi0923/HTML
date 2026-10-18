@@ -814,7 +814,7 @@ function timerBody(x, y, name, v = name ? tsetMap()[name] || 0 : 0) {   // 한�
 }
 const XTB_MARK = {   // 견출지에 쓴 글자: +24V, 0V, 아이오 링크 1·2를 잇는 신호 (120, Z0, FR±, RP±), 단자대와 같은 이름 (Dog, OV±)
   xtb40: { B16: '+', A20: '120', B19: 'Z0', A12: 'FR+', A13: 'RP+', B12: 'FR−', B13: 'RP−', A15: 'Dog', A14: 'OV+', B14: 'OV-' },
-  xtb50: { B25: '+', A9: '−', B8: '−', B9: '−', B11: '−', A24: '−', A3: '120', B2: 'Z0', A5: 'FR+', A6: 'RP+', B5: 'FR−', B6: 'RP−' }
+  xtb50: { B25: '+', A10: '−', B9: '−', B10: '−', B12: '−', A24: '−', A3: '120', B2: 'Z0', A5: 'FR+', A6: 'RP+', B5: 'FR−', B6: 'RP−' }
 };
 function xtbLid(x, y, type, y0, y1, open = false) {   // 아이오 링크 뚜껑: 닫으면 견출지 (위 칸 B단, 아래 칸 A단), 젖히면 안쪽의 단자 이름 (위아래가 바뀐다)
   const w = DEV[type].w, n = type === 'xtb40' ? 20 : 25, p0 = (w - (n - 1) * 7) / 2;
@@ -892,11 +892,13 @@ function roundPath(pts, r) {
   const e = q[q.length - 1];
   return d + `L${F(e[0])} ${F(e[1])}`;
 }
-const PIN = 6.4, FER = 10.4;   // 압착단자: 회색 핀 끝까지, 노란 슬리브 끝까지 (나사 가운데에서). 전선 피복은 그 뒤에서 시작
-function ferruleAt(x, y, ux, uy, h) {   // 압착단자 PP-D120: 나사 쪽 회색 핀, 뒤쪽 노란 절연 슬리브 (u: 전선 쪽 방향). h: 나사 머리 {x, y, r}
-  let t0 = .3;   // 핀은 나사 머리 아래로 들어간다: 머리 밖으로 나온 부분만 그린다
-  if (h && h.r) { const dx = x - h.x, dy = y - h.y, b = dx * ux + dy * uy, c = dx * dx + dy * dy - h.r * h.r; if (b * b - c >= 0) t0 = Math.max(t0, -b + Math.sqrt(b * b - c)); }
-  return `<g transform="translate(${F(x)} ${F(y)}) rotate(${F(Math.atan2(uy, ux) * 180 / Math.PI)})">` + (t0 < PIN - .2 ? `<rect x="${F(t0)}" y="-.65" width="${F(PIN + .2 - t0)}" height="1.3" rx=".3" fill="#c9ced2" stroke="#6b737a" stroke-width=".25"/>` : '')
+const TIP = 3.2, PIN = 4.6, FER = 8.6;   // 압착단자 (나사 가운데에서): 핀 끝은 나사를 지나 TIP만큼 안쪽, 회색 핀은 PIN까지, 노란 슬리브는 FER까지. 전선 피복은 그 뒤에서 시작
+function ferruleAt(x, y, ux, uy, h) {   // 압착단자 PP-D120: 나사 쪽 회색 핀, 뒤쪽 노란 절연 슬리브 (u: 전선 쪽 방향). h: 나사 머리 {x, y, r} (r 0은 구멍)
+  const tip = h && h.r ? -TIP : .3, pin = (a, b) => b - a > .1 ? `<rect x="${F(a)}" y="-.65" width="${F(b - a)}" height="1.3" rx=".3" fill="#c9ced2" stroke="#6b737a" stroke-width=".25"/>` : '';
+  let s = pin(tip, PIN + .2);   // 나사 머리 아래에 깔린 부분은 그리지 않는다 (머리 양쪽으로 나온 핀만)
+  if (h && h.r) { const dx = x - h.x, dy = y - h.y, b = dx * ux + dy * uy, c = dx * dx + dy * dy - h.r * h.r, D = b * b - c;
+    if (D > 0) s = pin(tip, -b - Math.sqrt(D)) + pin(-b + Math.sqrt(D), PIN + .2); }
+  return `<g transform="translate(${F(x)} ${F(y)}) rotate(${F(Math.atan2(uy, ux) * 180 / Math.PI)})">${s}`
     + `<path d="M${PIN} -1.05L${FER - .5} -1.5Q${FER} -1.5 ${FER} -1V1Q${FER} 1.5 ${FER - .5} 1.5L${PIN} 1.05Z" fill="#f5c400" stroke="#6b5200" stroke-width=".3" stroke-linejoin="round"/></g>`;
 }
 function ferrule(pts, rev, h) {
@@ -975,7 +977,7 @@ const REF_WIRES = [
   ['OP.SS.2', 'OP.RL.+'], ['OP.RL.+', 'OP.PB0.1'], ['OP.PB0.2', 'TB.11.b'],
   ['OP.BZ.2', 'TB.13.b'], ['OP.GL.+', 'TB.14.b'], ['OP.YL.+', 'TB.15.b'], ['OP.WL2.+', 'TB.16.b'],
   ['OP.BZ.1', 'OP.HMI.+'], ['OP.YL.-', 'OP.HMI.-'],
-  ['XTB2.A9', 'XTB2.B8'], ['XTB2.B8', 'XTB2.B9'], ['XTB2.B9', 'XTB2.B11'], ['XTB2.A9', 'XTB2.A24'],   // 아이오 링크 2의 − 단자끼리
+  ['XTB2.A10', 'XTB2.B9'], ['XTB2.B9', 'XTB2.B10'], ['XTB2.B10', 'XTB2.B12'], ['XTB2.A10', 'XTB2.A24'],   // 아이오 링크 2의 − 단자끼리
   ['XTB2.A24', 'TB.40.t'], ['TB.40.t', 'TB.34.t'], ['TB.34.t', 'TB.6.t'],   // − 단자 → SMPS 0V (TB 6번)
   ['TB.37.t', 'PLC.P00'], ['TB.38.t', 'PLC.P21'], ['TB.39.t', 'PLC.P23'],   // 단자대 S → PLC 입력 P00, CW → 출력 P21, CCW → 출력 P23
   ['XTB2.A3', 'XTB1.A20'], ['XTB1.B19', 'XTB2.B2'],   // 120, Z0
@@ -1737,6 +1739,7 @@ function startReplug(g) {
 }
 function cancelReplug(msg = true) { if (!UI.replug) return; UI.replug = null; renderWorld(); renderOver(); if (msg) say('전선을 원래 자리에 다시 꽂았어요', 'info'); }
 function finishReplug(p) {
+  const ld = lidAt(p); if (ld) return toggleLid(ld);   // 옮기던 전선을 든 채로 뚜껑 여닫기
   const { w, end, keep } = UI.replug, term = termNear(p, tolMM(16));
   if (!term || term.id === w[end]) return cancelReplug();
   if (term.id === keep) return say('반대쪽과 같은 단자예요. 다른 단자를 눌러요', 'info');
@@ -1754,9 +1757,9 @@ function wireLock(a, b) {   // 마무리를 해 둔 곳은 풀어야 배선을 �
   const cb = coverBlock(a, b); if (cb) return cb;
   if (S.tbCover && (a.startsWith('TB.') || b.startsWith('TB.'))) return '단자대 커버를 벗겨야 TB에 배선할 수 있어요. 손으로 커버를 눌러요';
   const nm = names(), shut = id => { const m = /^(XTB\d)\./.exec(id); return m && S.inst.some(i => nm[i.id] === m[1] && S.xtbClosed[i.id]); };
-  if (shut(a) || shut(b)) return '아이오 링크 뚜껑을 열어야 배선할 수 있어요. 손으로 뚜껑을 눌러요';
+  if (shut(a) || shut(b)) return '아이오 링크 뚜껑을 열어야 배선할 수 있어요. 뚜껑을 눌러 열어요 (전선을 든 채로도 돼요)';
   const plcShut = id => id.startsWith('PLC.') && S.plcLid[devTerms('plc').some(t => t.d === 'up' && 'PLC.' + t.k === id) ? 't' : 'b'];
-  if (plcShut(a) || plcShut(b)) return 'PLC 단자 덮개를 열어야 배선할 수 있어요. 손으로 덮개를 눌러요';
+  if (plcShut(a) || plcShut(b)) return 'PLC 단자 덮개를 열어야 배선할 수 있어요. 덮개를 눌러 열어요 (전선을 든 채로도 돼요)';
   if (S.helical && a.startsWith('OP.') !== b.startsWith('OP.')) return '헬리컬 밴드를 풀어야 제어판과 조작판 사이 전선을 바꿀 수 있어요. 손으로 밴드를 눌러요';
   return '';
 }
@@ -2169,6 +2172,14 @@ function tbTermAt(p) { const tb = tbInst(); if (!tb) return null; const y = devY
 function plcLidRect(top) { const i = S.inst.find(x => x.type === 'plc'); if (!i) return null; const y = devY(i), w = DEV.plc.w, shut = S.plcLid[top ? 't' : 'b'];
   return shut ? (top ? { x: i.x - 2.6, y: y - .4, w: w + 3.1, h: 27.6 } : { x: i.x - 2.6, y: y + 67.6, w: w + 3.1, h: 27.8 }) : { x: i.x + .8, y: y + (top ? 21.4 : 67.8), w: w - 1.6, h: 5.8 }; }
 function xtbLidRect(i) { const y = devY(i), w = DEV[i.type].w; return S.xtbClosed[i.id] ? { x: i.x + 2.5, y: y + 13.3, w: w - 5, h: DEV[i.type].h - 13.9 } : { x: i.x + 2.5, y: y - 30.8, w: w - 5, h: 30.4 }; }
+const lidAt = p => { const pl = plcLidAt(p); if (pl) return { pl }; const xc = xtbCoverAt(p); return xc ? { xc } : null; };   // PLC 단자 덮개, 아이오 링크 뚜껑
+const lidRect = ld => ld.pl ? plcLidRect(ld.pl === 't') : xtbLidRect(ld.xc);
+function toggleLid(ld) {   // 손으로도, 전선을 든 채로도 (잇던 선은 그대로)
+  snap();
+  if (ld.pl) { const k = ld.pl; S.plcLid[k] = !S.plcLid[k]; say(`PLC ${k === 't' ? '위(입력)' : '아래(전원, 출력)'} 단자 덮개를 ${S.plcLid[k] ? '닫았어요' : '열었어요'}`, 'info'); }
+  else { const id = ld.xc.id; S.xtbClosed[id] = !S.xtbClosed[id]; say(S.xtbClosed[id] ? '아이오 링크 뚜껑을 닫았어요' : '아이오 링크 뚜껑을 열었어요', 'info'); }
+  commit();
+}
 function plcLidAt(p) {   // 연 덮개는 가운데 쪽으로 젖혀진 띠, 닫은 덮개는 단자 전체
   const i = S.inst.find(x => x.type === 'plc'); if (!i) return null; const y = devY(i), w = DEV.plc.w;
   if (inRect(p, S.plcLid.t ? { x: i.x, y, w, h: 27 } : { x: i.x, y: y + 21.4, w, h: 5.8 })) return 't';
@@ -2318,10 +2329,7 @@ function handleTap(p, e) {
     }
     const lt = tieAt(p, false, 14); if (lt) return tieAction(lt);
     const tr = tbRect(); if (S.tbCover && tr && inRect(p, tr, 2)) { snap(); S.tbCover = false; UI.carry = { kind: 'tbcover', key: 'tbcover', from: 'floor', count: 1 }; say('단자대 커버를 벗겼어요', 'info'); return commit(); }
-    const pl = plcLidAt(p);
-    if (pl) { snap(); S.plcLid[pl] = !S.plcLid[pl]; say(`PLC ${pl === 't' ? '위(입력)' : '아래(전원, 출력)'} 단자 덮개를 ${S.plcLid[pl] ? '닫았어요' : '열었어요'}`, 'info'); return commit(); }
-    const xc = xtbCoverAt(p);
-    if (xc) { snap(); S.xtbClosed[xc.id] = !S.xtbClosed[xc.id]; say(S.xtbClosed[xc.id] ? '아이오 링크 뚜껑을 닫았어요' : '아이오 링크 뚜껑을 열었어요', 'info'); return commit(); }
+    const ld = lidAt(p); if (ld) return toggleLid(ld);
     const le = termNear(p, 7); if (le && le.cv && !UI.carry) { S.tool = 'wire'; renderTools(); if (S.convLeads[le.k]) { snap(); delete S.convLeads[le.k]; commit(); } UI.pending = le.id; say(`컨베이어 ${le.lab}선: 단자대(TB) 아래쪽 단자를 눌러요 (전선 도구)`, 'info'); return renderOver(); }
     if (S.conveyor && !UI.carry && convBodyAt(p)) {
       if (LIVE.inp.mcb) return say('전원이 켜져 있어요. 컨베이어를 들려면 MCB를 내려요', 'info');
@@ -2499,6 +2507,7 @@ function wireAt(p, tol) { let best = null, bd = tol; S.wires.forEach((w, i) => {
 function tap3(p) {
   const t = S.tool;
   if (t === 'wire') {
+    const ld = lidAt(p); if (ld) return toggleLid(ld);   // 전선을 든 채로 뚜껑 여닫기 (닫힌 뚜껑 위를 누르면 연다)
     const term = termNear(p, tolMM(16));
     if (!term) { if (UI.pending) { UI.pending = null; renderOver(); return say('연결을 취소했어요', 'info'); } const wg = wireGrab(p); if (wg) return startReplug(wg); return say('단자(나사)를 눌러요. 확대하면 누르기 쉬워요', 'info'); }
     if (!UI.pending) { if (term.cv && S.convLeads[term.k]) { snap(); delete S.convLeads[term.k]; commit(); } UI.pending = term.id; say(term.cv ? `컨베이어 ${term.lab}선: 단자대(TB) 아래쪽 단자를 눌러요` : `${term.nm}: 연결할 다른 단자를 눌러요`, 'info'); return renderOver(); }
@@ -2744,12 +2753,13 @@ function ghost(p) {
   return s || `<g opacity=".7">${drawDevice(c.key, p.x - d.w / 2, p.y - d.h / 2, '', null)}</g>`;
 }
 function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리로
-  if (!p || !UI.overBoard || UI.replug || UI.gesture && UI.gesture.type !== 'press') return '';
-  const t = S.tool; if (t === 'hand' && UI.carry) return '';
+  if (!p || !UI.overBoard || UI.gesture && UI.gesture.type !== 'press') return '';
+  const t = S.tool; if (t === 'hand' && UI.carry && !UI.replug) return '';
   const k = UI.cam.w / Math.max(1, svg.clientWidth), sw = F(2.2 * k);
   const box = r => `<rect x="${F(r.x - 2 * k)}" y="${F(r.y - 2 * k)}" width="${F(r.w + 4 * k)}" height="${F(r.h + 4 * k)}" rx="${F(3 * k)}" fill="#000" fill-opacity=".16" stroke="#e3232f" stroke-width="${sw}" pointer-events="none"/>`;
   const ring = (x, y, r) => `<circle cx="${F(x)}" cy="${F(y)}" r="${F(r)}" fill="#000" fill-opacity=".16" stroke="#e3232f" stroke-width="${sw}" pointer-events="none"/>`;
   const line = pts => { const d = 'M' + pts.map(q => F(q[0]) + ' ' + F(q[1])).join('L'); return `<path d="${d}" stroke="#e3232f" stroke-opacity=".75" stroke-width="${F(5 * k)}" stroke-linecap="round" stroke-linejoin="round" fill="none" pointer-events="none"/>`; };
+  if (t === 'wire' || UI.replug) { const ld = lidAt(p); if (ld) return box(lidRect(ld)); if (UI.replug) return ''; }   // 전선을 든 채로도 뚜껑은 따로 눌린다
   const f = floorAt(p);
   if (f && (t === 'hand' || t === 'cut' || (t === 'tape' && f.kind === 'fr'))) return box(floorRect(f));
   if (t === 'hand') {
@@ -3067,7 +3077,7 @@ svg.addEventListener('pointermove', e => {
   }
   UI.overBoard = true;
   const p = toWorld(e.clientX, e.clientY); UI.pointer = p;
-  UI.hoverTerm = S.tool === 'wire' || UI.replug ? termNear(p, tolMM(14)) : null;
+  UI.hoverTerm = (S.tool === 'wire' || UI.replug) && !lidAt(p) ? termNear(p, tolMM(14)) : null;   // 뚜껑 위에서는 뚜껑을 누른다
   renderOver();
 });
 svg.addEventListener('pointerup', e => {
