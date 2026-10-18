@@ -99,6 +99,7 @@ h2.ph { font-size: 13px; margin: 2px 2px 8px; color: var(--muted); font-weight: 
 .steps li.todo .tt { color: var(--muted); }
 .steps .tip { grid-column: 1 / -1; font-size: 12px; color: var(--muted); line-height: 1.5; }
 .steps .peek, .nextbtn { grid-column: 1 / -1; justify-self: start; border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+.nextbtn:disabled { opacity: .45; cursor: not-allowed; }
 .nextbtn { margin-top: 10px; background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 700; padding: 8px 14px; font-size: 13px; }
 .logbox { margin-top: 14px; }
 .logbox summary { cursor: pointer; font-size: 12px; color: var(--muted); }
@@ -1035,8 +1036,20 @@ function runJudge(wires, fuses) {
   return { res, rule7 };
 }
 let _jdg = { key: null, val: null };
+const judgeKey = () => JSON.stringify(S.wires) + JSON.stringify(fuseState());
+const judgeRan = () => !!(S.judge && S.judge.key === judgeKey());   // 검사를 받은 뒤 배선, 퓨즈가 그대로인지
+const prevDone = () => [0, 1, 2, 3, 4].every(stageDone);
 function getJudge() { const fz = fuseState(), key = JSON.stringify(S.wires) + JSON.stringify(fz); if (_jdg.key !== key) _jdg = { key, val: runJudge(S.wires, fz) }; return _jdg.val; }
-function judgeSteps() { const J = getJudge(); return JUDGE.map(c => { const r = J.res[c.id]; return { no: c.no, title: c.title, n: r.ok ? 1 : 0, m: 1, done: r.ok, tip: '', why: r.ok ? '' : (r.why[0] || '') }; }); }
+function judgeSteps() {
+  if (!judgeRan()) { const tip = S.judge ? '배선이나 퓨즈가 바뀌었어요. 동작 검사를 다시 받아요' : prevDone() ? '아래 동작 검사 받기를 눌러요' : '1~5 작업을 다 끝내고 동작 검사 받기를 눌러요';
+    return JUDGE.map(c => ({ no: c.no, title: c.title, n: 0, m: 1, done: false, tip, why: '' })); }
+  const J = getJudge(); return JUDGE.map(c => { const r = J.res[c.id]; return { no: c.no, title: c.title, n: r.ok ? 1 : 0, m: 1, done: r.ok, tip: '', why: r.ok ? '' : (r.why[0] || '') }; });
+}
+function takeJudge() {   // 실제 대회처럼 1~5 작업을 끝낸 뒤에 심사를 받는다
+  if (!prevDone()) return say('1~5 작업을 다 끝내야 동작 검사를 받을 수 있어요', 'info');
+  snap(); S.judge = { key: judgeKey() }; const J = getJudge(), bad = JUDGE.filter(c => !J.res[c.id].ok).length;
+  commit(); say(bad ? `동작 검사에서 ${bad}개 항목이 안 됐어요. 할 일 목록에서 이유를 봐요` : '동작 검사를 모두 통과했어요', bad ? 'err' : 'ok');
+}
 
 /* 교류(220V)와 직류(24V)가 섞이는 전선은 바로 막는다 (접점은 붙거나 떨어지므로 한 덩어리로 본다) */
 const isAC = id => /^(MCB|FS\d|SV)\./.test(id) || /^(SMPS|PLC)\.(L|N)$/.test(id) || /^TB\.[12]\./.test(id);   // 접지(E, FG)는 어느 쪽도 아님
@@ -1673,7 +1686,7 @@ function stageDone(st) {
   if (st === 1) return stage1Steps().every(Boolean);
   if (st === 2) return stage2Steps().every(Boolean);
   if (st === 3) return checksAllOk() && !tbBypass().length;
-  if (st === 5) return JUDGE.every(c => getJudge().res[c.id].ok);
+  if (st === 5) return judgeRan() && JUDGE.every(c => getJudge().res[c.id].ok);
   return nCovered() === 6 && !!S.tbCover && nTies() >= 12 && nTieCut() === nTies() && S.helical === 2;
 }
 function recommendedTool() { return ''; }   // 순서를 정하지 않으므로 도구 추천도 하지 않는다
@@ -1755,7 +1768,7 @@ function fillGroup(k) {
   if (k === 2) { if (!stageDone(1)) fillGroup(1); fillStage(2); S.floor = S.floor.filter(f => f.kind !== 'dev' && f.kind !== 'fuse'); }
   if (k === 3) { if (!stageDone(0)) fillGroup(0); if (!stageDone(2)) fillGroup(2); fillStage(3); S.opBack = true; }
   if (k === 4) { if (!stageDone(3)) fillGroup(3); fillStage(4); }
-  if (k === 5) { for (let j = 0; j < 5; j++) if (!stageDone(j)) fillGroup(j); }   // 동작 검사는 앞 작업이 정답이면 저절로 통과
+  if (k === 5) { for (let j = 0; j < 5; j++) if (!stageDone(j)) fillGroup(j); S.judge = { key: judgeKey() }; }   // 앞 작업을 채우고 검사까지 받은 상태
 }
 function askFill(k) {
   if (S.exam && S.exam.on) return say('실전 모드에서는 정답 채우기를 쓸 수 없어요', 'info');
@@ -2257,6 +2270,7 @@ function renderSteps() {
   GROUP_TITLE.forEach((name, k) => {
     const steps = stepsFor(k), d = steps.filter(s => s.done).length; marked = false;
     h += `<li class="grp" id="sec${k}">${esc(name)} <span class="gcount">${d}/${steps.length}</span><button class="fillbtn" data-act="fill" data-k="${k}">정답 채우기</button></li>`;
+    if (k === 5) h += `<li class="judgeli"><button class="nextbtn" data-act="judge"${prevDone() ? '' : ' disabled'}>${judgeRan() ? '동작 검사 다시 받기' : '동작 검사 받기'}</button></li>`;
     for (const s of steps) {
       const now = !s.done && !marked; if (now) marked = true;
       const tip = now && S.guide && (s.why || s.tip) ? `<span class="${s.why ? 'why' : 'tip'}">${esc(s.why || s.tip)}</span>` : '';
@@ -2774,6 +2788,7 @@ $('#tray').addEventListener('toggle', e => { const d = e.target; if (!d.dataset 
 document.querySelector('.side').addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
   if (b.dataset.act === 'fill') return askFill(+b.dataset.k);
+  if (b.dataset.act === 'judge') return takeJudge();
   if (b.dataset.act === 'peek') { UI.peek = true; S.hints++; save(); renderSteps(); } else if (b.dataset.act === 'next') nextStage();
 });
 $('#btnExam').addEventListener('click', () => { if (S.exam && S.exam.on) confirmBox('제출할까요? 제출하면 시간이 멈추고 채점표가 나와요.', () => submitExam(false)); else startExam(); });
