@@ -454,7 +454,7 @@ function devTerms(type) {
   }
   else if (type === 'xtb40' || type === 'xtb50') {
     const n = type === 'xtb40' ? 20 : 25, x0 = (DEV[type].w - (n - 1) * 7) / 2;
-    for (let i = 0; i < n; i++) { add('B' + (i + 1), x0 + i * 7 - 1.75, 22, 'B' + (i + 1), 'down', 'B' + (i + 1)); add('A' + (i + 1), x0 + i * 7 + 1.75, 36, 'A' + (i + 1), 'down', 'A' + (i + 1)); }
+    for (let i = 0; i < n; i++) { add('B' + (i + 1), x0 + i * 7 + 1.75, 22, 'B' + (i + 1), 'down', 'B' + (i + 1)); add('A' + (i + 1), x0 + i * 7 - 1.75, 36, 'A' + (i + 1), 'down', 'A' + (i + 1)); }
   }
   return (_tc[type] = t);
 }
@@ -819,7 +819,7 @@ const XTB_MARK = {   // 견출지에 쓴 글자: +24V, 0V, 아이오 링크 1·2
 function xtbLid(x, y, type, y0, y1, open = false) {   // 아이오 링크 뚜껑: 닫으면 견출지 (위 칸 B단, 아래 칸 A단), 젖히면 안쪽의 단자 이름 (위아래가 바뀐다)
   const w = DEV[type].w, n = type === 'xtb40' ? 20 : 25, p0 = (w - (n - 1) * 7) / 2;
   const lx0 = x + p0 - 5.25, lx1 = x + p0 + (n - 1) * 7 + 5.25, ly0 = y0 + 4.5, ly1 = y1 - 5, my = (ly0 + ly1) / 2; let g = '';
-  const off = top => top !== open ? -1.75 : 1.75;   // 견출지 칸도 단자처럼 B단이 반 칸 왼쪽
+  const off = top => top !== open ? 1.75 : -1.75;   // 견출지 칸도 단자처럼 B단이 반 칸 오른쪽
   for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + off(true) + i * 7)} ${F(ly0 + .8)}V${F(my)}M${F(x + p0 - 3.5 + off(false) + i * 7)} ${F(my)}V${F(ly1 - .8)}`;
   return R(x + 3, y0 + 1, w - 5, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"') + R(x + 2.5, y0, w - 5, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"')
     + R(lx0, ly0, lx1 - lx0, ly1 - ly0, 'rx=".5" fill="#fdfdfb" stroke="#b9c2c8" stroke-width=".3"') + `<path d="${g}M${F(lx0 + .6)} ${F(my)}H${F(lx1 - .6)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`
@@ -852,8 +852,8 @@ function dXTB(x, y, type, name, closed = false) {
   s += R(c0, y + 2.5, cw, 10, 'rx="1" fill="#1b1e21"') + R(c0 + 3, y + 4.6, cw - 6, 5.6, 'fill="url(#pPins)"') + R(c0 + cw / 2 - 5, y + 2.5, 10, 1.8, 'fill="#3b4045"');
   s += T(x + ((w - cw) / 2 + 14) / 2, y + 12.4, name ? 'IO LINK ' + name.slice(-1) : 'IO LINK', TX(2.7, '#2a2f33', 'font-weight="700"'));
   // 아래: 단자 두 단 (위 단 B, 아래 단 A)
-  s += R(x + p0 - 5.25, y + 14, n * 7, 15, 'rx=".6" fill="#e9e7e0" stroke="#b5b1a6" stroke-width=".3"') + R(x + p0 - 1.75, y + 29, n * 7, 14.5, 'rx=".6" fill="#d3d0c7" stroke="#b5b1a6" stroke-width=".3"');
-  let d = ''; for (let i = 1; i < n; i++) d += `M${F(x + p0 - 5.25 + i * 7)} ${F(y + 15)}V${F(y + 29)}M${F(x + p0 - 1.75 + i * 7)} ${F(y + 29)}V${F(y + 42.5)}`;
+  s += R(x + p0 - 1.75, y + 14, n * 7, 15, 'rx=".6" fill="#e9e7e0" stroke="#b5b1a6" stroke-width=".3"') + R(x + p0 - 5.25, y + 29, n * 7, 14.5, 'rx=".6" fill="#d3d0c7" stroke="#b5b1a6" stroke-width=".3"');   // 위 단(B)이 아래 단(A)보다 반 칸 오른쪽
+  let d = ''; for (let i = 1; i < n; i++) d += `M${F(x + p0 - 1.75 + i * 7)} ${F(y + 15)}V${F(y + 29)}M${F(x + p0 - 5.25 + i * 7)} ${F(y + 29)}V${F(y + 42.5)}`;
   s += `<path d="${d}" stroke="#bcb8ad" stroke-width=".5"/>`;
   for (const t of devTerms(type)) s += SCRS(x + t.x, y + t.y);
   return s;
