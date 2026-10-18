@@ -166,6 +166,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
 .follower[hidden] { display: none; }
 .follower svg { display: block; overflow: visible; }
 .fitem { position: relative; width: 76px; height: 56px; opacity: .95; filter: drop-shadow(0 4px 8px rgba(0, 0, 0, .35)); }
+.fitem > svg { width: 100%; height: 100%; }
 .fcount { position: absolute; right: -10px; top: -10px; min-width: 26px; height: 26px; border-radius: 13px; display: grid; place-items: center; background: var(--accent); color: var(--accent-ink); font: 800 13px var(--font); border: 1.5px solid var(--accent-ink); padding: 0 4px; }
 :focus-visible { outline: 2px solid var(--glove); outline-offset: 2px; }
 .steps li.grp { display: block; padding: 10px 6px 2px; font-size: 12px; font-weight: 700; color: var(--muted); }
@@ -595,19 +596,23 @@ function drawDevice(type, x, y, name, extra) {
   }
   return '';
 }
-function dMCB(x, y, name) {
-  const w = DEV.mcb.w, h = DEV.mcb.h;
-  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="#eceef0" stroke="#9aa1a8" stroke-width=".45"');
-  s += R(x + .8, y + .8, w - 1.6, 12.5, 'rx="1" fill="#d6dade"') + R(x + .8, y + h - 13.3, w - 1.6, 12.5, 'rx="1" fill="#d6dade"');
-  s += R(x + 3, y + 20, w - 6, 43, 'rx="1.2" fill="#f8f9fa" stroke="#c6cbd0" stroke-width=".35"');
-  s += T(x + w / 2, y + 25.6, 'ON', TX(2.5, '#2e7d4f', 'font-weight="700"'));
-  const on = LIVE.inp && LIVE.inp.mcb;   // 레버를 눌러 올리고 내린다
-  s += R(x + 6.5, y + 28, w - 13, 11, 'rx="1.2" fill="#3e444a"') + R(x + 7.5, on ? y + 29 : y + 34.6, w - 15, 3.4, `rx=".6" fill="${on ? '#3fbf6e' : '#6b7279'}"`);
-  s += T(x + w / 2, y + 43.6, 'OFF', TX(2.5, '#b3262e', 'font-weight="700"'));
-  s += T(x + w / 2, y + 52.5, 'C6', TX(4.6, '#1d2125', 'font-weight="700"')) + T(x + w / 2, y + 58.4, 'BKM-b 2P', TX(2.3, '#5a6168'));
-  for (const t of devTerms('mcb')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, y + t.y + (t.d === 'up' ? 5.6 : -3.8), t.lab, 2.1, '#3f464c');
-  return s + nameTag(x + w / 2, y + 16.6, name);
+function dMCB(x, y, name) {   // LS BKM-b 2P: 위아래 단자 창, 가운데 손잡이 (위 ON, 아래 OFF)
+  const w = DEV.mcb.w, h = DEV.mcb.h, on = LIVE.inp && LIVE.inp.mcb, sw = MCB_SW(x, y);
+  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="#ecedea" stroke="#9fa4a8" stroke-width=".45"');
+  s += LN(x + w / 2, y + 1, x + w / 2, y + h - 1, 'stroke="#c9ccc9" stroke-width=".5"');   // 2극 경계
+  for (const t of devTerms('mcb')) s += R(x + t.x - 5.6, y + t.y - 4.8, 11.2, 9.6, 'rx="1" fill="#2a2d30" stroke="#8c9196" stroke-width=".35"');
+  s += R(x + 2.4, y + 14, w - 4.8, 54, 'rx="1.4" fill="#f7f7f4" stroke="#c4c8c6" stroke-width=".4"');
+  s += `<text x="${F(x + 4.2)}" y="${F(y + 19.6)}" font-size="3.6" font-weight="800" font-style="italic" fill="#0b5fa5">LS</text>` + TS(x + 13.2, y + 19.4, 'BKM-b', 2.6, '#2a2f33', 'font-weight="700"');
+  s += T(x + w / 2, y + sw.y - 1.4, 'ON', TX(2.3, on ? '#1f9d55' : '#7f9a88', 'font-weight="800"')) + T(x + w / 2, y + sw.y + sw.h + 3.2, 'OFF', TX(2.3, on ? '#a28a8c' : '#c2262f', 'font-weight="800"'));
+  s += R(x + sw.x, y + sw.y, sw.w, sw.h, 'rx="1.6" fill="#24272a" stroke="#0f1112" stroke-width=".4"');   // 손잡이 홈
+  const hy = y + sw.y + (on ? 1.4 : sw.h - 10.4);
+  s += R(x + sw.x + 1.2, hy, sw.w - 2.4, 9, 'rx="1.2" fill="#4b5157" stroke="#1b1e21" stroke-width=".4"') + R(x + sw.x + 1.8, hy + .8, sw.w - 3.6, 2.2, 'rx=".8" fill="#6f777e"');
+  for (let k = 0; k < 3; k++) s += LN(x + sw.x + 4, hy + 4.6 + k * 1.4, x + sw.x + sw.w - 4, hy + 4.6 + k * 1.4, 'stroke="#3a3f44" stroke-width=".35"');
+  s += T(x + w / 2, y + 56.6, 'C6', TX(4.4, '#1d2125', 'font-weight="800"')) + T(x + w / 2, y + 60.6, '2P  220/230V~', TX(1.9, '#5a6168'));
+  for (const t of devTerms('mcb')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, y + t.y + (t.d === 'up' ? 7.6 : -5.8), t.lab, 2, '#3f464c');
+  return s + nameTag(x + w / 2, y + 65, name);
 }
+const MCB_SW = () => ({ x: 8.6, y: 26, w: 18, h: 21 });   // MCB 손잡이 홈 (기구 왼쪽 위 기준)
 function dFuse(x, y, name, fz) {
   const h = DEV.fuse.h; let s = shadow(x, y, 36, h, 1.2);
   for (let p = 0; p < 2; p++) {
@@ -806,14 +811,15 @@ function dXTB(x, y, type, name, closed = false) {
   for (const t of devTerms(type)) s += SCRS(x + t.x, y + t.y);
   return s;
 }
-function dTB(x, y) {
-  const h = DEV.tb.h; let s = shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#9aa09a"');
+function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
+  const h = DEV.tb.h; let s = shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#2a2d30"');
   for (let i = 0; i < TB_N; i++) {
     const x0 = x + 2 + i * 8.6, lab = TB_LABELS[i] || '';
-    s += R(x0, y, 8.6, h, 'fill="#d8dad4" stroke="#a4a8a1" stroke-width=".3"') + R(x0 + .9, y + 15, 6.8, 12, 'rx=".4" fill="#fbfbf7"') +
-      T(x0 + 4.3, y + 22.4, lab, TX(lab.length > 2 ? 2.4 : lab.length > 1 ? 3 : 3.6, i < 3 ? '#b3262e' : '#1a1a1a', 'font-weight="700"'));
+    s += R(x0, y, 8.6, h, 'fill="#1d1f21" stroke="#3b3f43" stroke-width=".35"');
+    s += R(x0 + .9, y + 3.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"') + R(x0 + .9, y + 29.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"');   // 나사 홈
+    s += R(x0 + .9, y + 15, 6.8, 12, 'rx=".4" fill="#fbfbf7"') + T(x0 + 4.3, y + 22.4, lab, TX(lab.length > 2 ? 2.4 : lab.length > 1 ? 3 : 3.6, i < 3 ? '#b3262e' : '#1a1a1a', 'font-weight="700"'));
   }
-  s += R(x + 2 + TB_N * 8.6, y, 2, h, 'fill="#9aa09a"');
+  s += R(x + 2 + TB_N * 8.6, y, 2, h, 'fill="#2a2d30"');
   for (const t of devTerms('tb')) s += SCRS(x + t.x, y + t.y);
   return s;
 }
@@ -1193,6 +1199,7 @@ function liveStep(dt) {
   if (key !== LIVE.key) { LIVE.key = key; renderWorld(); if (LIVE.err && i.mcb) say(LIVE.err, 'err'); }
   drawLivePack();
 }
+const mcbSwRect = m => { const r = MCB_SW(); return { x: m.x + r.x, y: devY(m) + r.y, w: r.w, h: r.h }; };
 const beltRect = () => ({ x: CVW.x, y: CVW.y, w: CONV.L, h: CVW.bw });
 const packRect = () => ({ x: CVW.x + LIVE.pack - 20, y: CVW.y + 5, w: 40, h: 40 });
 const packSVG = (x, y, held) => R(x + 1.2, y + 2, 40, 40, 'rx="2" fill="#000" fill-opacity=".3"') + R(x, y, 40, 40, 'rx="2" fill="#d9483b" stroke="#7a1d15" stroke-width="1"') + R(x + 3, y + 3, 34, 6, 'rx="1.5" fill="#ffffff" fill-opacity=".18"') + (held ? R(x - 3, y - 3, 46, 46, 'rx="3" fill="none" stroke="#ffd34d" stroke-width="2"') : '');
@@ -1200,7 +1207,7 @@ function drawLivePack() { $('#gLive').innerHTML = LIVE.pack === null ? '' : pack
 const HMI_BZ = () => { const c = OP.cut, sx = c.x + 6, sy = c.y + 6, sw = c.w - 12; return { x: sx + 90, y: sy + 100, w: sw - 110, h: 22 }; };   // HMI 화면의 부저 시험 버튼 (조작판 좌표)
 const FLIP_BTN = { x: OPW.x + OP.w - 104, y: OPW.y - 66, w: 104, h: 24 };
 function liveHit(p) {   // 손으로 누르는 순간 동작하는 곳
-  const m = S.inst.find(i => i.type === 'mcb'); if (m && inRect(p, { x: m.x + 5, y: devY(m) + 26.5, w: DEV.mcb.w - 10, h: 14 })) return 'mcb';
+  const m = S.inst.find(i => i.type === 'mcb'); if (m && inRect(p, mcbSwRect(m), 2)) return 'mcb';
   if (LIVE.pack !== null && inRect(p, packRect(), 2)) return 'grab';
   if (S.opBack) return null;
   const lp = opLocal(p);
@@ -2049,6 +2056,9 @@ const CABLES = {
 };
 const tbTermX = (tb, n) => tb.x + 6.3 + (n - 1) * 8.6;
 function tbTermAt(p) { const tb = tbInst(); if (!tb) return null; const y = devY(tb); if (p.y < y + 16 || p.y > y + 76) return null; const n = Math.round((p.x - tb.x - 6.3) / 8.6) + 1; return n >= 1 && n <= TB_N ? n : null; }
+function plcLidRect(top) { const i = S.inst.find(x => x.type === 'plc'); if (!i) return null; const y = devY(i), w = DEV.plc.w, shut = S.plcLid[top ? 't' : 'b'];
+  return shut ? (top ? { x: i.x - 2.6, y: y - .4, w: w + 3.1, h: 27.6 } : { x: i.x - 2.6, y: y + 67.6, w: w + 3.1, h: 27.8 }) : { x: i.x + .8, y: y + (top ? 21.4 : 67.8), w: w - 1.6, h: 5.8 }; }
+function xtbLidRect(i) { const y = devY(i), w = DEV[i.type].w; return S.xtbClosed[i.id] ? { x: i.x + 2.5, y: y + 13.3, w: w - 5, h: DEV[i.type].h - 13.9 } : { x: i.x + 2.5, y: y - 30.8, w: w - 5, h: 30.4 }; }
 function plcLidAt(p) {   // 연 덮개는 가운데 쪽으로 젖혀진 띠, 닫은 덮개는 단자 전체
   const i = S.inst.find(x => x.type === 'plc'); if (!i) return null; const y = devY(i), w = DEV.plc.w;
   if (inRect(p, S.plcLid.t ? { x: i.x, y, w, h: 27 } : { x: i.x, y: y + 21.4, w, h: 5.8 })) return 't';
@@ -2605,6 +2615,14 @@ function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리
     if (S.opBack && bandHit(p)) return line(bandNow());
     const lt = tieAt(p, false, 14); if (lt) { const g = tieGeo(lt); if (g) return ring(g.M.x, g.M.y, g.half + 3); }
     const tr = tbRect(); if (S.tbCover && tr && inRect(p, tr, 2)) return box(tr);
+    if (!UI.carry) {   // 뚜껑, 덮개, 스위치는 기구와 따로
+      if (inRect(p, FLIP_BTN)) return box(FLIP_BTN);
+      const m = S.inst.find(i => i.type === 'mcb'); if (m && inRect(p, mcbSwRect(m), 2)) return box(mcbSwRect(m));
+      if (LIVE.pack !== null && inRect(p, packRect(), 2)) return box(packRect());
+      const pl = plcLidAt(p); if (pl) return box(plcLidRect(pl === 't'));
+      const xc = xtbCoverAt(p); if (xc) return box(xtbLidRect(xc));
+      if (!S.opBack && S.op.hmi && LIVE.out.HMI) { const b = HMI_BZ(), lp = opLocal(p); if (inRect(lp, b)) return box({ x: OPW.x + b.x, y: OPW.y + b.y, w: b.w, h: b.h }); }
+    }
   }
   if (t === 'cut') { const lt = tieAt(p, false, 12); if (lt) { const g = tieGeo(lt); if (g) return ring(g.M.x, g.M.y, g.half + 3); } }
   if (t === 'hand' || (t === 'wire' && !UI.hoverTerm && !UI.pending)) { const g = wireGrab(p); if (g) return line(g.pts); }
@@ -2879,7 +2897,7 @@ svg.addEventListener('pointerdown', e => {
   svg.setPointerCapture(e.pointerId); UI.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (UI.ptrs.size === 2) { const [a, b] = [...UI.ptrs.values()]; UI.gesture = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), cam0: { ...UI.cam }, m0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }; return; }
   UI.overBoard = true; UI.gesture = { type: 'press', sx: e.clientX, sy: e.clientY, cam0: { ...UI.cam }, moved: false };
-  if (S.tool === 'hand' && !UI.carry && !UI.replug) { const k = liveHit(toWorld(e.clientX, e.clientY)); if (k) { UI.gesture.live = k; UI.gesture.t0 = performance.now(); liveDown(k); } }   // 동작 확인 조작
+  if (!UI.carry && !UI.replug) { const k = liveHit(toWorld(e.clientX, e.clientY)); if (k && (k === 'mcb' || S.tool === 'hand')) { UI.gesture.live = k; UI.gesture.t0 = performance.now(); liveDown(k); } }   // 동작 확인 조작 (MCB 스위치는 어떤 도구로도)
   if (UI.carry && UI.carry.kind === 'tie') { const p0 = toWorld(e.clientX, e.clientY); UI.gesture = { type: 'tiedrag', sx: e.clientX, sy: e.clientY, p0, moved: false }; UI.tieEnd = p0; }   // 케이블 타이: 누른 채로 끌어서 묶기
 });
 svg.addEventListener('pointermove', e => {
