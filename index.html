@@ -250,6 +250,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
             </pattern>
             <linearGradient id="gAlu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b3b8bb"/><stop offset=".55" stop-color="#9fa5a9"/><stop offset="1" stop-color="#b1b6b9"/></linearGradient>
             <pattern id="pBrush" width="8" height="2.4" patternUnits="userSpaceOnUse"><path d="M0 .6H8" stroke="#fff" stroke-opacity=".14" stroke-width=".35"/><path d="M0 1.8H5" stroke="#000" stroke-opacity=".04" stroke-width=".3"/></pattern>
+            <radialGradient id="gScrewY" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#f7e7a8"/><stop offset="1" stop-color="#a47b2c"/></radialGradient>
             <radialGradient id="gScrew" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#f6f7f8"/><stop offset="1" stop-color="#8e969c"/></radialGradient>
             <radialGradient id="gBolt" cx=".38" cy=".35" r=".8"><stop offset="0" stop-color="#fbfcfc"/><stop offset="1" stop-color="#959ca2"/></radialGradient>
             <linearGradient id="gRail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b6bec5"/><stop offset=".16" stop-color="#e8ecef"/><stop offset=".5" stop-color="#ced4d9"/><stop offset=".84" stop-color="#e6eaed"/><stop offset="1" stop-color="#a9b2b9"/></linearGradient>
@@ -265,6 +266,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
             <pattern id="pCoil" width="8" height="1.2" patternUnits="userSpaceOnUse"><path d="M0 .6H8" stroke="#8d4f16" stroke-width=".35"/></pattern>
             <g id="scr"><circle r="2.6" fill="#4c5358"/><circle r="2.2" fill="url(#gScrew)"/><path d="M-1.4 0H1.4M0 -1.4V1.4" stroke="#5a6167" stroke-width=".5"/></g>
             <g id="scrS"><circle r="2.05" fill="#4c5358"/><circle r="1.7" fill="url(#gScrew)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#5a6167" stroke-width=".4"/></g>
+            <g id="scrY"><circle r="2.05" fill="#4a3c1c"/><circle r="1.7" fill="url(#gScrewY)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#6b5420" stroke-width=".4"/></g>
           </defs>
           <g id="gMat"></g><g id="gWorld"></g><g id="gOver"></g>
         </svg>
@@ -366,8 +368,8 @@ const DEV = {
   pos:   { name: '위치결정 카드 POS', spec: '모터 제어용 (지참)', w: 22, h: 95, qty: 1 },
   tr:    { name: '위치결정 카드 TR', spec: '모터 제어용 (지참)', w: 22, h: 95, qty: 1 },
   servo: { name: '서보 드라이버', spec: '겐트리 제어용 (지참)', w: 50, h: 160, qty: 1 },
-  relay: { name: '릴레이 + 소켓', spec: 'KOINO KH-RS-14M, 14P', w: 31, h: 75, qty: 6 },
-  timer: { name: '타이머 + 소켓', spec: '한영넉스 T38N-A, 8P 소켓', w: 40, h: 72, qty: 3 },
+  relay: { name: '릴레이 소켓 (14P)', spec: 'KOINO KH-RS-14M, 찬넬형', w: 31, h: 75, qty: 6 },
+  timer: { name: '타이머 소켓 (8P)', spec: 'KOINO KH-TDR-R8, 찬넬형', w: 40, h: 72, qty: 3 },
   xtb40: { name: '아이오 링크 1', spec: 'IOLINK XTB-40H (폭 149)', w: 149, h: 44, qty: 1 },
   tb:    { name: '단자대 TB', spec: '조립식 8.6×42, 40P', w: 2 + TB_N * 8.6 + 2, h: 42, qty: 1 },
   xtb50: { name: '아이오 링크 2', spec: 'IOLINK XTB-50H (폭 184)', w: 184, h: 44, qty: 1 }
@@ -581,6 +583,7 @@ function drawRulerTool(side) {
 /* ===== 제어판 기구 그리기 (단위 mm) ===== */
 const SCR = (x, y) => `<use href="#scr" x="${F(x)}" y="${F(y)}"/>`;
 const SCRS = (x, y) => `<use href="#scrS" x="${F(x)}" y="${F(y)}"/>`;
+const SCRY = (x, y) => `<use href="#scrY" x="${F(x)}" y="${F(y)}"/>`;
 function nameTag(cx, cy, text) {
   if (!text) return '';
   const wd = [...text].reduce((a, ch) => a + (/[\u3131-\uD79D]/.test(ch) ? 3.4 : 2.3), 0) + 2.6;
@@ -594,8 +597,8 @@ function drawDevice(type, x, y, name, extra) {
     case 'plc': return dPLC(x, y, extra || {});
     case 'pos': case 'tr': return dCard(x, y, type);
     case 'servo': return dServo(x, y, extra);
-    case 'relay': return dRelay(x, y, name);
-    case 'timer': return dTimer(x, y, name);
+    case 'relay': return dRelay(x, y, name, extra === true);
+    case 'timer': return dTimer(x, y, name, extra === true);
     case 'xtb40': case 'xtb50': return dXTB(x, y, type, name, extra === true);
     case 'tb': return dTB(x, y);
   }
@@ -643,6 +646,13 @@ function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −
   for (const t of devTerms('smps')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, t.d === 'up' ? y + 16.9 : y + 80.5, t.lab === '-V' ? '−V' : t.lab, 2.3, '#f2f4f5');
   return s;
 }
+function plcLid(x, y, top) {   // 닫은 덮개: 단자와 거기 꽂힌 전선 끝을 덮는다 (전선보다 나중에 그림)
+  const w = DEV.plc.w, yy = top ? y - .4 : y + 67.6, hh = top ? 27.6 : 27.8;
+  let t = R(x - 2.6, yy, w + 3.1, hh, 'rx="1.6" fill="#33383d" stroke="#16191c" stroke-width=".5"');   // 왼쪽 끝 단자의 압착단자까지 덮는다
+  for (let i = 0; i < 12; i++) t += R(x + 6 + i * 9.4, top ? yy + 3 : yy + hh - 7.5, 4.6, 4.5, 'rx=".6" fill="#3d4247"');
+  t += LN(x + 1.5, top ? yy + hh - 3 : yy + 3, x + w - 1.5, top ? yy + hh - 3 : yy + 3, 'stroke="#25292d" stroke-width=".6"');
+  return t + (top ? `<path d="M${F(x + 58.5)} ${F(yy + 13)}h3l-1.5 2.2z" fill="#8d949a"/>` : '');
+}
 function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래 전원·출력 단자에 여닫는 덮개
   const w = DEV.plc.w, h = DEV.plc.h, T_ = devTerms('plc'), pw = LIVE.on && LIVE.out.plc;
   let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="#3b4045" stroke="#1b1e21" stroke-width=".5"');
@@ -670,14 +680,10 @@ function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래
   s += TS(x + 53, y + 47, 'OUT', 1.6, '#4a5056') + leds(y + 50, 0x20, 0x20) + leds(y + 55.6, 0x28, 0x28);
   s += `<text x="${F(x + 77)}" y="${F(y + 47.2)}" font-size="4.2" font-weight="800" font-style="italic" fill="#9aa0a5">LS</text>`;
   s += TS(x + 33, y + 66.4, '130VA 50/60Hz   Out: 24VDC, 0.1A/P', 1.3, '#555c62') + TS(x + 89, y + 66.4, 'Out : 24VDC, 0.5A/P, 2A/C', 1.3, '#555c62') + TS(x + 89, y + 29.6, 'In : 24VDC, 4mA', 1.3, '#555c62');
-  // 덮개: 열면 가운데 쪽으로 젖혀져 있고, 닫으면 단자를 덮는다
+  // 연 덮개는 가운데 쪽으로 젖혀져 있다 (닫은 덮개는 plcLid)
   const bar = yy => R(x + .8, yy, w - 1.6, 5.8, 'rx="1" fill="#4a5056" stroke="#1d2023" stroke-width=".4"') + LN(x + 2, yy + 1.4, x + w - 2, yy + 1.4, 'stroke="#6b7278" stroke-width=".5"') + LN(x + 2, yy + 4.2, x + w - 2, yy + 4.2, 'stroke="#2a2e32" stroke-width=".5"');
-  const lidC = (yy, hh, top) => { let t = R(x + .5, yy, w - 1, hh, 'rx="1.6" fill="#33383d" stroke="#16191c" stroke-width=".5"');
-    for (let i = 0; i < 12; i++) t += R(x + 6 + i * 9.4, top ? yy + 3 : yy + hh - 7.5, 4.6, 4.5, 'rx=".6" fill="#3d4247"');
-    t += LN(x + 1.5, top ? yy + hh - 3 : yy + 3, x + w - 1.5, top ? yy + hh - 3 : yy + 3, 'stroke="#25292d" stroke-width=".6"');
-    return t + (top ? `<path d="M${F(x + 58.5)} ${F(yy + 13)}h3l-1.5 2.2z" fill="#8d949a"/>` : ''); };
-  s += lid.t ? lidC(y - .4, 27.6, true) : bar(y + 21.4);
-  s += lid.b ? lidC(y + 67.6, 27.8, false) : bar(y + 67.8);
+  if (!lid.t) s += bar(y + 21.4);
+  if (!lid.b) s += bar(y + 67.8);
   return s;
 }
 function dCard(x, y, type) {
@@ -718,40 +724,79 @@ function dServo(x, y, bolted) {   // LS L7S 모양: 위 조작부, 왼쪽 전원
   for (const yy of [y + 6, y + h - 6]) s += bolted ? drawBolt(x + w / 2, yy) : C(x + w / 2, yy, 2.4, 'fill="#191c1f"');
   return s;
 }
-function dRelay(x, y, name) {
+function dRelay(x, y, name, plugged = false) {   // 14핀 소켓 (KOINO KH-RS-14M). 릴레이는 꽂았을 때만
   const w = DEV.relay.w, h = DEV.relay.h;
-  let s = shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.4" fill="#24282b" stroke="#0e1012" stroke-width=".5"');
-  s += R(x + 2.2, y + 18.5, w - 4.4, 38.5, 'rx="1.8" fill="#cdd7de" fill-opacity=".92" stroke="#8b98a1" stroke-width=".4"');
-  s += R(x + 17.5, y + 39.5, 8.5, 14, 'rx="1.2" fill="#c97a2e"') + R(x + 17.5, y + 39.5, 8.5, 14, 'rx="1.2" fill="url(#pCoil)"');
-  for (let i = 0; i < 4; i++) s += LN(x + 25 - i * 6.4, y + 28.5, x + 25 - i * 6.4, y + 36, 'stroke="#a07d3a" stroke-width=".9"');
-  s += T(x + 9.5, y + 46.5, 'MY4', TX(2.7, '#2d3439', 'font-weight="700"')) + T(x + 9.5, y + 50.9, 'DC24V', TX(2, '#3c444a'));
-  s += T(x + w / 2, y + 25.4, name || '', TX(4.4, '#101214', 'font-weight="700"'));
-  s += T(x + w / 2, y + 62.5, 'Koino', TX(2.6, '#6a6f74', 'font-weight="700" font-style="italic"'));
-  if (LIVE.on && LIVE.st && LIVE.st.rel[name]) s += C(x + 5.5, y + 54, 3.4, 'fill="#ff3b30" fill-opacity=".3"') + C(x + 5.5, y + 54, 1.6, 'fill="#ff3b30"');
-  for (const t of devTerms('relay')) { s += SCRS(x + t.x, y + t.y); if (UI.detail) s += tl(x + t.x + 2.5, y + t.y + .6, t.lab, 1.55, '#ffd34d', 'start'); }
-  return s;
+  let s = shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.4" fill="#1e2022" stroke="#0b0c0d" stroke-width=".5"');
+  for (const t of devTerms('relay')) s += R(x + t.x - 3.4, y + t.y - 3.4, 6.8, 6.8, 'rx=".6" fill="#101112"');
+  let rib = ''; for (const yy of [[.8, 17.4], [57.6, 74.2]]) for (let i = 0; i <= 4; i++) rib += `M${F(x + 1.2 + i * 7.3)} ${F(y + yy[0])}V${F(y + yy[1])}`;
+  s += `<path d="${rib}" stroke="#34383c" stroke-width=".7"/>`;
+  s += R(x + 2, y + 18, w - 4, 39, 'rx="1" fill="#2a2d30" stroke="#0e1011" stroke-width=".35"');
+  for (const [cx, cy] of [[8, 27], [13.5, 27], [19, 27], [24.5, 27], [8, 34], [13.5, 34], [19, 34], [24.5, 34], [8, 41], [13.5, 41], [19, 41], [24.5, 41], [8, 48], [24.5, 48]]) s += R(x + cx - .7, y + cy - 1.6, 1.4, 3.2, 'fill="#050505"');
+  s += C(x + w / 2, y + 52.5, 1.3, 'fill="#050505"') + T(x + w / 2, y + 22.4, 'KH-RS-14M', TX(1.5, '#7d848a'));
+  for (const t of devTerms('relay')) { s += SCRY(x + t.x, y + t.y); if (UI.detail) s += tl(x + t.x + 2.5, y + t.y + .6, t.lab, 1.55, '#ffd34d', 'start'); }
+  return s + (plugged ? relayBody(x, y, name) : nameTag(x + w / 2, y + 37.5, name));
 }
-function dTimer(x, y, name) {
+function relayBody(x, y, name) {   // KACON HR705-4PL: 투명 케이스 안으로 접점, 코일, 라벨이 보인다
+  const on = LIVE.on && LIVE.st && LIVE.st.rel[name];
+  let s = R(x + 1.6, y + 17.6, 28.8, 41, 'rx="1.6" fill="#000" fill-opacity=".25"');
+  s += R(x + 1.2, y + 16.8, 28.6, 41, 'rx="1.6" fill="#e9eff3" stroke="#8fa0ab" stroke-width=".45"');
+  s += R(x + 3, y + 18.6, 25, 10, 'rx=".6" fill="#26292c"');
+  for (let i = 0; i < 4; i++) s += R(x + 5.4 + i * 6, y + 19.4, 2.6, 8.6, 'rx=".4" fill="#c9844a"') + C(x + 6.7 + i * 6, y + 26.2, .9, 'fill="#e6e8ea"');
+  s += R(x + 6, y + 30.4, 19, 13, 'rx="1.2" fill="#f1ece0" stroke="#c7bfae" stroke-width=".3"') + R(x + 8, y + 31.6, 15, 10.6, 'rx=".8" fill="#c97a2e"') + R(x + 8, y + 31.6, 15, 10.6, 'rx=".8" fill="url(#pCoil)"');
+  s += R(x + 3, y + 45, 25, 11.2, 'rx=".6" fill="#fbfbf9" stroke="#c9d1d6" stroke-width=".3"');
+  s += `<text x="${F(x + 4.4)}" y="${F(y + 48.4)}" font-size="2" font-weight="800" font-style="italic" fill="#3a4045">KACON</text>` + TS(x + 4.4, y + 51.6, 'HR705-4PL', 2.1, '#22272b', 'font-weight="700"');
+  s += C(x + 5.4, y + 54.2, 1.1, `fill="${on ? '#ff3b30' : '#8a2a24'}"`) + (on ? C(x + 5.4, y + 54.2, 2.6, 'fill="#ff3b30" fill-opacity=".3"') : '');
+  s += R(x + 1.2, y + 16.8, 28.6, 41, 'rx="1.6" fill="#ffffff" fill-opacity=".18"');   // 케이스 반사
+  return s + nameTag(x + 22.6, y + 54.2, name);
+}
+function dTimer(x, y, name, plugged = false) {   // 8핀 소켓 (파란 고정 클립). 타이머는 꽂았을 때만
   const w = DEV.timer.w, h = DEV.timer.h, cx = x + w / 2, cy = y + 36;
-  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="#24282b" stroke="#0e1012" stroke-width=".5"');   // 소켓 (검정)
-  s += R(x + 3, y + 12.5, w - 6, 47, 'rx="2.2" fill="#d8d6cd" stroke="#8d8b83" stroke-width=".45"');               // 한영넉스 T38N-A 몸체 (밝은 회색)
-  s += C(cx, cy, 10.2, 'fill="#eef0f1" stroke="#9aa1a7" stroke-width=".4"');
-  for (let k = 0; k <= 10; k++) { const a = (-135 + k * 27) * Math.PI / 180; s += LN(cx + Math.sin(a) * 8.2, cy - Math.cos(a) * 8.2, cx + Math.sin(a) * 9.6, cy - Math.cos(a) * 9.6, 'stroke="#59616a" stroke-width=".35"'); }
-  s += C(cx, cy, 3.4, 'fill="#c5c9cd"') + LN(cx, cy, cx + 5.5, cy - 5.5, 'stroke="#d42f3c" stroke-width="1" stroke-linecap="round"');
-  s += T(cx, y + 20.4, 'T38N-A', TX(2.6, '#4a4a46', 'font-weight="700"')) + T(cx, y + 56.4, name || '', TX(4.2, '#2b2b28', 'font-weight="700"'));
-  if (LIVE.on && LIVE.st && LIVE.st.tim[name] && LIVE.st.tim[name].on) { const c = LIVE.st.tim[name].out ? '#ff3b30' : '#3be06b'; s += C(x + 34, y + 17, 3.2, `fill="${c}" fill-opacity=".3"`) + C(x + 34, y + 17, 1.5, `fill="${c}"`); }
+  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="#1e2022" stroke="#0b0c0d" stroke-width=".5"');
+  for (const t of devTerms('timer')) s += R(x + t.x - 4.2, y + t.y - 4, 8.4, 8, 'rx=".6" fill="#101112"');
+  s += R(x - 1.4, y + 30, 3.4, 12, 'rx="1" fill="#3fa9f5" stroke="#1f6fa8" stroke-width=".35"') + R(x + w - 2, y + 30, 3.4, 12, 'rx="1" fill="#3fa9f5" stroke="#1f6fa8" stroke-width=".35"');
+  s += C(cx, cy, 9.5, 'fill="#2a2d30" stroke="#0e1011" stroke-width=".4"');
+  for (let k = 0; k < 8; k++) { const a = (k * 45 + 22.5) * Math.PI / 180; s += C(cx + Math.sin(a) * 6.2, cy - Math.cos(a) * 6.2, .95, 'fill="#050505"'); }
+  s += C(cx, cy, 2.4, 'fill="#050505"') + R(cx - .6, cy - 3.6, 1.2, 1.6, 'fill="#050505"') + T(cx, y + 52.5, 'AC 250V 10A', TX(1.5, '#7d848a'));
   for (const t of devTerms('timer')) { s += SCRS(x + t.x, y + t.y); if (UI.detail) s += tl(x + t.x + 2.6, y + t.y + .6, t.lab, 1.7, '#ffd34d', 'start'); }
+  return s + (plugged ? timerBody(x, y, name) : nameTag(cx, y + 56.6, name));
+}
+function timerBody(x, y, name) {   // 한영넉스 T38N: 베이지 몸체, 다이얼, UP/ON 램프
+  const st = LIVE.on && LIVE.st && LIVE.st.tim[name], cx = x + 20, cy = y + 36.6, ang = v => (-135 + 270 * Math.min(v, 30) / 30) * Math.PI / 180;
+  let s = R(x + 1.6, y + 12.4, 37.8, 48.6, 'rx="1.8" fill="#000" fill-opacity=".25"') + R(x + 1, y + 11.6, 38, 48.6, 'rx="1.8" fill="#e4e1d6" stroke="#9a978c" stroke-width=".45"');
+  s += `<text x="${F(x + 3.4)}" y="${F(y + 17.4)}" font-size="3.6" font-weight="800" fill="#2f4a6b">nux</text>` + TS(x + 3.4, y + 19.6, 'HANYOUNG', 1.3, '#2f4a6b', 'font-weight="700"');
+  s += C(x + 31, y + 15.4, 1.1, `fill="${st && st.out ? '#ff3b30' : '#5a4560'}"`) + TS(x + 33, y + 16.1, 'UP', 1.7, '#3a3a36') + C(x + 31, y + 19.4, 1.1, `fill="${st && st.on ? '#3be06b' : '#3c4a3f'}"`) + TS(x + 33, y + 20.1, 'ON', 1.7, '#3a3a36');
+  s += C(cx, cy, 13.4, 'fill="#cfd3d6" stroke="#9aa1a7" stroke-width=".4"');
+  let kn = ''; for (let k = 0; k < 48; k++) { const a = k * 7.5 * Math.PI / 180; kn += `M${F(cx + Math.sin(a) * 12.2)} ${F(cy - Math.cos(a) * 12.2)}L${F(cx + Math.sin(a) * 13.3)} ${F(cy - Math.cos(a) * 13.3)}`; }
+  s += `<path d="${kn}" stroke="#a7aeb3" stroke-width=".35"/>` + C(cx, cy, 11, 'fill="#2b2d2f"');
+  for (let k = 0; k <= 30; k++) { const a = ang(k), r0 = k % 5 ? 9.4 : 8.6; s += LN(cx + Math.sin(a) * r0, cy - Math.cos(a) * r0, cx + Math.sin(a) * 10.4, cy - Math.cos(a) * 10.4, 'stroke="#e8e8e2" stroke-width=".3"'); }
+  for (const v of [0, 10, 20, 30]) { const a = ang(v); s += T(cx + Math.sin(a) * 6.8, cy - Math.cos(a) * 6.8 + .8, String(v), TX(2.2, '#f2f2ee', 'font-weight="700"')); }
+  const sa = ang(TSET[name] || 0);
+  s += LN(cx, cy, cx + Math.sin(sa) * 10.2, cy - Math.cos(sa) * 10.2, 'stroke="#ff3b30" stroke-width=".7" stroke-linecap="round"');
+  s += C(cx, cy, 4.4, 'fill="#ffffff" fill-opacity=".45" stroke="#c9cfd3" stroke-width=".35"');
+  s += TS(x + 3.4, y + 54.6, 'T38N', 2.4, '#2b2b28', 'font-weight="800"') + TS(x + 3.4, y + 57.8, 'TIMER', 2.2, '#2b2b28', 'font-weight="700"');
+  s += R(x + 33.2, y + 52.4, 3.4, 5.8, 'rx=".4" fill="#3a3a36"') + R(x + 33.8, y + 53, 2.2, 1.6, 'fill="#d8d6cd"');
+  return s + nameTag(x + 25.4, y + 56.4, name);
+}
+function xtbLid(x, y, type, y0, y1) {   // 아이오 링크 뚜껑 (견출지는 아직 빈칸)
+  const w = DEV[type].w, n = type === 'xtb40' ? 20 : 25, p0 = (w - (n - 1) * 7) / 2;
+  const lx0 = x + p0 - 4.5, lx1 = x + p0 + (n - 1) * 7 + 5.5, ly0 = y0 + 4.5, ly1 = y1 - 5, my = (ly0 + ly1) / 2; let g = '';
+  for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + i * 7)} ${F(ly0 + .8)}V${F(ly1 - .8)}`;
+  return R(x + 3, y0 + 1, w - 5, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"') + R(x + 2.5, y0, w - 5, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"')
+    + R(lx0, ly0, lx1 - lx0, ly1 - ly0, 'rx=".5" fill="#fdfdfb" stroke="#b9c2c8" stroke-width=".3"') + `<path d="${g}M${F(lx0 + .6)} ${F(my)}H${F(lx1 - .6)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`;
+}
+function xtbLidClosed(x, y, type) { const w = DEV[type].w, h = DEV[type].h; return xtbLid(x, y, type, y + 13.3, y + h - .6) + R(x + 2.5, y + 13.3, w - 5, 3, 'rx="1.4" fill="#f6f9fa"') + R(x + 4.5, y + h - 3.2, w - 9, .9, 'fill="#fff" fill-opacity=".7"'); }
+function lidsOver() {   // 닫은 덮개, 뚜껑은 전선 위에 그린다 (전선이 덮개 밑으로 들어간다)
+  let s = '';
+  for (const i of S.inst) {
+    if (i.type === 'plc') { if (S.plcLid.t) s += plcLid(i.x, devY(i), true); if (S.plcLid.b) s += plcLid(i.x, devY(i), false); }
+    if (i.type.startsWith('xtb') && S.xtbClosed[i.id]) s += xtbLidClosed(i.x, devY(i), i.type);
+  }
   return s;
 }
 function dXTB(x, y, type, name, closed = false) {
   const w = DEV[type].w, h = DEV[type].h, n = type === 'xtb40' ? 20 : 25, cw = type === 'xtb40' ? 74 : 89, p0 = (w - (n - 1) * 7) / 2;
   let s = '';
-  // 위로 젖혀 둔 투명 라벨 커버 (B줄, A줄 번호)
-  if (!closed) { let g = ''; s = R(x + 3, y - 17, w - 6, 17, 'rx="1" fill="#f7f9fa" fill-opacity=".9" stroke="#b9c2c8" stroke-width=".35"');
-  for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + i * 7)} ${F(y - 15.5)}V${F(y - 1.5)}`;
-  g += `M${F(x + p0 - 3.5)} ${F(y - 8.5)}H${F(x + p0 - 3.5 + n * 7)}`;
-  s += `<path d="${g}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`;
-  for (let i = 0; i < n; i++) { const xx = x + p0 + i * 7; s += T(xx + 1.75, y - 10.6, 'B' + (i + 1), TX(1.9, '#30363b')) + T(xx, y - 3.6, 'A' + (i + 1), TX(1.9, '#30363b')); } }
+  if (!closed) s += xtbLid(x, y, type, y - 30.8, y - .4) + R(x + 2.5, y - 3.2, DEV[type].w - 5, 2.8, 'rx="1" fill="#f6f9fa"');   // 위로 젖혀 둔 뚜껑, 아래쪽이 경첩
   // 본체, 고정 구멍, 로고
   s += shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.6" fill="#dcdad3" stroke="#a9a69c" stroke-width=".45"');
   s += C(x + 11, y + 8, 2.6, 'fill="#bdb9af" stroke="#97938a" stroke-width=".3"') + C(x + w - 11, y + 8, 2.6, 'fill="#bdb9af" stroke="#97938a" stroke-width=".3"');
@@ -766,18 +811,6 @@ function dXTB(x, y, type, name, closed = false) {
   let d = ''; for (let i = 1; i < n; i++) d += `M${F(x + p0 - 1.75 + i * 7)} ${F(y + 15)}V${F(y + 29)}M${F(x + p0 - 3.5 + i * 7)} ${F(y + 29)}V${F(y + 42.5)}`;
   s += `<path d="${d}" stroke="#bcb8ad" stroke-width=".5"/>`;
   for (const t of devTerms(type)) s += SCRS(x + t.x, y + t.y);
-  if (closed) {   // 닫은 커버: 단자 두 단을 다 덮고, 그 위에 견출지(B줄 위, A줄 아래)가 보인다
-    const x0 = x + 2.5, x1 = x + w - 2.5, y0 = y + 13.3, y1 = y + h - .6;
-    s += R(x0 + .5, y0 + 1, x1 - x0, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"');
-    s += R(x0, y0, x1 - x0, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"');
-    s += R(x0, y0, x1 - x0, 3, 'rx="1.4" fill="#f6f9fa"') + R(x0 + 2, y1 - 2.6, x1 - x0 - 4, .9, 'fill="#fff" fill-opacity=".7"');   // 커버 위 모서리, 반사
-    const lx0 = x + p0 - 4.5, lx1 = x + p0 + (n - 1) * 7 + 5.5, ly0 = y0 + 4.5, ly1 = y1 - 5;
-    s += R(lx0, ly0, lx1 - lx0, ly1 - ly0, 'rx=".5" fill="#fdfdfb" stroke="#b9c2c8" stroke-width=".3"');
-    const my = (ly0 + ly1) / 2; let g = '';
-    for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + i * 7)} ${F(ly0 + .8)}V${F(ly1 - .8)}`;
-    s += `<path d="${g}M${F(lx0 + .6)} ${F(my)}H${F(lx1 - .6)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`;
-    for (let i = 0; i < n; i++) { const xx = x + p0 + i * 7; s += T(xx + 1.75, my - 3.4, 'B' + (i + 1), TX(2.3, '#30363b', 'font-weight="600"')) + T(xx, ly1 - 3.4, 'A' + (i + 1), TX(2.3, '#30363b', 'font-weight="600"')); }
-  }
   return s;
 }
 function dTB(x, y) {
@@ -905,13 +938,13 @@ function staticLinks(wires) {
 function newSim() { const st = { rel: {}, tim: {}, force: null }; for (const r of RELAYS) st.rel[r] = false; for (const t of TIMERS) st.tim[t] = { on: false, el: 0, out: false }; return st; }
 const CAB_ALL = { power: true, sensor: true, motor: true };   // 배선 단계 검사는 케이블이 꽂혔다고 보고 회로만 본다
 function evalOnce(links, st, inp) {
-  const { f, u } = UF(), cab = inp.cab || CAB_ALL;
+  const { f, u } = UF(), cab = inp.cab || CAB_ALL, isIn = n => !inp.plug || !!inp.plug[n];   // 배선 단계 검사는 모두 꽂혔다고 본다
   for (const [a, b] of links) u(a, b);
   if (inp.mcb) { u('MCB.T1', 'MCB.B1'); u('MCB.T2', 'MCB.B2'); }
   for (const fs of ['FS1', 'FS2']) { const z = inp.fuses[fs] || []; if (z[0]) u(fs + '.T1', fs + '.B1'); if (z[1]) u(fs + '.T2', fs + '.B2'); }
-  for (const r of RELAYS) for (let p = 1; p <= 4; p++) u(`${r}.${8 + p}`, `${r}.${st.rel[r] ? 4 + p : p}`);
+  for (const r of RELAYS) if (isIn(r)) for (let p = 1; p <= 4; p++) u(`${r}.${8 + p}`, `${r}.${st.rel[r] ? 4 + p : p}`);
   const tc = (t, g, on) => { const to = on ? g[1] : g[2]; if (to) u(`${t}.${g[0]}`, `${t}.${to}`); };
-  for (const t of TIMERS) { const s = st.tim[t]; tc(t, TPIN.inst, s.on); tc(t, TPIN.timed, s.out); }
+  for (const t of TIMERS) if (isIn(t)) { const s = st.tim[t]; tc(t, TPIN.inst, s.on); tc(t, TPIN.timed, s.out); }
   const sw = (d, a) => a ? u(`OP.${d}.3`, `OP.${d}.4`) : u(`OP.${d}.1`, `OP.${d}.2`);
   sw('PB1', inp.pb1); sw('PB0', inp.pb0); sw('SS', inp.ss === 'A'); sw('EMS', false);
   const acShort = f('TB.1.b') === f('TB.2.b');
@@ -923,9 +956,9 @@ function evalOnce(links, st, inp) {
   const mix = [P, N].some(x => x === R || x === T), dcShort = smps && P === N, ok = smps && !dcShort && !mix;
   const dc = (a, b) => { if (!ok) return false; const x = f(a), y = f(b); return (x === P && y === N) || (x === N && y === P); };
   const coil = {};
-  for (const r of RELAYS) coil[r] = dc(`${r}.13`, `${r}.14`);
+  for (const r of RELAYS) coil[r] = isIn(r) && dc(`${r}.13`, `${r}.14`);
   const trev = [];   // 직류라서 극성이 맞아야 동작 (7번 +, 2번 −)
-  for (const t of TIMERS) { const p7 = f(`${t}.7`), p2 = f(`${t}.2`); coil[t] = ok && p7 === P && p2 === N; if (ok && p7 === N && p2 === P) trev.push(t); }
+  for (const t of TIMERS) { const p7 = f(`${t}.7`), p2 = f(`${t}.2`); coil[t] = isIn(t) && ok && p7 === P && p2 === N; if (isIn(t) && ok && p7 === N && p2 === P) trev.push(t); }
   const out = { smps, plc, sv, BZ: dc('OP.BZ.1', 'OP.BZ.2') };
   out.HMI = ok && f('OP.HMI.+') === P && f('OP.HMI.-') === N; out.HMIrev = ok && f('OP.HMI.+') === N && f('OP.HMI.-') === P;
   for (const l of ['WL1', 'WL2', 'RL', 'GL', 'YL']) out[l] = dc(`OP.${l}.+`, `OP.${l}.-`);
@@ -1028,9 +1061,9 @@ const JUDGE = [
 ];
 const packSense = x => ({ s1: x !== null && Math.abs(x - CONV.s1) <= CONV.det, s2: x !== null && Math.abs(x - CONV.s2) <= CONV.det });
 const convDir = o => o.FR && !o.BR ? 1 : o.BR && !o.FR ? -1 : 0;
-function runJudge(wires, fuses, cab = CAB_ALL) {
+function runJudge(wires, fuses, cab = CAB_ALL, plug) {
   const links = staticLinks(wires), st = newSim();
-  const inp = { mcb: false, ss: 'A', pb1: false, pb0: false, s1: false, s2: false, plcOut: false, fuses, cab };
+  const inp = { mcb: false, ss: 'A', pb1: false, pb0: false, s1: false, s2: false, plcOut: false, fuses, cab, plug };
   const res = {}; for (const c of JUDGE) res[c.id] = { ok: true, why: [], bad: new Set() };
   let last, pack = null, held = false, fell = false, rule7 = true;
   const go = () => { Object.assign(inp, packSense(pack)); last = settle(links, st, inp); };
@@ -1098,11 +1131,12 @@ function runJudge(wires, fuses, cab = CAB_ALL) {
   return { res, rule7 };
 }
 let _jdg = { key: null, val: null };
-const judgeKey = () => JSON.stringify(S.wires) + JSON.stringify(fuseState()) + JSON.stringify(S.cables);
+const plugMap = () => { const nm = names(), m = {}; for (const i of S.inst) if (i.type === 'relay' || i.type === 'timer') m[nm[i.id]] = !!S.plug[i.id]; return m; };   // R1~R6, T1~T3이 소켓에 꽂혔는지
+const judgeKey = () => JSON.stringify(S.wires) + JSON.stringify(fuseState()) + JSON.stringify(S.cables) + JSON.stringify(plugMap());
 const judgeRan = () => !!(S.judge && S.judge.key === judgeKey());   // 검사를 받은 뒤 배선, 퓨즈가 그대로인지
 const prevDone = () => [0, 1, 2, 3].every(stageDone);
 const cablesIn = () => Object.keys(CABLES).every(k => S.cables[k]);
-function getJudge() { const fz = fuseState(), key = judgeKey(); if (_jdg.key !== key) _jdg = { key, val: runJudge(S.wires, fz, S.cables) }; return _jdg.val; }
+function getJudge() { const fz = fuseState(), key = judgeKey(); if (_jdg.key !== key) _jdg = { key, val: runJudge(S.wires, fz, S.cables, plugMap()) }; return _jdg.val; }
 function judgeSteps() {
   const cs = Object.entries(CABLES).map(([k, c]) => ({ no: '케이블', title: `${c.name} 꽂기 (${c.where})`, n: S.cables[k] ? 1 : 0, m: 1, done: !!S.cables[k], tip: `재료함 동작 검사 재료의 ${c.item === 'power' ? '전원 케이블' : '컨베이어'}를 들고 단자대 ${c.where}를 눌러요` }));
   if (!judgeRan()) { const tip = S.judge ? '배선, 퓨즈, 케이블이 바뀌었어요. 동작 검사를 다시 받아요' : prevDone() && cablesIn() ? '아래 동작 검사 받기를 눌러요' : '1~4 작업을 끝내고 케이블을 꽂은 뒤 동작 검사 받기를 눌러요';
@@ -1146,7 +1180,7 @@ function liveToggle(on) {
 }
 function liveStep(dt) {
   if (!LIVE.on) return;
-  LIVE.inp.fuses = fuseState(); LIVE.inp.cab = S.cables; tickTimers(LIVE.st, dt);
+  LIVE.inp.fuses = fuseState(); LIVE.inp.cab = S.cables; LIVE.inp.plug = plugMap(); tickTimers(LIVE.st, dt);
   if (LIVE.pack !== null && !LIVE.inp.grab) { LIVE.pack += convDir(LIVE.out) * CONV.v * dt; if (LIVE.pack < 0 || LIVE.pack > CONV.L) { LIVE.pack = null; LIVE.note = '팩이 컨베이어 끝에서 떨어졌어요'; } }
   Object.assign(LIVE.inp, packSense(LIVE.pack));
   const r = settle(staticLinks(S.wires), LIVE.st, LIVE.inp);
@@ -1313,7 +1347,7 @@ function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
     op: { hmi: false, dev: {}, labels: {} }, floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
-    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false, sensor: false, motor: false }, xtbClosed: {}, plcLid: { t: false, b: false } };
+    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false, sensor: false, motor: false }, xtbClosed: {}, plcLid: { t: false, b: false }, plug: {} };
 }
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }
 function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; }
@@ -1714,7 +1748,8 @@ const STEP1_NAMES = ['(1)-2 여백 선 긋기', '(1)-3 양면테이프 부착', 
 function gate1() { return true; }   // 작업 순서는 강제하지 않는다
 function devPlaced() { let n = 0; for (const t of DEV_ORDER) n += t === 'servo' ? (S.servo.placed && S.servo.bolted ? 1 : 0) : Math.min(devCount(t), DEV[t].qty); return n; }
 const devTotal = () => DEV_ORDER.reduce((a, t) => a + DEV[t].qty, 0);
-function stage2Steps() { const ends = groupEnds(), all = devPlaced() === devTotal(); return [all, all && ends.length > 0 && groupsOK() && ends.every(e => e.ok), nFuses() === 4]; }
+const plugsIn = () => nPlugged('relay') === DEV.relay.qty && nPlugged('timer') === DEV.timer.qty;
+function stage2Steps() { const ends = groupEnds(), all = devPlaced() === devTotal(); return [all, all && ends.length > 0 && groupsOK() && ends.every(e => e.ok), plugsIn(), nFuses() === 4]; }
 function stepsFor(stage) {
   if (stage === 0) return [
     { no: '(1)-1', title: '조작판에 HMI, 램프, 스위치 끼우기', n: opPlaced(), m: 11, tip: '아래 줄 왼쪽부터 WL1, WL2, RL, GL, YL. 오른쪽 세로줄 위부터 PB1, PB0, SS, BZ. 모서리는 EMS. 아래 램프 순서는 동작 조건 (2)~(6)에서 켜지는 순서와 같아요' },
@@ -1737,6 +1772,7 @@ function stepsFor(stage) {
     return [
       { no: '(1)-9', title: '기구를 찬넬에 끼우고 서보 고정', n: devPlaced(), m: devTotal(), tip: '1단: MCB / FS1 / FS2 / SMPS / PLC, POS (묶음끼리 띄워서), 오른쪽 빈자리에 서보(드라이버로 고정). 2단: R1~R6, T1~T3, 아이오 링크 1. 3단: TB, 아이오 링크 2' },
       { no: '(1)-9', title: '스톱퍼로 고정', n: ends.filter(e => e.ok).length, m: ends.length, tip: '묶음마다 양옆에 스톱퍼. 1단은 MCB, FS1, FS2, SMPS, PLC+위치결정 카드가 각각 한 묶음. 2단은 R1~R6, T1~T3, 아이오 링크 1. 3단은 TB, 아이오 링크 2' },
+      { no: '(1)-9', title: '소켓에 릴레이, 타이머 꽂기', n: nPlugged('relay') + nPlugged('timer'), m: DEV.relay.qty + DEV.timer.qty, tip: '재료함 기구 목록의 릴레이를 들고 릴레이 소켓(14P)을, 타이머를 들고 타이머 소켓(8P)을 눌러요. 꽂힌 걸 손으로 누르면 빠져요' },
       { no: '채점 2-1', title: '퓨즈 끼우기 (FS1 5A, FS2 3A)', n: nFuses(), m: 4, tip: '과제지 동작 조건 (1). 재료함의 퓨즈를 퓨즈 홀더에 놓아요' }
     ].map((s, i) => ({ ...s, done: d[i] }));
   }
@@ -1810,6 +1846,7 @@ function fillStage(k) {
     const fz = S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x);
     S.fuses[fz[0].id] = ['f5', 'f5']; S.fuses[fz[1].id] = ['f3', 'f3'];
     S.servo = { placed: true, bolted: true };
+    S.plug = {}; for (const i of S.inst) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true;
   }
   if (k === 3) S.wires = REF_WIRES.map(([a, b]) => ({ a, b }));
   if (k === 4) { S.cables = { ...CAB_ALL }; S.judge = { key: judgeKey() }; }   // 케이블을 꽂고 동작 검사까지 받은 상태
@@ -1889,7 +1926,8 @@ function trayGroups() {
       left: Math.max(0, (t === 'hmi' ? (S.op.hmi ? 0 : 1) : OP_TYPES[t].qty - Object.values(S.op.dev).filter(v => v === t).length) - outCount(t)) })) },
     { id: 'fr', name: '덕트·찬넬', items: [...fr, { key: 'cover', kind: 'cover', name: '덕트 커버', spec: '배선이 끝나면 덕트마다 닫아요', total: 6, left: Math.max(0, 6 - nCovered() - outCount('cover')) }] },
     { id: 'dev', name: '기구', items: DEV_ORDER.map(t => ({ key: t, kind: 'dev', name: DEV[t].name, spec: DEV[t].spec, total: DEV[t].qty,
-      left: Math.max(0, (t === 'servo' ? (S.servo.placed ? 0 : 1) : DEV[t].qty - devCount(t)) - outCount(t)) })) },
+      left: Math.max(0, (t === 'servo' ? (S.servo.placed ? 0 : 1) : DEV[t].qty - devCount(t)) - outCount(t)) })).concat(Object.entries(PLUGS).map(([k, g]) => ({ key: k, kind: 'plug', name: g.name, spec: g.spec, total: DEV[g.sock].qty,
+      left: Math.max(0, DEV[g.sock].qty - nPlugged(g.sock) - outCount(k)) }))) },
     { id: 'fuse', name: '퓨즈', items: ['f5', 'f3'].map(t => ({ key: t, kind: 'fuse', name: FUSE_TYPES[t].name, spec: FUSE_TYPES[t].spec, total: FUSE_TYPES[t].qty, left: Math.max(0, FUSE_TYPES[t].qty - fuseUsed(t) - outCount(t)) })) },
     { id: 'cable', name: '동작 검사 재료', items: [
       { key: 'power', kind: 'cable', name: '전원 케이블', spec: 'AC220V 3P, 플러그 포함. TB 1번(R), 2번(T)에 꽂아요', total: 1, left: Math.max(0, (S.cables.power ? 0 : 1) - outCount('power')) },
@@ -1977,6 +2015,17 @@ function drop(p) {
   if (c.kind === 'tie') return dropTie(p);
   if (c.kind === 'helical') return dropHelical(p);
   if (c.kind === 'cable') return dropCable(p);
+  if (c.kind === 'plug') return dropPlug(p);
+}
+/* 릴레이, 타이머: 찬넬에 끼운 소켓에 꽂는다 */
+const PLUGS = { relayU: { name: '릴레이', spec: 'KACON HR705-4PL, DC24V 14P. 릴레이 소켓에 꽂아요', sock: 'relay' }, timerU: { name: '타이머', spec: '한영넉스 T38N, DC24V 8P. 타이머 소켓에 꽂아요', sock: 'timer' } };
+const nPlugged = type => S.inst.filter(i => i.type === type && S.plug[i.id]).length;
+function dropPlug(p) {
+  const g = PLUGS[UI.carry.key], ins = instAt(p);
+  if (!ins) return say(S.guide ? `찬넬에 끼운 ${DEV[g.sock].name}을 눌러 꽂아요` : '꽂을 자리가 아니에요', 'info');
+  if (ins.type !== g.sock) return mistake(ins.type === 'relay' || ins.type === 'timer' ? `${g.name}는 ${DEV[g.sock].name}에 꽂아요` : '소켓이 아니에요');
+  if (S.plug[ins.id]) return say(`이미 ${g.name}가 꽂혀 있어요`, 'info');
+  snap(); S.plug[ins.id] = true; consumeCarry(); say(`${UI.nm[ins.id] || ''} ${g.name}를 꽂았어요`.trim(), 'ok'); commit();
 }
 /* 외부 케이블: 동작 검사 전에 단자대(TB) 바깥쪽 단자에 꽂는다 */
 const CABLES = {
@@ -1994,7 +2043,7 @@ function plcLidAt(p) {   // 연 덮개는 가운데 쪽으로 젖혀진 띠, 닫
 }
 function xtbCoverAt(p) {   // 연 뚜껑은 기기 위로 젖혀져 있고, 닫은 뚜껑은 단자를 덮는다
   for (const i of S.inst) if (i.type.startsWith('xtb')) { const y = devY(i), w = DEV[i.type].w;
-    if (S.xtbClosed[i.id] ? inRect(p, { x: i.x, y: y + 12, w, h: 33 }) : inRect(p, { x: i.x + 3, y: y - 17, w: w - 6, h: 17 })) return i; }
+    if (S.xtbClosed[i.id] ? inRect(p, { x: i.x, y: y + 12, w, h: 33 }) : inRect(p, { x: i.x + 2.5, y: y - 31, w: w - 5, h: 30.6 })) return i; }
   return null;
 }
 function cableAt(p) {   // 손으로 누르면 빠지는, 꽂혀 있는 케이블
@@ -2244,6 +2293,7 @@ function tap2(p) {
   if (t === 'hand') {
     const sp = stopperAt(p); if (sp) { snap(); S.stoppers = S.stoppers.filter(x => x !== sp); say('스톱퍼를 뺐어요', 'info'); return commit(); }
     const ins = instAt(p);
+    if (ins && S.plug[ins.id]) { const k = ins.type === 'relay' ? 'relayU' : 'timerU'; snap(); delete S.plug[ins.id]; UI.carry = { kind: 'plug', key: k, from: 'floor', count: 1 }; say(`${PLUGS[k].name}를 소켓에서 뺐어요`, 'info'); return commit(); }   // 꽂힌 본체부터 뺀다
     if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; if (ins.type === 'plc') S.plcLid = { t: false, b: false }; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
     if (S.servo.placed && !S.servo.bolted && inRect(p, SERVO, 2)) { snap(); S.servo.placed = false; UI.carry = { kind: 'dev', key: 'servo' }; return commit(); }
     return say('재료함에서 기구를 골라요', 'info');
@@ -2355,6 +2405,7 @@ function trayThumb(it) {
   else if (it.kind === 'cover') { vb = '-2 -2 94 46'; inner = drawDuctCover({ x: 0, y: 0, w: 90, h: 40, o: 'h' }); }
   else if (it.kind === 'tbcover') { vb = '-1 -1 92 24'; inner = R(0, 0, 90, 22, 'rx="2" fill="#d4dde3"') + drawTBCover({ x: 0, y: 0, w: 90, h: 22 }); }
   else if (it.kind === 'tie') { vb = '-11 -5 21 10'; inner = drawTieIcon(0, 0); }
+  else if (it.kind === 'plug') { const r = k === 'relayU'; vb = r ? '0 16 31 43' : '0 11 40 50'; inner = r ? relayBody(0, 0, '') : timerBody(0, 0, ''); }
   else if (it.kind === 'cable') { vb = '0 0 40 24'; inner = k === 'power' ? '<path d="M4 20C10 20 12 6 22 6H30" fill="none" stroke="#16191b" stroke-width="3.4" stroke-linecap="round"/>' + R(29, 2.5, 8, 7, 'rx="1.2" fill="#3a3f44"') + R(36.5, 4, 2.5, 1.2, 'fill="#c8ccd0"') + R(36.5, 7, 2.5, 1.2, 'fill="#c8ccd0"')
       : R(3, 12, 34, 7, 'rx="3.5" fill="#2c3136"') + C(7, 15.5, 2.4, 'fill="#5b636b"') + C(33, 15.5, 2.4, 'fill="#5b636b"') + R(13, 5, 3, 7, 'fill="#8e969c"') + R(24, 5, 3, 7, 'fill="#8e969c"') + R(17, 8.5, 5, 3.5, 'fill="#d9483b"'); }
   else if (it.kind === 'helical') { vb = '-1 -1 76 30'; inner = drawHelical({ x: 0, y: 0, w: 74, h: 28 }); }
@@ -2453,7 +2504,7 @@ function world123() {
   SERVO.holes.forEach(([x, y], i) => { if (S.svHoles[i] && !S.servo.placed) s += drawHole(x, y); });
   {
     for (const st of S.stoppers) s += dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy);
-    for (const i of S.inst) s += drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : S.fuses[i.id]);
+    for (const i of S.inst) s += drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : i.type === 'relay' || i.type === 'timer' ? !!S.plug[i.id] : S.fuses[i.id]);
     if (S.servo.placed) s += dServo(SERVO.x, SERVO.y, S.servo.bolted);
     if (S.cables.power) s += drawPowerCable();
   }
@@ -2471,6 +2522,7 @@ function renderWorld() {
   for (const [, q] of frList()) if (q.type === 'duct' && q.slot && q.covered) s += drawDuctCover(frRect(q));   // 커버는 덕트 안 전선을 덮는다
   S.wires.forEach((w, i) => { if (!loose(w) || lifted(w)) return; const pts = wirePts(w, i); if (pts) s += drawWire(pts); });
   if (S.tbCover && tbRect()) s += drawTBCover(tbRect());
+  s += lidsOver();
   if (S.opBack) {
     if (S.helical === 1) s += drawBand(bundle1(0)); if (S.helical === 2) s += drawBand(bandCurve(0));
     if (S.helical === 1) s += `<circle cx="${HOLE.x}" cy="${HOLE.y}" r="11" fill="none" stroke="#e3232f" stroke-width="2" stroke-dasharray="4 2.5"/><text x="${HOLE.x + 15}" y="${HOLE.y - 6}" font-size="8" font-weight="700" fill="#ff6b6b">여기로 빼요 (손으로 누르기)</text>`;
@@ -2480,6 +2532,9 @@ function renderWorld() {
 }
 function ghost(p) {
   const c = UI.carry; let s = '';
+  if (c.kind === 'plug') { const g = PLUGS[c.key], ins = instAt(p), body = (x, y) => g.sock === 'relay' ? relayBody(x, y, '') : timerBody(x, y, '');
+    if (ins && ins.type === g.sock && !S.plug[ins.id]) return `<g opacity=".75">${body(ins.x, devY(ins))}</g>`;
+    return `<g opacity=".8">${body(p.x - DEV[g.sock].w / 2, p.y - 36)}</g>`; }
   if (c.kind === 'cable') return `<g transform="translate(${F(p.x - 20)} ${F(p.y - 12)})" opacity=".8">${trayThumb(c).replace(/^<svg[^>]*>|<\/svg>$/g, '')}</g>`;   // 꽂을 자리는 가이드로 보여준다
   if (c.kind === 'op') {
     const lp = opLocal(p), tr = `translate(${OPW.x} ${OPW.y})`;
@@ -2588,7 +2643,7 @@ function scoreSheet() {
   const devOK = devPlaced() === devTotal() && groupsOK(), frOK = frList().every(([, q]) => q.stuck && q.bolted), ends = groupEnds();
   const rows = [
     { grp: '1) 기구 배치 (9점)' },
-    { no: '1-1', t: '기구 배치 (하나라도 틀리면 0점)', max: 3, got: devOK ? 3 : 0, why: devOK ? '' : `기구 ${devPlaced()}/${devTotal()}개만 제자리에 있어요` },
+    { no: '1-1', t: '기구 배치 (하나라도 틀리면 0점)', max: 3, got: devOK && plugsIn() ? 3 : 0, why: !devOK ? `기구 ${devPlaced()}/${devTotal()}개만 제자리에 있어요` : !plugsIn() ? `릴레이 ${nPlugged('relay')}/${DEV.relay.qty}개, 타이머 ${nPlugged('timer')}/${DEV.timer.qty}개만 소켓에 꽂혔어요` : '' },
     { no: '1-2', t: 'HMI, 램프, 스위치 부착', max: 2, got: opPlaced() === 11 ? 2 : 0, why: opPlaced() === 11 ? '' : `조작판 기기 ${opPlaced()}/11개` },
     { no: '1-3', t: '덕트, 찬넬 부착 + 덕트 커버 모두 닫기', max: 2, got: frOK && nCovered() === 6 ? 2 : 0, why: !frOK ? `덕트, 찬넬 ${nBolted()}/9개만 볼트까지 고정됐어요` : nCovered() < 6 ? `덕트 커버 ${nCovered()}/6개만 닫혔어요` : '' },
     { no: '1-4', t: '제어판을 로봇테이블 우측 하단에 부착', max: 2, self: '1-4' },
@@ -2952,7 +3007,8 @@ setInterval(() => {
 
 /* ---------- 시작 ---------- */
 gMat.innerHTML = drawMat();
-S = load(); const fresh = !S; if (!S) S = newState(); if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false, sensor: false, motor: false }; if (!S.xtbClosed) S.xtbClosed = {}; if (!S.plcLid) S.plcLid = { t: false, b: false }; if (S.helical === true) S.helical = 2; normTies(); if (S.opBack === undefined) S.opBack = S.stage === 3;
+S = load(); const fresh = !S; if (!S) S = newState(); if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false, sensor: false, motor: false }; if (!S.xtbClosed) S.xtbClosed = {}; if (!S.plcLid) S.plcLid = { t: false, b: false };
+if (!S.plug) { S.plug = {}; for (const i of S.inst || []) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true; }   // 예전 저장: 소켓에 끼워져 있던 상태 if (S.helical === true) S.helical = 2; normTies(); if (S.opBack === undefined) S.opBack = S.stage === 3;
 buildTerms(); renderAll(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(s => s.done);
 requestAnimationFrame(() => { fit(); renderOver(); });
 if (fresh) showIntro();
