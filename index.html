@@ -595,7 +595,7 @@ function drawDevice(type, x, y, name, extra) {
     case 'servo': return dServo(x, y, extra);
     case 'relay': return dRelay(x, y, name);
     case 'timer': return dTimer(x, y, name);
-    case 'xtb40': case 'xtb50': return dXTB(x, y, type, name);
+    case 'xtb40': case 'xtb50': return dXTB(x, y, type, name, extra === true);
     case 'tb': return dTB(x, y);
   }
   return '';
@@ -695,14 +695,15 @@ function dTimer(x, y, name) {
   for (const t of devTerms('timer')) { s += SCRS(x + t.x, y + t.y); if (UI.detail) s += tl(x + t.x + 2.6, y + t.y + .6, t.lab, 1.7, '#ffd34d', 'start'); }
   return s;
 }
-function dXTB(x, y, type, name) {
+function dXTB(x, y, type, name, closed = false) {
   const w = DEV[type].w, h = DEV[type].h, n = type === 'xtb40' ? 20 : 25, cw = type === 'xtb40' ? 74 : 89, p0 = (w - (n - 1) * 7) / 2;
+  let s = '';
   // 위로 젖혀 둔 투명 라벨 커버 (B줄, A줄 번호)
-  let s = R(x + 3, y - 17, w - 6, 17, 'rx="1" fill="#f7f9fa" fill-opacity=".9" stroke="#b9c2c8" stroke-width=".35"'), g = '';
+  if (!closed) { let g = ''; s = R(x + 3, y - 17, w - 6, 17, 'rx="1" fill="#f7f9fa" fill-opacity=".9" stroke="#b9c2c8" stroke-width=".35"');
   for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + i * 7)} ${F(y - 15.5)}V${F(y - 1.5)}`;
   g += `M${F(x + p0 - 3.5)} ${F(y - 8.5)}H${F(x + p0 - 3.5 + n * 7)}`;
   s += `<path d="${g}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`;
-  for (let i = 0; i < n; i++) { const xx = x + p0 + i * 7; s += T(xx + 1.75, y - 10.6, 'B' + (i + 1), TX(1.9, '#30363b')) + T(xx, y - 3.6, 'A' + (i + 1), TX(1.9, '#30363b')); }
+  for (let i = 0; i < n; i++) { const xx = x + p0 + i * 7; s += T(xx + 1.75, y - 10.6, 'B' + (i + 1), TX(1.9, '#30363b')) + T(xx, y - 3.6, 'A' + (i + 1), TX(1.9, '#30363b')); } }
   // 본체, 고정 구멍, 로고
   s += shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.6" fill="#dcdad3" stroke="#a9a69c" stroke-width=".45"');
   s += C(x + 11, y + 8, 2.6, 'fill="#bdb9af" stroke="#97938a" stroke-width=".3"') + C(x + w - 11, y + 8, 2.6, 'fill="#bdb9af" stroke="#97938a" stroke-width=".3"');
@@ -717,6 +718,15 @@ function dXTB(x, y, type, name) {
   let d = ''; for (let i = 1; i < n; i++) d += `M${F(x + p0 - 1.75 + i * 7)} ${F(y + 15)}V${F(y + 29)}M${F(x + p0 - 3.5 + i * 7)} ${F(y + 29)}V${F(y + 42.5)}`;
   s += `<path d="${d}" stroke="#bcb8ad" stroke-width=".5"/>`;
   for (const t of devTerms(type)) s += SCRS(x + t.x, y + t.y);
+  if (closed) {   // 닫은 투명 커버: 단자 위에 견출지(B줄 위, A줄 아래)가 보이고 아래 단 나사는 비쳐 보인다
+    const x0 = x + p0 - 5, x1 = x + p0 + (n - 1) * 7 + 5;
+    s += R(x0, y + 12.5, x1 - x0, 32, 'rx="1.2" fill="#e8f0f4" fill-opacity=".32" stroke="#9fb0ba" stroke-width=".4"');
+    s += R(x0 + 1.2, y + 14, x1 - x0 - 2.4, 15, 'rx=".5" fill="#fbfbf8" stroke="#b9c2c8" stroke-width=".3"');
+    let g = ''; for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + i * 7)} ${F(y + 15)}V${F(y + 28)}`;
+    s += `<path d="${g}M${F(x + p0 - 3.5)} ${F(y + 21.5)}H${F(x + p0 - 3.5 + n * 7)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`;
+    for (let i = 0; i < n; i++) { const xx = x + p0 + i * 7; s += T(xx + 1.75, y + 19.6, 'B' + (i + 1), TX(1.9, '#30363b')) + T(xx, y + 26.4, 'A' + (i + 1), TX(1.9, '#30363b')); }
+    s += R(x0 + 2, y + 41.5, x1 - x0 - 4, 1, 'fill="#fff" fill-opacity=".5"');   // 커버 반사
+  }
   return s;
 }
 function dTB(x, y) {
@@ -1252,7 +1262,7 @@ function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
     op: { hmi: false, dev: {}, labels: {} }, floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
-    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false, sensor: false, motor: false } };
+    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false, sensor: false, motor: false }, xtbClosed: {} };
 }
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }
 function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; }
@@ -1532,6 +1542,8 @@ function tieAction(t) {
 function wireLock(a, b) {   // 마무리를 해 둔 곳은 풀어야 배선을 바꿀 수 있다
   const cb = coverBlock(a, b); if (cb) return cb;
   if (S.tbCover && (a.startsWith('TB.') || b.startsWith('TB.'))) return '단자대 커버를 벗겨야 TB에 배선할 수 있어요. 손으로 커버를 눌러요';
+  const nm = names(), shut = id => { const m = /^(XTB\d)\./.exec(id); return m && S.inst.some(i => nm[i.id] === m[1] && S.xtbClosed[i.id]); };
+  if (shut(a) || shut(b)) return '아이오 링크 뚜껑을 열어야 배선할 수 있어요. 손으로 뚜껑을 눌러요';
   if (S.helical && a.startsWith('OP.') !== b.startsWith('OP.')) return '헬리컬 밴드를 풀어야 제어판과 조작판 사이 전선을 바꿀 수 있어요. 손으로 밴드를 눌러요';
   return '';
 }
@@ -1751,7 +1763,7 @@ function fillStage(k) {
   if (k === 5) {
     S.opBack = true; S.helical = S.wires.some(isExtWire) ? 2 : 0; buildTerms();
     for (const [, q] of frList()) if (q.type === 'duct' && q.stuck) q.covered = true;
-    S.tbCover = !!tbInst(); S.ties = [];
+    S.tbCover = !!tbInst(); for (const i of S.inst) if (i.type.startsWith('xtb')) S.xtbClosed[i.id] = true; S.ties = [];
     const ow = S.wires.filter(isOPWire), has = (t, w) => t.ws.some(r => r.a === w.a && r.b === w.b), same = (t, w, v) => has(t, w) && has(t, v);
     for (let pass = 0; pass < 2 && S.ties.length < 12; pass++) for (const w of ow) {   // 조작판 안에서 옆에 있는 선끼리 묶는다
       if (S.ties.length >= 12) break;
@@ -1921,6 +1933,11 @@ const CABLES = {
 };
 const tbTermX = (tb, n) => tb.x + 6.3 + (n - 1) * 8.6;
 function tbTermAt(p) { const tb = tbInst(); if (!tb) return null; const y = devY(tb); if (p.y < y + 16 || p.y > y + 76) return null; const n = Math.round((p.x - tb.x - 6.3) / 8.6) + 1; return n >= 1 && n <= TB_N ? n : null; }
+function xtbCoverAt(p) {   // 연 뚜껑은 기기 위로 젖혀져 있고, 닫은 뚜껑은 단자를 덮는다
+  for (const i of S.inst) if (i.type.startsWith('xtb')) { const y = devY(i), w = DEV[i.type].w;
+    if (S.xtbClosed[i.id] ? inRect(p, { x: i.x, y: y + 12, w, h: 33 }) : inRect(p, { x: i.x + 3, y: y - 17, w: w - 6, h: 17 })) return i; }
+  return null;
+}
 function cableAt(p) {   // 손으로 누르면 빠지는, 꽂혀 있는 케이블
   const tb = tbInst(); if (!tb) return null; const by = devY(tb) + 34; if (p.y < by + 6 || p.y > by + 34) return null;
   return Object.keys(CABLES).find(k => S.cables[k] && p.x >= tbTermX(tb, CABLES[k].ns[0]) - 5 && p.x <= tbTermX(tb, CABLES[k].ns[CABLES[k].ns.length - 1]) + 5) || null;
@@ -2058,6 +2075,8 @@ function handleTap(p, e) {
     }
     const lt = tieAt(p, false, 14); if (lt) return tieAction(lt);
     const tr = tbRect(); if (S.tbCover && tr && inRect(p, tr, 2)) { snap(); S.tbCover = false; UI.carry = { kind: 'tbcover', key: 'tbcover', from: 'floor', count: 1 }; say('단자대 커버를 벗겼어요', 'info'); return commit(); }
+    const xc = xtbCoverAt(p);
+    if (xc) { snap(); S.xtbClosed[xc.id] = !S.xtbClosed[xc.id]; say(S.xtbClosed[xc.id] ? '아이오 링크 뚜껑을 닫았어요' : '아이오 링크 뚜껑을 열었어요', 'info'); return commit(); }
     const ck = cableAt(p);
     if (ck) { if (S.tbCover) return say('단자대 커버를 벗기고 빼요', 'info'); snap(); S.cables[ck] = false; UI.carry = { kind: 'cable', key: CABLES[ck].item, from: 'floor', count: 1 }; say(`${CABLES[ck].name}을 뺐어요`, 'info'); return commit(); }
     const wg = wireGrab(p); if (wg) return startReplug(wg);   // 전선을 누르면 가까운 쪽 끝이 빠진다
@@ -2164,7 +2183,7 @@ function tap2(p) {
   if (t === 'hand') {
     const sp = stopperAt(p); if (sp) { snap(); S.stoppers = S.stoppers.filter(x => x !== sp); say('스톱퍼를 뺐어요', 'info'); return commit(); }
     const ins = instAt(p);
-    if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
+    if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
     if (S.servo.placed && !S.servo.bolted && inRect(p, SERVO, 2)) { snap(); S.servo.placed = false; UI.carry = { kind: 'dev', key: 'servo' }; return commit(); }
     return say('재료함에서 기구를 골라요', 'info');
   }
@@ -2373,7 +2392,7 @@ function world123() {
   SERVO.holes.forEach(([x, y], i) => { if (S.svHoles[i] && !S.servo.placed) s += drawHole(x, y); });
   {
     for (const st of S.stoppers) s += dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy);
-    for (const i of S.inst) s += drawDevice(i.type, i.x, devY(i), UI.nm[i.id], S.fuses[i.id]);
+    for (const i of S.inst) s += drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : S.fuses[i.id]);
     if (S.servo.placed) s += dServo(SERVO.x, SERVO.y, S.servo.bolted);
     if (S.cables.power) s += drawPowerCable();
   }
@@ -2872,7 +2891,7 @@ setInterval(() => {
 
 /* ---------- 시작 ---------- */
 gMat.innerHTML = drawMat();
-S = load(); const fresh = !S; if (!S) S = newState(); if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false, sensor: false, motor: false }; if (S.helical === true) S.helical = 2; normTies(); if (S.opBack === undefined) S.opBack = S.stage === 3;
+S = load(); const fresh = !S; if (!S) S = newState(); if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false, sensor: false, motor: false }; if (!S.xtbClosed) S.xtbClosed = {}; if (S.helical === true) S.helical = 2; normTies(); if (S.opBack === undefined) S.opBack = S.stage === 3;
 buildTerms(); renderAll(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(s => s.done);
 requestAnimationFrame(() => { fit(); renderOver(); });
 if (fresh) showIntro();
