@@ -1056,8 +1056,8 @@ function tbStep() {
 /* ---------- 6. 동작 검사: 심사위원처럼 팩을 컨베이어에 놓고 움직이며 채점 ----------
    팩이 실제로 벨트를 따라 움직이고 센서는 팩 위치로 켜진다. 이동 중에 심사위원이 팩을 손으로 잡고 있어도
    컨베이어가 계속 돌아야 한다 (동작 조건 (7): 타이머로 전체 운전 시간을 정하면 안 됨). */
-const CONV = { L: 600, s1: 210, s2: 390, v: 100, det: 20, hold: 10, over: 90 };   // det: 팩(40mm)이 센서 앞에 걸치는 거리
-const CVW = { x: 100, y: 880, bw: 50 };   // 작업판에 놓인 컨베이어 벨트 (왼쪽 위, 벨트 폭). 벨트 0mm = x 100   // mm, mm/s, 초. 센서 간격 180mm (과제지 (4))
+const CONV = { L: 500, s1: 160, s2: 340, v: 100, det: 20, hold: 10, over: 90 };   // 컨베이어 500mm: 160 · S1 · 180 · S2 · 160   // det: 팩(40mm)이 센서 앞에 걸치는 거리
+const CVW = { x: 130, y: 880, bw: 50, mx: 25, mw: 60 };   // 작업판에 놓인 컨베이어 벨트 (왼쪽 위, 벨트 폭). 벨트 0mm = x 130. 모터: 왼쪽 끝에서 25mm, 폭 60   // mm, mm/s, 초. 센서 간격 180mm (과제지 (4))
 const JUDGE = [
   { id: 'j1', no: '채점 2-2', title: 'MCB ON: SMPS 전원, WL1 켜짐 (PLC는 꺼짐)' },
   { id: 'j2', no: '채점 2-3', title: 'SS 자동에서 PB1: PLC 전원, WL2 켜짐' },
@@ -1198,6 +1198,7 @@ function liveStep(dt) {
   const i = LIVE.inp, key = JSON.stringify([r.out, LIVE.st.rel, TIMERS.map(t => [LIVE.st.tim[t].on, LIVE.st.tim[t].out]), i.mcb, i.ss, i.pb1, i.pb0, i.s1, i.s2, i.plcOut, LIVE.err]);
   if (key !== LIVE.key) { LIVE.key = key; renderWorld(); if (LIVE.err && i.mcb) say(LIVE.err, 'err'); }
   drawLivePack();
+  if (LIVE.pack !== null && UI.pointer && UI.overBoard && inRect(UI.pointer, beltRect(), 30)) renderOver();   // 움직이는 팩의 빨간 테두리
 }
 const mcbSwRect = m => { const r = MCB_SW(); return { x: m.x + r.x, y: devY(m) + r.y, w: r.w, h: r.h }; };
 const beltRect = () => ({ x: CVW.x, y: CVW.y, w: CONV.L, h: CVW.bw });
@@ -1299,19 +1300,18 @@ function worldOp() {
   for (const t of TERMS) if (t.op) s += SCRS(t.x, t.y) + (UI.detail ? tl(t.x + 2.5, t.y + .6, t.lab, 1.8, '#ffd34d', 'start') : '');
   return s;
 }
-function drawConveyor() {   // 위에서 본 컨베이어: 왼쪽 모터(M), 벨트, 위쪽에 센서 S1, S2 (BRP100-DDT-P, 180mm 간격)
+function drawConveyor() {   // 위에서 본 컨베이어 (500mm): 초록 벨트, 회색 프레임, 위쪽 왼편 모터, 위쪽에 센서 S1, S2 (BRP100-DDT-P, 180mm 간격)
   const x = CVW.x, y = CVW.y, L = CONV.L, bw = CVW.bw, o = LIVE.out || {}, d = convDir(o), both = o.FR && o.BR, i = LIVE.inp || {};
-  let s = R(x - 46, y - 10, L + 62, bw + 26, 'rx="6" fill="#000" fill-opacity=".16"');
+  let s = R(x - 16, y - 12, L + 32, bw + 30, 'rx="6" fill="#000" fill-opacity=".16"');
   const rail = yy => R(x - 9, yy, L + 18, 9, 'rx="2" fill="url(#gRail)" stroke="#8d969d" stroke-width=".5"');
   s += R(x - 9, y, 9, bw, 'rx="3" fill="#6f777e"') + R(x + L, y, 9, bw, 'rx="3" fill="#6f777e"');   // 양 끝 롤러
-  s += R(x, y, L, bw, 'fill="#25292d"') + `<path class="wbelt ${both ? 'both' : d > 0 ? 'fwd' : d < 0 ? 'rev' : ''}" d="M${x} ${y + bw / 2}H${x + L}" stroke="#3f454b" stroke-width="${bw - 2}" stroke-dasharray="2 11"/>`;
+  s += R(x, y, L, bw, 'fill="#1f8a43"') + `<path class="wbelt ${both ? 'both' : d > 0 ? 'fwd' : d < 0 ? 'rev' : ''}" d="M${x} ${y + bw / 2}H${x + L}" stroke="#2aa457" stroke-width="${bw - 2}" stroke-dasharray="2 11"/>`;
   s += rail(y - 9) + rail(y + bw);
-  // 모터 (감속기 + 세운 모터를 위에서 본 모양)
-  const mx = x - 30, my = y + bw / 2;
-  s += R(x - 20, my - 10, 12, 20, 'rx="2" fill="#8c959c" stroke="#5f686f" stroke-width=".6"');
-  s += C(mx, my, 19, 'fill="#4d5d6c" stroke="#26313b" stroke-width="1"');
-  let rib = ''; for (let k = 0; k < 24; k++) { const a = k * 15 * Math.PI / 180; rib += `M${F(mx + Math.cos(a) * 13)} ${F(my + Math.sin(a) * 13)}L${F(mx + Math.cos(a) * 18)} ${F(my + Math.sin(a) * 18)}`; }
-  s += `<path d="${rib}" stroke="#3a4752" stroke-width="1.2"/>` + C(mx, my, 12, `fill="${d ? '#6d8aa6' : '#62778b'}"`) + T(mx, my + 4, 'M', TX(11, '#eef3f7', 'font-weight="800"'));
+  // 모터: 위쪽 프레임 왼편에 붙은 검은 감속 모터
+  const mx = x + CVW.mx, mtop = y - 9 - 48;
+  s += R(mx + 1.5, mtop + 2, CVW.mw, 50, 'rx="3" fill="#000" fill-opacity=".25"') + R(mx, mtop, CVW.mw, 50, 'rx="3" fill="#17191b" stroke="#000" stroke-width=".6"');
+  let fin = ''; for (let k = 0; k < 9; k++) fin += `M${F(mx + 6 + k * 6)} ${F(mtop + 6)}V${F(mtop + 30)}`;
+  s += `<path d="${fin}" stroke="${d ? '#3b4148' : '#2a2e32'}" stroke-width="2.2"/>` + R(mx + 8, mtop + 34, CVW.mw - 16, 12, 'rx="1.5" fill="#2b2f33"') + T(mx + CVW.mw / 2, mtop + 44, 'M', TX(10, d ? '#7fd39a' : '#cfd5da', 'font-weight="800"'));
   // 센서: 위쪽 프레임에 브래킷으로 달고 렌즈가 벨트를 본다
   for (const [k, mm] of [['S1', CONV.s1], ['S2', CONV.s2]]) {
     const sx = x + mm, on = !!i[k.toLowerCase()], top = y - 9 - 6 - 30;
@@ -1323,6 +1323,7 @@ function drawConveyor() {   // 위에서 본 컨베이어: 왼쪽 모터(M), 벨
     s += TS(sx + 13, top + 12, k, 10, '#f2f4f5', 'font-weight="800"') + TS(sx + 13, top + 19, 'BRP100-DDT-P', 4, '#dfe5e9', 'font-weight="600"');
   }
   s += dimH(x + CONV.s1, x + CONV.s2, y + bw + 22, '180');
+  s += dimH(x, x + CONV.s1, y + bw + 22, '160') + dimH(x + CONV.s2, x + L, y + bw + 22, '160');
   const st = !i.mcb ? '전원 꺼짐' : both ? 'FR, BR 동시!' : d > 0 ? '정회전 → (S1 → S2)' : d < 0 ? '← 역회전 (S2 → S1)' : '정지';
   return s + `<text x="${x + L + 20}" y="${y + 16}" class="cable-label" font-size="11" font-weight="700">컨베이어</text><text x="${x + L + 20}" y="${y + 31}" class="cable-label" font-size="9">${esc(st)}</text>`;
 }
@@ -1331,12 +1332,12 @@ function drawSensorCable() {   // 센서선: TB 19~22 → 아래로 → 센서 S
   const y = devY(tb) + 34, xs = [19, 20, 21, 22].map(n => tb.x + 6.3 + (n - 1) * 8.6), cx = (xs[0] + xs[3]) / 2, yj = CVW.y - 80, top = CVW.y - 45;
   let s = `<path d="M${F(cx)} ${F(y + 30)}V${yj}M${F(cx)} ${yj}H${CVW.x + CONV.s1}V${top}M${F(cx)} ${yj}H${CVW.x + CONV.s2}V${top}" stroke="#2d3a4a" stroke-width="5" stroke-linejoin="round" fill="none"/>`;
   xs.forEach((x, i) => { s += `<path d="M${F(cx - 2.4 + i * 1.6)} ${F(y + 31)}C${F(cx - 2.4 + i * 1.6)} ${F(y + 16)} ${F(x)} ${F(y + 12)} ${F(x)} ${F(y)}" stroke="${['#8b5a2b', '#222', '#555', '#2d6cdf'][i]}" stroke-width="2" fill="none"/>`; });
-  return s + `<text x="${F(cx - 6)}" y="${PANEL.h + 58}" class="cable-label" font-size="8" text-anchor="end">컨베이어 센서 (S+, S1, S2, S−)</text>`;
+  return s + `<text x="${F(cx - 6)}" y="${PANEL.h + 100}" class="cable-label" font-size="8" text-anchor="end">컨베이어 센서 (S+, S1, S2, S−)</text>`;
 }
 function drawMotorCable() {   // 모터선: TB 24, 25 → 아래로 → 왼쪽 모터
   const tb = S.inst.find(i => i.type === 'tb'); if (!tb) return '';
-  const y = devY(tb) + 34, xs = [24, 25].map(n => tb.x + 6.3 + (n - 1) * 8.6), cx = (xs[0] + xs[1]) / 2, ym = CVW.y - 100, mx = CVW.x - 30;
-  let s = `<path d="M${F(cx)} ${F(y + 30)}V${ym}H${mx}V${CVW.y + CVW.bw / 2 - 19}" stroke="#3a3f44" stroke-width="5" stroke-linejoin="round" fill="none"/>`;
+  const y = devY(tb) + 34, xs = [24, 25].map(n => tb.x + 6.3 + (n - 1) * 8.6), cx = (xs[0] + xs[1]) / 2, ym = CVW.y - 100, mx = CVW.x + CVW.mx + CVW.mw / 2;
+  let s = `<path d="M${F(cx)} ${F(y + 30)}V${ym}H${mx}V${CVW.y - 57}" stroke="#3a3f44" stroke-width="5" stroke-linejoin="round" fill="none"/>`;
   xs.forEach((x, i) => { s += `<path d="M${F(cx - 1.2 + i * 2.4)} ${F(y + 31)}C${F(cx - 1.2 + i * 2.4)} ${F(y + 16)} ${F(x)} ${F(y + 12)} ${F(x)} ${F(y)}" stroke="${['#c0392b', '#1d1f21'][i]}" stroke-width="2" fill="none"/>`; });
   return s + `<text x="${F(cx + 8)}" y="${PANEL.h + 70}" class="cable-label" font-size="8">컨베이어 모터 (FR 정회전, BR 역회전)</text>`;
 }
@@ -2543,8 +2544,8 @@ function world123() {
     if (S.servo.placed) s += dServo(SERVO.x, SERVO.y, S.servo.bolted);
     if (S.cables.power) s += drawPowerCable();
   }
-  if (S.cables.sensor) s += drawSensorCable(); else s += `<path d="M${CVW.x + CONV.s1} ${CVW.y - 45}V${CVW.y - 70}H${CVW.x + CONV.s2}V${CVW.y - 45}M${CVW.x + 300} ${CVW.y - 70}V${CVW.y - 92}" stroke="#2d3a4a" stroke-width="5" stroke-linejoin="round" fill="none"/><text x="${CVW.x + 306}" y="${CVW.y - 86}" class="cable-label" font-size="8">센서선 (TB 19~22에 꽂아요)</text>`;
-  if (S.cables.motor) s += drawMotorCable(); else s += `<path d="M${CVW.x - 30} ${CVW.y + CVW.bw / 2 - 19}V${CVW.y - 40}" stroke="#3a3f44" stroke-width="5" fill="none"/><text x="${CVW.x - 60}" y="${CVW.y - 46}" class="cable-label" font-size="8">모터선 (TB 24, 25)</text>`;
+  if (S.cables.sensor) s += drawSensorCable(); else s += `<path d="M${CVW.x + CONV.s1} ${CVW.y - 45}V${CVW.y - 70}H${CVW.x + CONV.s2}V${CVW.y - 45}M${CVW.x + (CONV.s1 + CONV.s2) / 2} ${CVW.y - 70}V${CVW.y - 92}" stroke="#2d3a4a" stroke-width="5" stroke-linejoin="round" fill="none"/><text x="${CVW.x + (CONV.s1 + CONV.s2) / 2 + 6}" y="${CVW.y - 86}" class="cable-label" font-size="8">센서선 (TB 19~22에 꽂아요)</text>`;
+  if (S.cables.motor) s += drawMotorCable(); else s += `<path d="M${CVW.x + CVW.mx + CVW.mw / 2} ${CVW.y - 57}V${CVW.y - 82}" stroke="#3a3f44" stroke-width="5" fill="none"/><text x="${CVW.x + CVW.mx + CVW.mw / 2 + 6}" y="${CVW.y - 76}" class="cable-label" font-size="8">모터선 (TB 24, 25)</text>`;
   return s;
 }
 function renderWorld() {
