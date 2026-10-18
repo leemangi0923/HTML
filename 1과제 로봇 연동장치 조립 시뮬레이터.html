@@ -314,7 +314,7 @@ const OP_TYPES = {
   ems:   { name: '비상 스위치', spec: 'Φ25, KPB25ER-R11', qty: 1 }
 };
 const OP_ORDER = ['hmi', 'lampW', 'lampR', 'lampG', 'lampY', 'pbG', 'pbR', 'ss', 'bz', 'ems'];
-const LABEL_OPTS = ['WL1', 'WL2', 'RL', 'GL', 'YL', 'PB1', 'PB0', 'SS', 'BZ', 'EMS', '수동', '자동'];
+const LABEL_OPTS = ['HMI', 'WL1', 'WL2', 'RL', 'GL', 'YL', 'PB1', 'PB0', 'SS', 'BZ', 'EMS', '수동', '자동'];
 const OP_ZONES = (() => {
   const z = [];
   for (const [hid, [x, y]] of Object.entries(OP.holes))
@@ -322,6 +322,8 @@ const OP_ZONES = (() => {
   const [sx, sy] = OP.holes.v3;
   z.push({ id: 'L_ssM', hole: 'v3', x: sx - 29, y: sy - 19, w: 15, h: 7, expect: '수동', small: true });
   z.push({ id: 'L_ssA', hole: 'v3', x: sx + 14, y: sy - 19, w: 15, h: 7, expect: '자동', small: true });
+  const c = OP.cut;   // HMI 견출지: HMI 테두리 바로 아래 가운데
+  z.push({ id: 'L_hmi', hole: 'hmi', x: c.x + c.w / 2 - 12, y: c.y + c.h + 11, w: 24, h: 8.5, expect: 'HMI' });
   return z;
 })();
 
@@ -1158,6 +1160,7 @@ const inRect = (p, r, m = 0) => p.x >= r.x - m && p.x <= r.x + r.w + m && p.y >=
 const rectDist = (p, r) => Math.hypot(Math.max(r.x - p.x, 0, p.x - (r.x + r.w)), Math.max(r.y - p.y, 0, p.y - (r.y + r.h)));
 function nearestHole(p, tol) { let best = null, bd = tol; for (const [id, [x, y]] of Object.entries(OP.holes)) { const d = Math.hypot(p.x - x, p.y - y); if (d <= bd) { bd = d; best = id; } } return best; }
 const zoneAt = p => OP_ZONES.find(z => inRect(p, z, 2.5)) || null;
+const zoneDev = z => z.hole === 'hmi' ? S.op.hmi : S.op.dev[z.hole];   // 견출지 자리에 기기가 끼워져 있는지
 const frList = () => Object.entries(S.fr);
 const ducts = () => frList().filter(([, q]) => q.type === 'duct');
 const chans = () => frList().filter(([, q]) => q.type !== 'duct');
@@ -1528,7 +1531,7 @@ function stage2Steps() { const ends = groupEnds(), all = devPlaced() === devTota
 function stepsFor(stage) {
   if (stage === 0) return [
     { no: '(1)-1', title: '조작판에 HMI, 램프, 스위치 끼우기', n: opPlaced(), m: 11, tip: '아래 줄 왼쪽부터 WL1, WL2, RL, GL, YL. 오른쪽 세로줄 위부터 PB1, PB0, SS, BZ. 모서리는 EMS. 아래 램프 순서는 동작 조건 (2)~(6)에서 켜지는 순서와 같아요' },
-    { no: '(1)-1', title: '견출지 붙이기 (기기 아래쪽)', n: opLabels(), m: 12, tip: '견출지 도구로 기기 바로 아래를 눌러요. SS는 수동을 11시, 자동을 1시 방향에 붙여요' }
+    { no: '(1)-1', title: '견출지 붙이기 (기기 아래쪽)', n: opLabels(), m: OP_ZONES.length, tip: '견출지 도구로 기기 바로 아래를 눌러요. HMI 아래에도 붙여요. SS는 수동을 11시, 자동을 1시 방향에 붙여요' }
   ].map(s => ({ ...s, done: s.n >= s.m }));
   if (stage === 1) {
     const d = stage1Steps();
@@ -1561,7 +1564,7 @@ function stepsFor(stage) {
   return checkSteps();
 }
 function stageDone(st) {
-  if (st === 0) return opPlaced() === 11 && opLabels() === 12;
+  if (st === 0) return opPlaced() === 11 && opLabels() === OP_ZONES.length;
   if (st === 1) return stage1Steps().every(Boolean);
   if (st === 2) return stage2Steps().every(Boolean);
   if (st === 3) return checksAllOk();
@@ -1934,7 +1937,7 @@ function tap0(p, e) {
   if (t === 'label') {
     const z = zoneAt(p);
     if (!z) return say(S.guide ? '견출지는 기기 바로 아래쪽에 붙여요. SS는 11시, 1시 쪽에도 붙여요' : '견출지 붙일 자리가 아니에요', 'info');
-    if (!S.op.dev[z.hole]) return say('기기를 먼저 끼워요', 'info');
+    if (!zoneDev(z)) return say('기기를 먼저 끼워요', 'info');
     if (S.op.labels[z.id]) return say('이미 붙였어요', 'info');
     return openChooser(z, e);
   }
@@ -2194,7 +2197,7 @@ function world0() {
   let s = drawOpPlate();
   for (const [hid, [x, y]] of Object.entries(OP.holes)) { const type = S.op.dev[hid]; if (type) s += LIVE.on && OP_KIND[type] === 'lamp' ? drawLamp(x, y, type.slice(-1), !!LIVE.out[OP.answer[hid].sym]) : LIVE.on && type === 'ss' ? drawSS(x, y, LIVE.inp.ss) : drawOpDev(type, x, y); else if (S.guide) s += T(x, y + 1.7, OP.answer[hid].sym, TX(4.8, '#ffffff', 'font-weight="700" fill-opacity=".6"')); }
   if (S.op.hmi) s += drawHMI(); else if (S.guide) s += T(OP.cut.x + OP.cut.w / 2, OP.cut.y + OP.cut.h / 2 + 5, 'HMI', TX(15, '#ffffff', 'font-weight="700" fill-opacity=".45"'));
-  for (const z of OP_ZONES) { const tx = S.op.labels[z.id]; if (tx) s += drawLabel(z, tx); else if (S.guide && S.tool === 'label' && S.op.dev[z.hole]) s += R(z.x, z.y, z.w, z.h, 'rx=".6" class="guide-zone"'); }
+  for (const z of OP_ZONES) { const tx = S.op.labels[z.id]; if (tx) s += drawLabel(z, tx); else if (S.guide && S.tool === 'label' && zoneDev(z)) s += R(z.x, z.y, z.w, z.h, 'rx=".6" class="guide-zone"'); }
   return s;
 }
 function world123() {
@@ -2363,7 +2366,7 @@ function scoreSheet() {
     { no: '3-1', t: '스톱퍼를 지정된 위치에 모두', max: 1, got: devOK && ends.length && ends.every(e => e.ok) ? 1 : 0, why: devOK && ends.length && ends.every(e => e.ok) ? '' : `스톱퍼 ${ends.filter(e => e.ok).length}/${ends.length}곳` },
     { no: '3-2', t: '모든 전선에 압착단자', max: 1, got: S.wires.length ? 1 : 0, why: S.wires.length ? '시뮬레이터는 전선 끝에 압착단자가 저절로 붙어요. 실제로는 하나도 빠지면 안 돼요' : '배선이 없어요' },
     { no: '3-3', t: '조작판 전선 케이블 타이 12개 이상', max: .5, got: nTies() >= 12 ? .5 : 0, why: nTies() >= 12 ? '' : `케이블 타이 ${nTies()}/12개` },
-    { no: '3-4', t: '조작판 견출지', max: .4, got: opLabels() === 12 ? .4 : 0, why: opLabels() === 12 ? '' : `견출지 ${opLabels()}/12개` },
+    { no: '3-4', t: '조작판 견출지', max: .4, got: opLabels() === OP_ZONES.length ? .4 : 0, why: opLabels() === OP_ZONES.length ? '' : `견출지 ${opLabels()}/${OP_ZONES.length}개` },
     { grp: '점수는 없지만 꼭 지킬 제작 조건' },
     { no: '(5)', t: '단자대 커버 부착', cond: !!S.tbCover, why: S.tbCover ? '' : '단자대 커버를 안 덮었어요' },
     { no: '(8)', t: '외부 전선 헬리컬 밴드로 정리', cond: S.helical === 2, why: S.helical === 2 ? '' : S.helical ? '감기만 하고 덕트에 넣지 않았어요. 안 하면 시간점수 0점' : '안 하면 시간점수 0점' },
@@ -2516,7 +2519,7 @@ function openChooser(z, e) {
   el.innerHTML = `<div class="ch-title">견출지에 쓸 글자를 골라요</div><div class="ch-grid">${LABEL_OPTS.map(o => `<button data-lab="${o}">${o}</button>`).join('')}</div>`;
   el.hidden = false;
   let cx, cy; if (e && e.clientX !== undefined) { cx = e.clientX; cy = e.clientY; } else { const r = svg.getBoundingClientRect(); cx = r.left + (OPW.x + z.x - UI.cam.x) / UI.cam.w * r.width; cy = r.top + (OPW.y + z.y - UI.cam.y) / UI.cam.h * r.height; }
-  el.style.left = clamp(cx - 118, 8, window.innerWidth - 244) + 'px'; el.style.top = clamp(cy + 16, 8, window.innerHeight - 170) + 'px';
+  el.style.left = clamp(cx - 118, 8, window.innerWidth - 244) + 'px'; el.style.top = clamp(cy + 16, 8, window.innerHeight - 200) + 'px';
 }
 function closeChooser() { $('#chooser').hidden = true; UI.chooserZone = null; }
 function applyLabel(z, text) {
