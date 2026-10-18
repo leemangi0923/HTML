@@ -798,7 +798,10 @@ function timerBody(x, y, name, v = name ? tsetMap()[name] || 0 : 0) {   // 한�
   s += ['s', 'm', 'h'].map((u, k) => TS(x + 37.4, y + 54.3 + k * 1.6, u, 1.4, k ? '#77756c' : '#1d1d1a', 'font-weight="800"')).join('') + TS(x + 31.6, y + 59.7, '30 RANGE', 1.05, '#3a3a36', 'font-weight="700"');
   return s + nameTag(x + 25.4, y + 56.4, name);
 }
-const XTB_MARK = { xtb40: { B16: '+' }, xtb50: { B25: '+', A9: '−', B8: '−', B9: '−', B11: '−', A24: '−' } };   // 견출지에 새긴 글자 (+24V, 0V)
+const XTB_MARK = {   // 견출지에 쓴 글자: +24V, 0V, 아이오 링크 1·2를 잇는 신호 (120, Z0, FR±, RP±), 단자대와 같은 이름 (Dog, OV±)
+  xtb40: { B16: '+', A20: '120', B19: 'Z0', A12: 'FR+', A13: 'RP+', B12: 'FR−', B13: 'RP−', A15: 'Dog', A14: 'OV+', B14: 'OV-' },
+  xtb50: { B25: '+', A9: '−', B8: '−', B9: '−', B11: '−', A24: '−', A3: '120', B2: 'Z0', A5: 'FR+', A6: 'RP+', B5: 'FR−', B6: 'RP−' }
+};
 function xtbLid(x, y, type, y0, y1, open = false) {   // 아이오 링크 뚜껑과 견출지 (닫으면 위 칸이 B단, 아래 칸이 A단 위. 젖히면 위아래가 바뀐다)
   const w = DEV[type].w, n = type === 'xtb40' ? 20 : 25, p0 = (w - (n - 1) * 7) / 2;
   const lx0 = x + p0 - 5.25, lx1 = x + p0 + (n - 1) * 7 + 5.25, ly0 = y0 + 4.5, ly1 = y1 - 5, my = (ly0 + ly1) / 2; let g = '';
@@ -807,7 +810,8 @@ function xtbLid(x, y, type, y0, y1, open = false) {   // 아이오 링크 뚜껑
   return R(x + 3, y0 + 1, w - 5, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"') + R(x + 2.5, y0, w - 5, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"')
     + R(lx0, ly0, lx1 - lx0, ly1 - ly0, 'rx=".5" fill="#fdfdfb" stroke="#b9c2c8" stroke-width=".3"') + `<path d="${g}M${F(lx0 + .6)} ${F(my)}H${F(lx1 - .6)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`
     + Object.entries(XTB_MARK[type] || {}).map(([k, txt]) => { const top = (k[0] === 'B') !== open, cy = top ? (ly0 + my) / 2 : (my + ly1) / 2;
-      return T(x + p0 + (+k.slice(1) - 1) * 7 + off(top), cy + 2.1, txt, TX(6, txt === '+' ? '#c8102e' : '#1f5fbf', 'font-weight="900"')); }).join('');
+      const fs = txt.length === 1 ? 6 : txt.length === 2 ? 3.6 : 2.7, col = txt === '+' ? '#c8102e' : txt === '−' ? '#1f5fbf' : '#1d2125';   // 칸 폭 7mm에 맞춰 글자 크기
+      return T(x + p0 + (+k.slice(1) - 1) * 7 + off(top), cy + fs * .35, txt, TX(fs, col, 'font-weight="900"')); }).join('');
 }
 function xtbLidClosed(x, y, type) { const w = DEV[type].w, h = DEV[type].h; return xtbLid(x, y, type, y + 13.3, y + h - .6) + R(x + 2.5, y + 13.3, w - 5, 3, 'rx="1.4" fill="#f6f9fa"') + R(x + 4.5, y + h - 3.2, w - 9, .9, 'fill="#fff" fill-opacity=".7"'); }
 function lidsOver() {   // 닫은 덮개, 뚜껑은 전선 위에 그린다 (전선이 덮개 밑으로 들어간다)
@@ -953,7 +957,10 @@ const REF_WIRES = [
   ['OP.SS.2', 'OP.RL.+'], ['OP.RL.+', 'OP.PB0.1'], ['OP.PB0.2', 'TB.11.b'],
   ['OP.BZ.2', 'TB.13.b'], ['OP.GL.+', 'TB.14.b'], ['OP.YL.+', 'TB.15.b'], ['OP.WL2.+', 'TB.16.b'],
   ['OP.BZ.1', 'OP.HMI.+'], ['OP.YL.-', 'OP.HMI.-'],
-  ['XTB2.A9', 'XTB2.B8'], ['XTB2.B8', 'XTB2.B9'], ['XTB2.B9', 'XTB2.B11'], ['XTB2.A9', 'XTB2.A24']   // 아이오 링크 2의 − 단자끼리
+  ['XTB2.A9', 'XTB2.B8'], ['XTB2.B8', 'XTB2.B9'], ['XTB2.B9', 'XTB2.B11'], ['XTB2.A9', 'XTB2.A24'],   // 아이오 링크 2의 − 단자끼리
+  ['XTB2.A3', 'XTB1.A20'], ['XTB1.B19', 'XTB2.B2'],   // 120, Z0
+  ['XTB2.A5', 'XTB1.A12'], ['XTB2.A6', 'XTB1.A13'], ['XTB2.B5', 'XTB1.B12'], ['XTB2.B6', 'XTB1.B13'],   // FR+, RP+, FR−, RP−
+  ['TB.29.t', 'XTB1.A15'], ['TB.30.t', 'XTB1.A14'], ['TB.31.t', 'XTB1.B14']   // Dog, OV+, OV-
 ];
 const CHECKS = [
   { id: 'p1', grp: '전원부', no: '(2)-1~3', title: 'MCB를 거쳐 퓨즈, SMPS에 전원' },
