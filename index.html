@@ -718,14 +718,17 @@ function dXTB(x, y, type, name, closed = false) {
   let d = ''; for (let i = 1; i < n; i++) d += `M${F(x + p0 - 1.75 + i * 7)} ${F(y + 15)}V${F(y + 29)}M${F(x + p0 - 3.5 + i * 7)} ${F(y + 29)}V${F(y + 42.5)}`;
   s += `<path d="${d}" stroke="#bcb8ad" stroke-width=".5"/>`;
   for (const t of devTerms(type)) s += SCRS(x + t.x, y + t.y);
-  if (closed) {   // 닫은 투명 커버: 단자 위에 견출지(B줄 위, A줄 아래)가 보이고 아래 단 나사는 비쳐 보인다
-    const x0 = x + p0 - 5, x1 = x + p0 + (n - 1) * 7 + 5;
-    s += R(x0, y + 12.5, x1 - x0, 32, 'rx="1.2" fill="#e8f0f4" fill-opacity=".32" stroke="#9fb0ba" stroke-width=".4"');
-    s += R(x0 + 1.2, y + 14, x1 - x0 - 2.4, 15, 'rx=".5" fill="#fbfbf8" stroke="#b9c2c8" stroke-width=".3"');
-    let g = ''; for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + i * 7)} ${F(y + 15)}V${F(y + 28)}`;
-    s += `<path d="${g}M${F(x + p0 - 3.5)} ${F(y + 21.5)}H${F(x + p0 - 3.5 + n * 7)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`;
-    for (let i = 0; i < n; i++) { const xx = x + p0 + i * 7; s += T(xx + 1.75, y + 19.6, 'B' + (i + 1), TX(1.9, '#30363b')) + T(xx, y + 26.4, 'A' + (i + 1), TX(1.9, '#30363b')); }
-    s += R(x0 + 2, y + 41.5, x1 - x0 - 4, 1, 'fill="#fff" fill-opacity=".5"');   // 커버 반사
+  if (closed) {   // 닫은 커버: 단자 두 단을 다 덮고, 그 위에 견출지(B줄 위, A줄 아래)가 보인다
+    const x0 = x + 2.5, x1 = x + w - 2.5, y0 = y + 13.3, y1 = y + h - .6;
+    s += R(x0 + .5, y0 + 1, x1 - x0, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"');
+    s += R(x0, y0, x1 - x0, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"');
+    s += R(x0, y0, x1 - x0, 3, 'rx="1.4" fill="#f6f9fa"') + R(x0 + 2, y1 - 2.6, x1 - x0 - 4, .9, 'fill="#fff" fill-opacity=".7"');   // 커버 위 모서리, 반사
+    const lx0 = x + p0 - 4.5, lx1 = x + p0 + (n - 1) * 7 + 5.5, ly0 = y0 + 4.5, ly1 = y1 - 5;
+    s += R(lx0, ly0, lx1 - lx0, ly1 - ly0, 'rx=".5" fill="#fdfdfb" stroke="#b9c2c8" stroke-width=".3"');
+    const my = (ly0 + ly1) / 2; let g = '';
+    for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + i * 7)} ${F(ly0 + .8)}V${F(ly1 - .8)}`;
+    s += `<path d="${g}M${F(lx0 + .6)} ${F(my)}H${F(lx1 - .6)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`;
+    for (let i = 0; i < n; i++) { const xx = x + p0 + i * 7; s += T(xx + 1.75, my - 3.4, 'B' + (i + 1), TX(2.3, '#30363b', 'font-weight="600"')) + T(xx, ly1 - 3.4, 'A' + (i + 1), TX(2.3, '#30363b', 'font-weight="600"')); }
   }
   return s;
 }
