@@ -403,8 +403,8 @@ function devTerms(type) {
       add(i < 3 ? l : 'O' + i, x, up ? 84 : 90.6, l, 'down', (i < 2 ? l + ' (전원)' : i === 2 ? 'FG' : '출력 ' + l) + (up ? ' (위층)' : ' (아래층)'), up ? -2.9 : undefined); });
   }
   else if (type === 'servo') {
-    ['L1','L2','L3','C1','C2','B+','B','BI'].forEach((l, i) => add(l, 10, 95 + i * 7, l, 'down', l));
-    ['U','V','W','PE'].forEach((l, i) => add(l, 34, 113 + i * 7, l, 'down', l));
+    ['L1','L2','L3','N','PO','PI','B+','B','BI','C1','C2'].forEach((l, i) => add(l, 17, 45 + i * 6.5, l, 'down', l));
+    ['U','V','W'].forEach((l, i) => add(l, 17, 134 + i * 6.5, l, 'down', l)); add('PE', 42, 154.5, 'PE', 'down', 'PE (접지)');
   }
   else if (type === 'relay') {
     // 실제 KOINO 소켓 (찬넬에 붙인 방향): 위부터 8 7 6 5 / 4 3 2 1 / 14 · · 13 / 12 11 10 9
@@ -480,6 +480,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const R = (x, y, w, h, a = '') => `<rect x="${F(x)}" y="${F(y)}" width="${F(w)}" height="${F(h)}" ${a}/>`;
 const C = (x, y, r, a = '') => `<circle cx="${F(x)}" cy="${F(y)}" r="${F(r)}" ${a}/>`;
 const T = (x, y, s, a = '') => `<text x="${F(x)}" y="${F(y)}" ${a}>${esc(s)}</text>`;
+const TS = (x, y, str, sz, fill, extra = '') => `<text x="${F(x)}" y="${F(y)}" font-size="${sz}" fill="${fill}" ${extra}>${esc(str)}</text>`;   // 왼쪽 정렬 글자
 const LN = (x1, y1, x2, y2, a = '') => `<line x1="${F(x1)}" y1="${F(y1)}" x2="${F(x2)}" y2="${F(y2)}" ${a}/>`;
 const TX = (sz, fill, extra = '') => `font-size="${sz}" fill="${fill}" text-anchor="middle" ${extra}`;
 const shadow = (x, y, w, h, rx = 1.5) => R(x + 0.9, y + 1.4, w, h, `rx="${rx}" fill="#000" fill-opacity=".28"`);
@@ -590,7 +591,7 @@ function drawDevice(type, x, y, name, extra) {
     case 'mcb': return dMCB(x, y, name);
     case 'fuse': return dFuse(x, y, name, extra);
     case 'smps': return dSMPS(x, y, name);
-    case 'plc': return dPLC(x, y);
+    case 'plc': return dPLC(x, y, extra || {});
     case 'pos': case 'tr': return dCard(x, y, type);
     case 'servo': return dServo(x, y, extra);
     case 'relay': return dRelay(x, y, name);
@@ -624,50 +625,97 @@ function dFuse(x, y, name, fz) {
   for (const t of devTerms('fuse')) s += SCR(x + t.x, y + t.y);
   return s + nameTag(x + 18, y + 12.6, name);
 }
-function dSMPS(x, y, name) {
-  const w = DEV.smps.w, h = DEV.smps.h;
-  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.5" fill="url(#gSmps)" stroke="#858d94" stroke-width=".5"');
-  s += R(x + .8, y + .8, w - 1.6, 13, 'rx="1" fill="#2c3034"') + R(x + .8, y + h - 13.8, w - 1.6, 13, 'rx="1" fill="#2c3034"');
-  for (let i = 0; i < 7; i++) s += R(x + 5, y + 21 + i * 4.4, 23, 1.7, 'rx=".85" fill="#8a9298"');
-  s += C(x + 40, y + 24, 1.7, 'fill="#3be06b"') + T(x + 40, y + 29.6, 'DC OK', TX(2.1, '#2b3136'));
-  s += C(x + 40, y + 39, 2.5, 'fill="#e6e8ea" stroke="#6a7178" stroke-width=".4"') + LN(x + 38.6, y + 39, x + 41.4, y + 39, 'stroke="#6a7178" stroke-width=".5"') + T(x + 40, y + 45.2, 'ADJ', TX(2.1, '#2b3136'));
-  s += T(x + w / 2, y + 60, '24V', TX(7, '#1f2428', 'font-weight="700"')) + T(x + w / 2, y + 66, 'DC POWER', TX(2.4, '#4a5258'));
-  for (const t of devTerms('smps')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, y + t.y + (t.d === 'up' ? 5.8 : -4), t.lab, 2, '#e8ecef');
-  return s + nameTag(x + w / 2, y + 74.5, name);
+function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −V, 아래 L N FG
+  const w = DEV.smps.w, h = DEV.smps.h, on = LIVE.on && LIVE.out.smps;
+  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="#e4e6e7" stroke="#9aa1a6" stroke-width=".5"');
+  for (let i = 0; i < 11; i++) s += R(x + w - 2.9, y + 21 + i * 4.6, 1.8, 3.2, 'rx=".5" fill="#c4c9cc"');   // 옆면 방열 홈
+  const blk = (yy, xs, cw) => { let t = R(x + 2.4, yy, 44.6, 12.6, 'rx="1" fill="#d3d6d8" stroke="#a7adb2" stroke-width=".35"'); for (const xx of xs) t += R(x + xx - cw / 2, yy + 1.2, cw, 10.2, 'rx=".8" fill="#2a2e32"'); return t; };
+  s += blk(y + .5, [9, 19, 31, 41], 8.8) + blk(y + 82, [10, 22, 34], 10);
+  s += R(x + 2.4, y + 13.6, 44.6, 4.6, 'fill="#2b2f33"') + R(x + 2.4, y + 77.2, 44.6, 4.6, 'fill="#2b2f33"');
+  s += TS(x + 4, y + 21.7, 'OUTPUT  24VDC ⎓ 5.0A', 1.9, '#2b2f33', 'font-weight="700"');
+  s += R(x + 3, y + 23.4, 41.6, 44.6, 'rx="1.4" fill="#363b40"');
+  s += C(x + 8.5, y + 29.5, 1.5, `fill="${on ? '#3be06b' : '#24452f'}"`) + TS(x + 11.4, y + 30.3, 'DC ON', 1.7, '#d6dbdf');
+  s += C(x + 8.5, y + 35, 1.5, 'fill="#4d2626"') + TS(x + 11.4, y + 35.8, 'DC LOW', 1.7, '#d6dbdf');
+  s += C(x + 35, y + 31.5, 3.4, 'fill="#eef0f1" stroke="#8b9399" stroke-width=".4"') + LN(x + 33, y + 33.2, x + 37, y + 29.8, 'stroke="#59616a" stroke-width=".7"') + T(x + 35, y + 38.4, 'V.ADJ', TX(1.6, '#d6dbdf'));
+  s += TS(x + 6, y + 47.5, 'Autonics', 2.4, '#5aa0e6', 'font-weight="700"') + TS(x + 6, y + 53.2, 'SPB-120-24', 4.3, '#ffffff', 'font-weight="800"') + TS(x + 6, y + 57.6, 'POWER SUPPLY', 2.3, '#e3e7ea', 'font-weight="600"');
+  s += nameTag(x + w / 2 - 1.2, y + 63.4, name);
+  s += TS(x + 4, y + 71.6, 'INPUT', 2.1, '#2b2f33', 'font-weight="700"') + TS(x + 4, y + 75.2, '50/60Hz 100-240VAC~1.9A', 1.6, '#2b2f33');
+  for (const t of devTerms('smps')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, t.d === 'up' ? y + 16.9 : y + 80.5, t.lab === '-V' ? '−V' : t.lab, 2.3, '#f2f4f5');
+  return s;
 }
-function dPLC(x, y) {
-  const w = DEV.plc.w, h = DEV.plc.h;
-  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.5" fill="#e2e4e6" stroke="#8d949b" stroke-width=".5"');
-  s += R(x + .8, y + .8, w - 1.6, 6.9, 'rx="1" fill="#3b4147"') + R(x + .8, y + 7.7, w - 1.6, 6.9, 'fill="#2a2e33"') + R(x + .8, y + h - 14.6, w - 1.6, 6.9, 'fill="#2a2e33"') + R(x + .8, y + h - 7.7, w - 1.6, 6.9, 'rx="1" fill="#3b4147"');
-  s += R(x + 5, y + 20, 48, 15, 'rx="1" fill="#25292d"') + R(x + 5, y + 60, 48, 15, 'rx="1" fill="#25292d"');
-  for (let i = 0; i < 16; i++) { const cx = x + 8.5 + (i % 8) * 5.8, r = Math.floor(i / 8) * 6; s += C(cx, y + 24.5 + r, 1.15, 'fill="#3b5a43"') + C(cx, y + 64.5 + r, 1.15, 'fill="#5a4a3b"'); }
-  s += T(x + 29, y + 41, '입력', TX(2.6, '#4a5258')) + T(x + 29, y + 58, '출력', TX(2.6, '#4a5258'));
-  s += T(x + 88, y + 47, 'PLC', TX(11, '#1d2125', 'font-weight="700"')) + T(x + 88, y + 54.5, '입력16 / 출력16', TX(3, '#4f575d'));
-  s += C(x + 66, y + 24, 1.4, 'fill="#3be06b"') + T(x + 66, y + 29, 'RUN', TX(2.1, '#3a4045')) + C(x + 75, y + 24, 1.4, 'fill="#5b2a2a"') + T(x + 75, y + 29, 'ERR', TX(2.1, '#3a4045'));
-  for (const t of devTerms('plc')) { s += SCRS(x + t.x, y + t.y); const pw = t.k === 'L' || t.k === 'N'; s += tl(x + t.x + 2.4, y + t.y + .6, t.lab, 1.45, pw ? '#ffd34d' : '#d8dde1', 'start'); }
+function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래 전원·출력 단자에 여닫는 덮개
+  const w = DEV.plc.w, h = DEV.plc.h, T_ = devTerms('plc'), pw = LIVE.on && LIVE.out.plc;
+  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="#3b4045" stroke="#1b1e21" stroke-width=".5"');
+  // 단자대 두 층 (칸막이)
+  const tier = (yy, hh, fill, xs) => { let t = R(x + .8, yy, w - 1.6, hh, `fill="${fill}"`), d = ''; for (const xx of xs) d += `M${F(x + xx)} ${F(yy + .6)}V${F(yy + hh - .6)}`; return t + `<path d="${d}" stroke="#4b5156" stroke-width=".45"/>`; };
+  const cut = (ts, dx) => ts.map(t => t.x + dx);
+  const ti = T_.filter(t => t.k[0] === 'I'), to = T_.filter(t => t.d === 'down');
+  s += tier(y + .8, 7, '#2a2e32', cut(ti.filter(t => t.y < 8), 6.3)) + tier(y + 7.8, 7, '#33383d', cut(ti.filter(t => t.y > 8), 6.3));
+  s += tier(y + 80.2, 7.2, '#33383d', cut(to.filter(t => t.y < 88), 5.8)) + tier(y + 87.4, 6.8, '#2a2e32', cut(to.filter(t => t.y > 88), 5.8));
+  for (const t of T_) s += SCRS(x + t.x, y + t.y);
+  // 단자 이름 띠 (위층, 아래층 이름이 엇갈려 적힘)
+  s += R(x + .8, y + 15, w - 1.6, 6, 'fill="#2a2e32"') + R(x + .8, y + 73.8, w - 1.6, 6, 'fill="#2a2e32"');
+  for (const t of T_) { const top = t.d === 'up', ly = top ? (t.y > 8 ? y + 17.6 : y + 20.3) : (t.y < 88 ? y + 79 : y + 76.2), p = t.k === 'L' || t.k === 'N';
+    s += tl(x + t.x, ly, t.lab, 1.5, p ? '#ffd34d' : '#d8dde1'); }
+  // 가운데: 좌우 덮개판, 상태 표시부
+  s += R(x + 1.5, y + 27.2, 30, 40.6, 'rx="1" fill="#c3c7ca" stroke="#9aa0a5" stroke-width=".35"') + R(x + 88.5, y + 27.2, 30, 40.6, 'rx="1" fill="#c3c7ca" stroke="#9aa0a5" stroke-width=".35"');
+  s += `<path d="M${F(x + 27)} ${F(y + 43)}V${F(y + 52)}M${F(x + 28.4)} ${F(y + 43)}V${F(y + 52)}M${F(x + 91.6)} ${F(y + 43)}V${F(y + 52)}M${F(x + 93)} ${F(y + 43)}V${F(y + 52)}" stroke="#8f959a" stroke-width=".5"/>`;
+  s += nameTag(x + 15, y + 47.6, 'PLC');
+  s += R(x + 31.5, y + 27.2, 57, 40.6, 'fill="#d4d7d9" stroke="#9aa0a5" stroke-width=".35"');
+  s += R(x + 34, y + 30, 10.5, 3.8, 'rx=".4" fill="#d6262f"') + T(x + 39.25, y + 33, 'XGB', TX(2.6, '#fff', 'font-weight="800"'));
+  s += TS(x + 34, y + 38.6, 'XBC-DN32H', 2.5, '#3a4045', 'font-weight="700"');
+  [['PWR', pw ? '#3be06b' : '#7d8a80'], ['RUN', pw ? '#3be06b' : '#7d8a80'], ['ERR', '#8a7a7a']].forEach(([l, c], i) => { s += R(x + 34.4, y + 42 + i * 4.6, 2.2, 2.2, `fill="${c}"`) + TS(x + 37.6, y + 43.9 + i * 4.6, l, 1.9, '#3a4045'); });
+  const leds = (yy, a, b) => { let t = ''; for (let i = 0; i < 8; i++) { const lx = x + 53 + i * 4; t += T(lx + .9, yy - .8, (a + i).toString(16).toUpperCase().padStart(2, '0'), TX(1.25, '#4a5056')) + R(lx, yy, 1.9, 1.5, 'fill="#5f6a63"'); } return t; };
+  s += leds(y + 31.2, 0, 0) + leds(y + 36.8, 8, 8) + TS(x + 53, y + 41.4, 'IN', 1.6, '#4a5056');
+  s += TS(x + 53, y + 47, 'OUT', 1.6, '#4a5056') + leds(y + 50, 0x20, 0x20) + leds(y + 55.6, 0x28, 0x28);
+  s += `<text x="${F(x + 77)}" y="${F(y + 47.2)}" font-size="4.2" font-weight="800" font-style="italic" fill="#9aa0a5">LS</text>`;
+  s += TS(x + 33, y + 66.4, '130VA 50/60Hz   Out: 24VDC, 0.1A/P', 1.3, '#555c62') + TS(x + 89, y + 66.4, 'Out : 24VDC, 0.5A/P, 2A/C', 1.3, '#555c62') + TS(x + 89, y + 29.6, 'In : 24VDC, 4mA', 1.3, '#555c62');
+  // 덮개: 열면 가운데 쪽으로 젖혀져 있고, 닫으면 단자를 덮는다
+  const bar = yy => R(x + .8, yy, w - 1.6, 5.8, 'rx="1" fill="#4a5056" stroke="#1d2023" stroke-width=".4"') + LN(x + 2, yy + 1.4, x + w - 2, yy + 1.4, 'stroke="#6b7278" stroke-width=".5"') + LN(x + 2, yy + 4.2, x + w - 2, yy + 4.2, 'stroke="#2a2e32" stroke-width=".5"');
+  const lidC = (yy, hh, top) => { let t = R(x + .5, yy, w - 1, hh, 'rx="1.6" fill="#33383d" stroke="#16191c" stroke-width=".5"');
+    for (let i = 0; i < 12; i++) t += R(x + 6 + i * 9.4, top ? yy + 3 : yy + hh - 7.5, 4.6, 4.5, 'rx=".6" fill="#3d4247"');
+    t += LN(x + 1.5, top ? yy + hh - 3 : yy + 3, x + w - 1.5, top ? yy + hh - 3 : yy + 3, 'stroke="#25292d" stroke-width=".6"');
+    return t + (top ? `<path d="M${F(x + 58.5)} ${F(yy + 13)}h3l-1.5 2.2z" fill="#8d949a"/>` : ''); };
+  s += lid.t ? lidC(y - .4, 27.6, true) : bar(y + 21.4);
+  s += lid.b ? lidC(y + 67.6, 27.8, false) : bar(y + 67.8);
   return s;
 }
 function dCard(x, y, type) {
   const w = DEV[type].w, h = DEV[type].h, pos = type === 'pos';
-  let s = shadow(x, y, w, h, 1.2) + R(x, y, w, h, 'rx="1.2" fill="#e2e4e6" stroke="#8d949b" stroke-width=".5"');
-  s += R(x + .8, y + .8, w - 1.6, 13.8, 'rx="1" fill="#30353a"') + T(x + w / 2, y + 9.4, pos ? 'POS' : 'TR', TX(3.8, '#f0f3f5', 'font-weight="700"'));
-  s += C(x + 7, y + 20, 1.2, 'fill="#3be06b"') + C(x + 15, y + 20, 1.2, 'fill="#5b2a2a"');
+  let s = shadow(x, y, w, h, 1.2) + R(x, y, w, h, 'rx="1.2" fill="#3b4045" stroke="#1b1e21" stroke-width=".5"');
+  s += R(x + .8, y + .8, w - 1.6, 13.8, 'rx="1" fill="#25292d"') + T(x + w / 2, y + 9.4, pos ? 'POS' : 'TR', TX(3.8, '#f0f3f5', 'font-weight="700"'));
+  s += R(x + 1.5, y + 16, w - 3, 8, 'rx=".6" fill="#c3c7ca"') + C(x + 7, y + 20, 1.2, 'fill="#3be06b"') + C(x + 15, y + 20, 1.2, 'fill="#5b2a2a"');
   s += R(x + 4.5, y + 27, 13, 46, 'rx="1" fill="#1b1e21"') + R(x + 6.2, y + 29, 9.6, 42, 'fill="url(#pPins)"');
-  s += T(x + w / 2, y + 81, '위치결정', TX(2.4, '#3b4247')) + T(x + w / 2, y + 85.5, '카드', TX(2.4, '#3b4247'));
+  s += T(x + w / 2, y + 81, '위치결정', TX(2.4, '#d5d9dc')) + T(x + w / 2, y + 85.5, '카드', TX(2.4, '#d5d9dc'));
   return s;
 }
-function dServo(x, y, bolted) {
-  const w = SERVO.w, h = SERVO.h;
-  let s = shadow(x, y, w, h, 2) + R(x, y, w, h, 'rx="2" fill="#2e3337" stroke="#14171a" stroke-width=".6"');
-  s += R(x + 14, y, 22, 12, 'rx="1" fill="#454b51"') + R(x + 14, y + h - 12, 22, 12, 'rx="1" fill="#454b51"');
+function dServo(x, y, bolted) {   // LS L7S 모양: 위 조작부, 왼쪽 전원 커넥터(주황 레버), 오른쪽 CN 커넥터
+  const w = SERVO.w, h = SERVO.h, on = LIVE.on && LIVE.out.sv;
+  let s = shadow(x, y, w, h, 2) + R(x, y, w, h, 'rx="2" fill="#3e4853" stroke="#161b20" stroke-width=".6"');
+  s += R(x + 1, y + 1, w - 2, 31, 'rx="1.6" fill="#141619"');
+  s += `<text x="${F(x + 4)}" y="${F(y + 16)}" font-size="6" font-weight="800" font-style="italic" fill="#f2f4f5">LS</text>` + TS(x + 35, y + 9.2, 'SERVO', 2.2, '#e8ecef', 'font-weight="700"');
+  s += R(x + 26, y + 15, 20, 9.5, 'rx=".8" fill="#08090a" stroke="#2b3036" stroke-width=".4"') + T(x + 36, y + 22.3, on ? 'rdy' : '', TX(5.4, '#ff4136', 'font-weight="700"'));
+  s += TS(x + 34, y + 30.2, 'OPEN ▷', 1.8, '#8d959c');
+  s += C(x + 9, y + 37.2, 2.1, 'fill="#1a1d20" stroke="#6d7880" stroke-width=".35"') + C(x + 9, y + 37.2, 1.1, `fill="${on ? '#ff5a3c' : '#3e2a27'}"`) + T(x + 9, y + 41.6, 'CHARGE', TX(1.4, '#c9d0d5'));
+  for (const tx of [22, 30]) s += `<path d="M${F(x + tx)} ${F(y + 34.4)}l2.6 4.6h-5.2z" fill="none" stroke="#d8dde1" stroke-width=".35"/>`;
+  s += R(x + 40.5, y + 34, 5.4, 3.8, 'rx=".4" fill="#0d0f11" stroke="#6d7880" stroke-width=".3"') + T(x + 43.2, y + 40.6, 'CN5', TX(1.3, '#c9d0d5'));
+  // 전원 커넥터: L1 L2 L3 N PO PI B+ B BI C1 C2 (주황 레버 + 전선 구멍)
+  s += R(x + 2, y + h - 8, w - 4, 7.2, 'rx="1" fill="#59636d"');   // 방열판
+  let fin = ''; for (let i = 0; i < 15; i++) fin += `M${F(x + 4 + i * 3)} ${F(y + h - 7.2)}V${F(y + h - 1.8)}`;
+  s += `<path d="${fin}" stroke="#46505a" stroke-width=".6"/>`;
+  const conn = (yy, hh) => R(x + 6, yy, 15.5, hh, 'rx=".8" fill="#111315"') + C(x + 13.8, yy + 1.9, .9, 'fill="#9aa1a6"') + C(x + 13.8, yy + hh - 1.9, .9, 'fill="#9aa1a6"');
+  s += conn(y + 40.2, 75.6) + conn(y + 128.6, 23.2);
+  for (const t of devTerms('servo')) {
+    if (t.k === 'PE') { s += SCR(x + t.x, y + t.y) + T(x + t.x + 4.4, y + t.y + .6, 'PE', TX(1.6, '#e5e9ec')); continue; }
+    s += R(x + 7.4, y + t.y - 2, 5.6, 4, 'rx=".6" fill="#f08a24" stroke="#a9590e" stroke-width=".25"') + C(x + t.x, y + t.y, 1.85, 'fill="#050606" stroke="#5c646b" stroke-width=".35"') + tl(x + 3.1, y + t.y + .7, t.lab, 1.8, '#e5e9ec');
+  }
+  // 통신 커넥터 CN4, CN3 (RJ45), 제어 신호 CN1, 엔코더 CN2
+  const rj = yy => R(x + 27, yy, 13, 10, 'rx=".6" fill="#1d2125" stroke="#5c646b" stroke-width=".35"') + R(x + 29, yy + 2, 9, 6, 'fill="#08090a"') + R(x + 31.5, yy + 7.4, 4, 1.2, 'fill="#2f3439"');
+  s += rj(y + 44) + TS(x + 41.6, y + 50, 'CN4', 1.5, '#c9d0d5') + rj(y + 56) + TS(x + 41.6, y + 62, 'CN3', 1.5, '#c9d0d5');
+  const dsub = (yy, hh) => R(x + 28, yy, 12, hh, 'rx="1.2" fill="#8b9399" stroke="#5c646b" stroke-width=".35"') + R(x + 30, yy + 2.4, 8, hh - 4.8, 'rx=".8" fill="#1b1e21"') + R(x + 31, yy + 3.6, 6, hh - 7.2, 'fill="url(#pPins)"');
+  s += dsub(y + 70, 40) + TS(x + 41.6, y + 91, 'CN1', 1.5, '#c9d0d5') + dsub(y + 118, 26) + TS(x + 41.6, y + 132, 'CN2', 1.5, '#c9d0d5');
+  s += R(x + 3, y + 117.2, 20, 10.4, 'rx="1" fill="#56616c"');   // 앞 커버
   for (const yy of [y + 6, y + h - 6]) s += bolted ? drawBolt(x + w / 2, yy) : C(x + w / 2, yy, 2.4, 'fill="#191c1f"');
-  for (let i = 0; i < 8; i++) s += R(x + 4 + i * 5.4, y + 14, 3, 11, 'rx=".6" fill="#454b51"');
-  s += R(x + 6, y + 29, 25, 11, 'rx="1" fill="#140c0c"') + T(x + 18.5, y + 37.4, 'rdy', TX(7, '#ff4136', 'font-weight="700"'));
-  for (let i = 0; i < 4; i++) s += C(x + 37.5 + (i % 2) * 6, y + 31 + Math.floor(i / 2) * 6.4, 1.8, 'fill="#5b6268"');
-  s += R(x + 8, y + 45, 34, 28, 'rx="1.2" fill="#1b1e21" stroke="#4a5056" stroke-width=".4"') + R(x + 11, y + 48.5, 28, 21, 'fill="url(#pPins)"') + T(x + 25, y + 78.4, 'CN1', TX(2.6, '#aeb5bb'));
-  s += T(x + w / 2, y + 85.6, 'SURBO DRIVER', TX(2.7, '#d0d6da', 'font-weight="700"'));
-  s += R(x + 3, y + 89, 19, 59, 'rx="1" fill="#1a1d20"') + R(x + 27, y + 107, 19, 32, 'rx="1" fill="#1a1d20"');
-  for (const t of devTerms('servo')) s += SCRS(x + t.x, y + t.y) + tl(x + t.x + 3.4, y + t.y + .8, t.lab, 2.2, '#e5e9ec', 'start');
   return s;
 }
 function dRelay(x, y, name) {
@@ -1265,7 +1313,7 @@ function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
     op: { hmi: false, dev: {}, labels: {} }, floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
-    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false, sensor: false, motor: false }, xtbClosed: {} };
+    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false, sensor: false, motor: false }, xtbClosed: {}, plcLid: { t: false, b: false } };
 }
 function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }
 function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; }
@@ -1547,6 +1595,8 @@ function wireLock(a, b) {   // 마무리를 해 둔 곳은 풀어야 배선을 �
   if (S.tbCover && (a.startsWith('TB.') || b.startsWith('TB.'))) return '단자대 커버를 벗겨야 TB에 배선할 수 있어요. 손으로 커버를 눌러요';
   const nm = names(), shut = id => { const m = /^(XTB\d)\./.exec(id); return m && S.inst.some(i => nm[i.id] === m[1] && S.xtbClosed[i.id]); };
   if (shut(a) || shut(b)) return '아이오 링크 뚜껑을 열어야 배선할 수 있어요. 손으로 뚜껑을 눌러요';
+  const plcShut = id => id.startsWith('PLC.') && S.plcLid[/^PLC\.I/.test(id) ? 't' : 'b'];
+  if (plcShut(a) || plcShut(b)) return 'PLC 단자 덮개를 열어야 배선할 수 있어요. 손으로 덮개를 눌러요';
   if (S.helical && a.startsWith('OP.') !== b.startsWith('OP.')) return '헬리컬 밴드를 풀어야 제어판과 조작판 사이 전선을 바꿀 수 있어요. 손으로 밴드를 눌러요';
   return '';
 }
@@ -1766,7 +1816,7 @@ function fillStage(k) {
   if (k === 5) {
     S.opBack = true; S.helical = S.wires.some(isExtWire) ? 2 : 0; buildTerms();
     for (const [, q] of frList()) if (q.type === 'duct' && q.stuck) q.covered = true;
-    S.tbCover = !!tbInst(); for (const i of S.inst) if (i.type.startsWith('xtb')) S.xtbClosed[i.id] = true; S.ties = [];
+    S.tbCover = !!tbInst(); for (const i of S.inst) if (i.type.startsWith('xtb')) S.xtbClosed[i.id] = true; S.plcLid = { t: true, b: true }; S.ties = [];
     const ow = S.wires.filter(isOPWire), has = (t, w) => t.ws.some(r => r.a === w.a && r.b === w.b), same = (t, w, v) => has(t, w) && has(t, v);
     for (let pass = 0; pass < 2 && S.ties.length < 12; pass++) for (const w of ow) {   // 조작판 안에서 옆에 있는 선끼리 묶는다
       if (S.ties.length >= 12) break;
@@ -1936,6 +1986,12 @@ const CABLES = {
 };
 const tbTermX = (tb, n) => tb.x + 6.3 + (n - 1) * 8.6;
 function tbTermAt(p) { const tb = tbInst(); if (!tb) return null; const y = devY(tb); if (p.y < y + 16 || p.y > y + 76) return null; const n = Math.round((p.x - tb.x - 6.3) / 8.6) + 1; return n >= 1 && n <= TB_N ? n : null; }
+function plcLidAt(p) {   // 연 덮개는 가운데 쪽으로 젖혀진 띠, 닫은 덮개는 단자 전체
+  const i = S.inst.find(x => x.type === 'plc'); if (!i) return null; const y = devY(i), w = DEV.plc.w;
+  if (inRect(p, S.plcLid.t ? { x: i.x, y, w, h: 27 } : { x: i.x, y: y + 21.4, w, h: 5.8 })) return 't';
+  if (inRect(p, S.plcLid.b ? { x: i.x, y: y + 68, w, h: 27 } : { x: i.x, y: y + 67.8, w, h: 5.8 })) return 'b';
+  return null;
+}
 function xtbCoverAt(p) {   // 연 뚜껑은 기기 위로 젖혀져 있고, 닫은 뚜껑은 단자를 덮는다
   for (const i of S.inst) if (i.type.startsWith('xtb')) { const y = devY(i), w = DEV[i.type].w;
     if (S.xtbClosed[i.id] ? inRect(p, { x: i.x, y: y + 12, w, h: 33 }) : inRect(p, { x: i.x + 3, y: y - 17, w: w - 6, h: 17 })) return i; }
@@ -2078,6 +2134,8 @@ function handleTap(p, e) {
     }
     const lt = tieAt(p, false, 14); if (lt) return tieAction(lt);
     const tr = tbRect(); if (S.tbCover && tr && inRect(p, tr, 2)) { snap(); S.tbCover = false; UI.carry = { kind: 'tbcover', key: 'tbcover', from: 'floor', count: 1 }; say('단자대 커버를 벗겼어요', 'info'); return commit(); }
+    const pl = plcLidAt(p);
+    if (pl) { snap(); S.plcLid[pl] = !S.plcLid[pl]; say(`PLC ${pl === 't' ? '위(입력)' : '아래(전원, 출력)'} 단자 덮개를 ${S.plcLid[pl] ? '닫았어요' : '열었어요'}`, 'info'); return commit(); }
     const xc = xtbCoverAt(p);
     if (xc) { snap(); S.xtbClosed[xc.id] = !S.xtbClosed[xc.id]; say(S.xtbClosed[xc.id] ? '아이오 링크 뚜껑을 닫았어요' : '아이오 링크 뚜껑을 열었어요', 'info'); return commit(); }
     const ck = cableAt(p);
@@ -2186,7 +2244,7 @@ function tap2(p) {
   if (t === 'hand') {
     const sp = stopperAt(p); if (sp) { snap(); S.stoppers = S.stoppers.filter(x => x !== sp); say('스톱퍼를 뺐어요', 'info'); return commit(); }
     const ins = instAt(p);
-    if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
+    if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; if (ins.type === 'plc') S.plcLid = { t: false, b: false }; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
     if (S.servo.placed && !S.servo.bolted && inRect(p, SERVO, 2)) { snap(); S.servo.placed = false; UI.carry = { kind: 'dev', key: 'servo' }; return commit(); }
     return say('재료함에서 기구를 골라요', 'info');
   }
@@ -2395,7 +2453,7 @@ function world123() {
   SERVO.holes.forEach(([x, y], i) => { if (S.svHoles[i] && !S.servo.placed) s += drawHole(x, y); });
   {
     for (const st of S.stoppers) s += dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy);
-    for (const i of S.inst) s += drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : S.fuses[i.id]);
+    for (const i of S.inst) s += drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : S.fuses[i.id]);
     if (S.servo.placed) s += dServo(SERVO.x, SERVO.y, S.servo.bolted);
     if (S.cables.power) s += drawPowerCable();
   }
@@ -2894,7 +2952,7 @@ setInterval(() => {
 
 /* ---------- 시작 ---------- */
 gMat.innerHTML = drawMat();
-S = load(); const fresh = !S; if (!S) S = newState(); if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false, sensor: false, motor: false }; if (!S.xtbClosed) S.xtbClosed = {}; if (S.helical === true) S.helical = 2; normTies(); if (S.opBack === undefined) S.opBack = S.stage === 3;
+S = load(); const fresh = !S; if (!S) S = newState(); if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false, sensor: false, motor: false }; if (!S.xtbClosed) S.xtbClosed = {}; if (!S.plcLid) S.plcLid = { t: false, b: false }; if (S.helical === true) S.helical = 2; normTies(); if (S.opBack === undefined) S.opBack = S.stage === 3;
 buildTerms(); renderAll(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(s => s.done);
 requestAnimationFrame(() => { fit(); renderOver(); });
 if (fresh) showIntro();
