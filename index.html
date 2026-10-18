@@ -73,6 +73,11 @@ h2.ph { font-size: 13px; margin: 2px 2px 8px; color: var(--muted); font-weight: 
 .titem .tspec { grid-column: 2; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .titem .ttape { grid-column: 2; font-size: 11px; color: var(--glove); }
 .titem .tcount { grid-row: 1 / 3; grid-column: 3; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; }
+.titem.wide { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto auto; }   /* 길쭉한 부품(컨베이어)은 그림을 위에 넓게 */
+.titem.wide .thumb { grid-row: 1; grid-column: 1 / -1; width: 100%; height: 58px; margin-bottom: 4px; }
+.titem.wide .tname { grid-row: 2; grid-column: 1; }
+.titem.wide .tspec, .titem.wide .ttape { grid-row: 3; grid-column: 1; }
+.titem.wide .tcount { grid-row: 2 / 4; grid-column: 2; }
 .titem.held { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
 .titem.empty { opacity: .42; cursor: default; }
 .titem:not(.empty):hover { border-color: #e3232f; box-shadow: inset 0 0 0 1.5px #e3232f; background: color-mix(in srgb, var(--panel2) 88%, #000); }
@@ -1239,8 +1244,9 @@ function liveDown(k) {
 }
 function pickPack() { LIVE.pack = null; LIVE.inp.grab = false; UI.carry = { kind: 'pack', key: 'pack', from: 'floor', count: 1 }; say('팩을 집었어요', 'info'); renderTray(); renderOver(); liveStep(0); }
 const convBodyAt = p => inRect(p, { x: CVW.x - 12, y: CVW.y - 9 - CVW.mh, w: CONV.L + 24, h: CVW.mh + CVW.bw + 18 }) && !(LIVE.pack !== null && inRect(p, packRect(), 2));
+const convDropOK = p => p.y >= PANEL.h + 150 && p.x >= -60 && p.x <= 1260;   // 제어판 아래 바닥
 function dropConveyor(p) {   // 제어판 아래 바닥에 내려놓는다
-  if (p.y < PANEL.h + 150 || p.x < -60 || p.x > 1260) return say(S.guide ? '제어판 아래 바닥에 내려놓아요 (아래 컨베이어 보기 버튼)' : '바닥에 내려놓아요', 'info');
+  if (!convDropOK(p)) return say(S.guide ? '제어판 아래 바닥에 내려놓아요 (아래 컨베이어 보기 버튼)' : '바닥에 내려놓아요', 'info');
   snap(); S.conveyor = { x: Math.round(p.x - CONV.L / 2), y: Math.round(p.y - CVW.bw / 2) }; S.convLeads = {}; consumeCarry();
   say('컨베이어를 내려놓았어요. 선 끝을 누르고 단자대 아래쪽 단자를 눌러 결선해요', 'ok'); commit();
 }
@@ -1317,9 +1323,8 @@ function worldOp() {
   for (const t of TERMS) if (t.op) s += SCRS(t.x, t.y) + (UI.detail ? tl(t.x + 2.5, t.y + .6, t.lab, 1.8, '#ffd34d', 'start') : '');
   return s;
 }
-function drawConveyor() {   // 위에서 본 컨베이어 (500mm): 초록 벨트, 회색 프레임, 위쪽 왼편 모터, 위쪽에 센서 S1, S2 (BRP100-DDT-P, 180mm 간격)
-  if (!S.conveyor) return '';
-  const x = CVW.x, y = CVW.y, L = CONV.L, bw = CVW.bw, o = LIVE.out || {}, d = convDir(o), both = o.FR && o.BR, i = LIVE.inp || {};
+function convBody(x, y, live) {   // 위에서 본 컨베이어 (500mm): 초록 벨트, 회색 프레임, 위쪽 왼편 모터, 위쪽에 센서 S1, S2 (BRP100-DDT-P, 180mm 간격)
+  const L = CONV.L, bw = CVW.bw, o = (live && LIVE.out) || {}, d = convDir(o), both = o.FR && o.BR, i = (live && LIVE.inp) || {};   // live가 아니면 멈춘 모습 (들고 있을 때, 재료함)
   let s = R(x - 16, y - 12, L + 32, bw + 30, 'rx="6" fill="#000" fill-opacity=".16"');
   const rail = yy => R(x - 9, yy, L + 18, 9, 'rx="2" fill="url(#gRail)" stroke="#8d969d" stroke-width=".5"');
   s += R(x - 9, y, 9, bw, 'rx="3" fill="#6f777e"') + R(x + L, y, 9, bw, 'rx="3" fill="#6f777e"');   // 양 끝 롤러
@@ -1342,6 +1347,12 @@ function drawConveyor() {   // 위에서 본 컨베이어 (500mm): 초록 벨트
     s += T(sx - 1.5, top + 13.5, 'Autonics', TX(2.6, '#9aa3aa', 'font-weight="700"')) + T(sx, top + 19.5, 'BRP100', TX(3, '#d9dee2', 'font-weight="700"'));
     s += TS(sx + 13, top + 12, k, 10, '#f2f4f5', 'font-weight="800"') + TS(sx + 13, top + 19, 'BRP100-DDT-P', 4, '#dfe5e9', 'font-weight="600"');
   }
+  return s;
+}
+function drawConveyor() {   // 바닥에 내려놓은 컨베이어 + 치수, 상태
+  if (!S.conveyor) return '';
+  const x = CVW.x, y = CVW.y, L = CONV.L, bw = CVW.bw, o = LIVE.out || {}, d = convDir(o), both = o.FR && o.BR, i = LIVE.inp || {};
+  let s = convBody(x, y, true);
   s += dimH(x + CONV.s1, x + CONV.s2, y + bw + 22, '180');
   s += dimH(x, x + CONV.s1, y + bw + 22, '160') + dimH(x + CONV.s2, x + L, y + bw + 22, '160');
   const st = !i.mcb ? '전원 꺼짐' : both ? 'FR, BR 동시!' : d > 0 ? '정회전 → (S1 → S2)' : d < 0 ? '← 역회전 (S2 → S1)' : '정지';
@@ -2484,7 +2495,7 @@ function trayThumb(it) {
   else if (it.kind === 'cover') { vb = '-2 -2 94 46'; inner = drawDuctCover({ x: 0, y: 0, w: 90, h: 40, o: 'h' }); }
   else if (it.kind === 'tbcover') { vb = '-1 -1 92 24'; inner = R(0, 0, 90, 22, 'rx="2" fill="#d4dde3"') + drawTBCover({ x: 0, y: 0, w: 90, h: 22 }); }
   else if (it.kind === 'tie') { vb = '-11 -5 21 10'; inner = drawTieIcon(0, 0); }
-  else if (it.kind === 'conveyor') { vb = '0 0 40 24'; inner = R(3, 12, 34, 8, 'rx="1.5" fill="#c3c8cc"') + R(4, 13.5, 32, 5, 'fill="#1f8a43"') + R(6, 2, 5, 10, 'rx="1.5" fill="#2c3136"') + R(16, 7, 3, 5, 'fill="#2b2f33"') + R(26, 7, 3, 5, 'fill="#2b2f33"'); }
+  else if (it.kind === 'conveyor') { vb = '-18 -98 536 168'; inner = convBody(0, 0, false); }
   else if (it.kind === 'pack') { vb = '-2 -2 44 44'; inner = packSVG(0, 0, false); }
   else if (it.kind === 'plug') { const r = k === 'relayU'; vb = r ? '0 16 31 43' : '0 11 40 50'; inner = r ? relayBody(0, 0, '') : timerBody(0, 0, ''); }
   else if (it.kind === 'cable') { vb = '0 0 40 24'; inner = k === 'power' ? '<path d="M4 20C10 20 12 6 22 6H30" fill="none" stroke="#16191b" stroke-width="3.4" stroke-linecap="round"/>' + R(29, 2.5, 8, 7, 'rx="1.2" fill="#3a3f44"') + R(36.5, 4, 2.5, 1.2, 'fill="#c8ccd0"') + R(36.5, 7, 2.5, 1.2, 'fill="#c8ccd0"')
@@ -2496,7 +2507,7 @@ function trayThumb(it) {
 function trayItemHTML(it) {
   const held = UI.carry && UI.carry.key === it.key, empty = it.left === 0, cnt = it.left !== undefined ? `<span class="tcount">${it.left}/${it.total}</span>` : '';
   const tape = it.taped !== undefined ? `<span class="ttape">양면테이프 ${it.taped}/${it.total}</span>` : `<span class="tspec">${esc(it.spec)}</span>`;
-  return `<button class="titem${held ? ' held' : ''}${empty ? ' empty' : ''}" data-key="${it.key}"${empty ? ' aria-disabled="true"' : ''}><span class="thumb">${trayThumb(it)}</span><span class="tname">${esc(it.name)}</span>${tape}${cnt}</button>`;
+  return `<button class="titem${it.kind === 'conveyor' ? ' wide' : ''}${held ? ' held' : ''}${empty ? ' empty' : ''}" data-key="${it.key}"${empty ? ' aria-disabled="true"' : ''}><span class="thumb">${trayThumb(it)}</span><span class="tname">${esc(it.name)}</span>${tape}${cnt}</button>`;
 }
 function renderTray() {
   const tr = document.querySelector('.tray'); tr.classList.toggle('dropzone', !!UI.carry); tr.querySelector('.ph').textContent = UI.carry ? '재료함 (누르면 들고 있는 걸 다시 넣어요)' : '재료함';
@@ -2620,7 +2631,8 @@ function renderWorld() {
 }
 function ghost(p) {
   const c = UI.carry; let s = '';
-  if (c.kind === 'conveyor') return `<g opacity=".6">${R(p.x - CONV.L / 2 - 9, p.y - CVW.bw / 2 - 9, CONV.L + 18, CVW.bw + 18, 'rx="3" fill="#c3c8cc"')}${R(p.x - CONV.L / 2, p.y - CVW.bw / 2, CONV.L, CVW.bw, 'fill="#1f8a43"')}${R(p.x - CONV.L / 2 + CVW.mx, p.y - CVW.bw / 2 - 9 - CVW.mh, CVW.mw, CVW.mh, 'rx="5" fill="#2c3136"')}</g>`;
+  if (c.kind === 'conveyor') { const x = p.x - CONV.L / 2, y = p.y - CVW.bw / 2, ok = convDropOK(p);   // 실제 모양 그대로 미리 보기
+    return `<g opacity="${ok ? .8 : .45}">${convBody(x, y, false)}</g>` + (ok ? '' : R(x - 20, y - 105, CONV.L + 40, CVW.bw + 125, 'rx="6" fill="none" stroke="#e3232f" stroke-width="3" stroke-dasharray="10 6"')); }
   if (c.kind === 'pack') { if (!S.conveyor) return `<g opacity=".8">${packSVG(p.x - 20, p.y - 20, false)}</g>`; const on = inRect(p, beltRect(), 8); return `<g opacity=".8">${packSVG(on ? CVW.x + clamp(p.x - CVW.x, 20, CONV.L - 20) - 20 : p.x - 20, on ? CVW.y + 5 : p.y - 20, false)}</g>`; }
   if (c.kind === 'plug') { const g = PLUGS[c.key], ins = instAt(p), body = (x, y) => g.sock === 'relay' ? relayBody(x, y, '') : timerBody(x, y, '');
     if (ins && ins.type === g.sock && !S.plug[ins.id]) return `<g opacity=".75">${body(ins.x, devY(ins))}</g>`;
