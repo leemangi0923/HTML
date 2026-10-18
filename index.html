@@ -281,6 +281,8 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
             <radialGradient id="gScrew" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#f6f7f8"/><stop offset="1" stop-color="#8e969c"/></radialGradient>
             <radialGradient id="gBolt" cx=".38" cy=".35" r=".8"><stop offset="0" stop-color="#fbfcfc"/><stop offset="1" stop-color="#959ca2"/></radialGradient>
             <linearGradient id="gRail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b6bec5"/><stop offset=".16" stop-color="#e8ecef"/><stop offset=".5" stop-color="#ced4d9"/><stop offset=".84" stop-color="#e6eaed"/><stop offset="1" stop-color="#a9b2b9"/></linearGradient>
+            <linearGradient id="gCap" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7d858b"/><stop offset=".3" stop-color="#f6f8f9"/><stop offset=".55" stop-color="#cdd2d6"/><stop offset="1" stop-color="#6b7379"/></linearGradient>
+            <linearGradient id="gGlass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b9c9d2" stop-opacity=".85"/><stop offset=".3" stop-color="#ffffff" stop-opacity=".9"/><stop offset=".7" stop-color="#e3edf2" stop-opacity=".55"/><stop offset="1" stop-color="#a9bbc5" stop-opacity=".85"/></linearGradient>
             <linearGradient id="gChrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8f9fa"/><stop offset=".5" stop-color="#a6adb3"/><stop offset="1" stop-color="#eef0f2"/></linearGradient>
             <radialGradient id="gLW" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c3c8cb"/></radialGradient>
             <radialGradient id="gLR" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ff8e8e"/><stop offset="1" stop-color="#a5121a"/></radialGradient>
@@ -651,14 +653,17 @@ function dMCB(x, y, name) {   // LS BKM-b 2P: 위아래 단자 창, 가운데 �
 const MCB_SW = () => ({ x: 8.6, y: 26, w: 18, h: 21 });   // MCB 손잡이 홈 (기구 왼쪽 위 기준)
 function dFuse(x, y, name, fz) {
   const h = DEV.fuse.h; let s = shadow(x, y, 36, h, 1.2);
-  for (let p = 0; p < 2; p++) {
+  for (let p = 0; p < 2; p++) {   // 극마다: 검은 받침, 위아래 나사 칸, 가운데 퓨즈 클립
     const x0 = x + p * 18, f = fz && fz[p];
-    s += R(x0, y, 18, h, 'rx="1.2" fill="#dde0e3" stroke="#9aa1a8" stroke-width=".45"');
-    s += R(x0 + 1.6, y + 17, 14.8, 47, 'rx="1.6" fill="#2b2f33"') + R(x0 + 4.2, y + 22, 9.6, 30, 'rx="1" fill="#121518"');
-    if (f) s += R(x0 + 6.3, y + 23.5, 5.4, 27, 'rx="1" fill="#d5e6ee" fill-opacity=".9"') + R(x0 + 6.3, y + 23.5, 5.4, 4.2, 'fill="#c3c8cc"') + R(x0 + 6.3, y + 46.3, 5.4, 4.2, 'fill="#c3c8cc"') +
-      LN(x0 + 9, y + 27.7, x0 + 9, y + 46.3, 'stroke="#7d8388" stroke-width=".4"') + T(x0 + 9, y + 59.6, f === 'f5' ? '5A' : '3A', TX(3.7, f === 'f5' ? '#ffd34d' : '#86d6ff', 'font-weight="700"'));
+    s += R(x0 + .4, y, 17.2, h, 'rx="1.4" fill="#1f2225" stroke="#0b0c0d" stroke-width=".45"');
+    s += R(x0 + 3, y + .8, 12, 10.4, 'rx=".8" fill="#0c0e0f"') + R(x0 + 3, y + h - 11.2, 12, 10.4, 'rx=".8" fill="#0c0e0f"');
+    s += R(x0 + 3.4, y + 19, 11.2, 36, 'rx="1.2" fill="#121416"');
+    for (const cy of [y + 21.6, y + 49.4]) s += R(x0 + 5.2, cy, 7.6, 3.4, 'rx=".6" fill="#b9c0c5" stroke="#6f777d" stroke-width=".3"');   // 퓨즈 클립
+    if (f) s += fuseGlass(x0 + 6.3, y + 23.5, 5.4, 27, f) + T(x0 + 9, y + 59.6, f === 'f5' ? '5A' : '3A', TX(3.4, f === 'f5' ? '#ffd34d' : '#86d6ff', 'font-weight="700"'));
   }
   for (const t of devTerms('fuse')) s += SCR(x + t.x, y + t.y);
+  // 투명 덮개: 나사 칸만 비우고 퓨즈 쪽을 덮는다
+  s += R(x + .9, y + 13.6, 34.2, h - 27.2, 'rx="1.6" fill="#e6f2f8" fill-opacity=".16" stroke="#d7e9f2" stroke-opacity=".85" stroke-width=".5"') + R(x + 2, y + 14.6, 32, 1.1, 'rx=".5" fill="#fff" fill-opacity=".45"') + R(x + 2.2, y + 16, 1, h - 33, 'rx=".5" fill="#fff" fill-opacity=".3"');
   return s + nameTag(x + 18, y + 12.6, name);
 }
 function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −V, 아래 L N FG
@@ -874,10 +879,15 @@ function dStopper(x, cy) {
   const h = 44, y = cy - h / 2;
   return shadow(x, y, STOPPER_W, h, 1) + R(x, y, STOPPER_W, h, 'rx="1" fill="#596066" stroke="#2c3135" stroke-width=".4"') + R(x + 1.3, y + 3, STOPPER_W - 2.6, h - 6, 'rx=".6" fill="#6d757c"') + SCRS(x + STOPPER_W / 2, cy);
 }
-function fuseIcon(k) {
-  return R(3, 2, 6, 30, 'rx="1.2" fill="#d5e6ee" stroke="#8a9196" stroke-width=".4"') + R(3, 2, 6, 5, 'fill="#c3c8cc"') + R(3, 27, 6, 5, 'fill="#c3c8cc"') +
-    LN(6, 7, 6, 27, 'stroke="#7d8388" stroke-width=".5"') + T(6, 19, k === 'f5' ? '5A' : '3A', TX(3.4, k === 'f5' ? '#9a6b00' : '#1d6fa5', 'font-weight="700" transform="rotate(-90 6 18)"'));
+function fuseGlass(x, y, w, h, k) {   // 유리관 퓨즈 (세로): 위아래 크롬 마개, 투명 유리관, 가는 퓨즈선, 용량 글씨
+  const cap = h * .2, cx = x + w / 2, gy0 = y + cap, gy1 = y + h - cap;
+  let s = R(x + .25, gy0 - .4, w - .5, gy1 - gy0 + .8, 'fill="url(#gGlass)" stroke="#8fa3ae" stroke-width=".3"');
+  s += LN(cx, gy0, cx, gy1, 'stroke="#5e666c" stroke-width=".35"') + LN(x + w * .3, gy0 + .4, x + w * .3, gy1 - .4, 'stroke="#fff" stroke-width=".6" stroke-opacity=".9"');   // 퓨즈선, 유리 빛
+  s += T(x + w * .74, (gy0 + gy1) / 2, k === 'f5' ? '5A' : '3A', TX(Math.min(2.4, w * .42), k === 'f5' ? '#8a5d00' : '#1d5f95', `font-weight="800" transform="rotate(-90 ${F(x + w * .74)} ${F((gy0 + gy1) / 2)})" dy=".8"`));
+  for (const cy of [y, gy1]) s += R(x, cy, w, cap, 'rx=".7" fill="url(#gCap)" stroke="#5f666c" stroke-width=".3"') + R(x + w * .22, cy + .5, w * .14, cap - 1, 'rx=".3" fill="#fff" fill-opacity=".75"');   // 크롬 마개
+  return s;
 }
+function fuseIcon(k) { return fuseGlass(3, 2, 6, 30, k); }
 function roundPath(pts, r) {
   const q = [];
   for (const p of pts) { const l = q[q.length - 1]; if (!l || Math.abs(l[0] - p[0]) > .01 || Math.abs(l[1] - p[1]) > .01) q.push(p); }
@@ -892,15 +902,14 @@ function roundPath(pts, r) {
   const e = q[q.length - 1];
   return d + `L${F(e[0])} ${F(e[1])}`;
 }
-const TIP = 3.2, PIN = 4.6, FER = 8.6;   // 압착단자 (나사 가운데에서): 핀 끝은 나사를 지나 TIP만큼 안쪽, 회색 핀은 PIN까지, 노란 슬리브는 FER까지. 전선 피복은 그 뒤에서 시작
-function ferruleAt(x, y, ux, uy, h) {   // 압착단자 PP-D120: 나사 쪽 회색 핀, 뒤쪽 노란 절연 슬리브 (u: 전선 쪽 방향). h: 나사 머리 {x, y, r} (r 0은 구멍)
-  const tip = h && h.r ? -TIP : .3, pin = (a, b) => b - a > .1 ? `<rect x="${F(a)}" y="-.65" width="${F(b - a)}" height="1.3" rx=".3" fill="#c9ced2" stroke="#6b737a" stroke-width=".25"/>` : '';
-  let s = pin(tip, PIN + .2);   // 나사 머리 아래에 깔린 부분은 그리지 않는다 (머리 양쪽으로 나온 핀만)
-  if (h && h.r) { const dx = x - h.x, dy = y - h.y, b = dx * ux + dy * uy, c = dx * dx + dy * dy - h.r * h.r, D = b * b - c;
-    if (D > 0) s = pin(tip, -b - Math.sqrt(D)) + pin(-b + Math.sqrt(D), PIN + .2); }
-  return `<g transform="translate(${F(x)} ${F(y)}) rotate(${F(Math.atan2(uy, ux) * 180 / Math.PI)})">${s}`
-    + `<path d="M${PIN} -1.05L${FER - .5} -1.5Q${FER} -1.5 ${FER} -1V1Q${FER} 1.5 ${FER - .5} 1.5L${PIN} 1.05Z" fill="#f5c400" stroke="#6b5200" stroke-width=".3" stroke-linejoin="round"/></g>`;
+function ferruleAt(x, y, ux, uy, h) {   // 압착단자 PP-D120: 흰 원(눌린 자국)이 있는 회색 핀 + 노란 슬리브 (u: 전선 쪽 방향)
+  const r = h && h.r || 0, a = r ? -(r + 1) : .3, e = r ? r + 1.6 : 3.4;   // 나사가 있으면 핀이 나사 옆을 지나 끝이 나사 너머까지 (나사 머리는 위에 다시 그린다), 구멍이면 가운데로
+  let rid = ''; for (let t = a + .8; t < e - .4; t += 1.1) rid += `<circle cx="${F(t)}" r=".42"/>`;
+  return `<g transform="translate(${F(x)} ${F(y)}) rotate(${F(Math.atan2(uy, ux) * 180 / Math.PI)})"><rect x="${F(a)}" y="-.75" width="${F(e - a + .3)}" height="1.5" rx=".6" fill="#b9bdc0" stroke="#7e8387" stroke-width=".3"/><g fill="none" stroke="#fff" stroke-width=".22" stroke-opacity=".95">${rid}</g>`
+    + `<rect x="${F(e)}" y="-1.6" width="3.6" height="3.2" rx=".8" fill="#ffd400" stroke="#d99a00" stroke-width=".35"/></g>`;
 }
+const ferLen = h => (h && h.r ? h.r + 1.6 : 3.4) + 3.6;   // 나사 가운데에서 노란 슬리브 끝까지
+const scrUse = h => h && h.sy ? `<use href="#${h.sy}" x="${F(h.x)}" y="${F(h.y)}"/>` : '';   // 압착단자 핀 위에 다시 그리는 나사 머리
 function ferrule(pts, rev, h) {
   const L = rev ? [...pts].reverse() : pts, p = L[0], q = L.find(r => Math.hypot(r[0] - p[0], r[1] - p[1]) > .5) || p;
   const dx = q[0] - p[0], dy = q[1] - p[1], n = Math.hypot(dx, dy) || 1;
@@ -910,10 +919,9 @@ function trimPts(pts, a, b) {   // 꺾은선의 앞에서 a, 뒤에서 b만큼 �
   const cut = (P, len) => { for (let k = 1; k < P.length; k++) { const s = Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]); if (s > len) { const t = len / s; return [[P[k - 1][0] + (P[k][0] - P[k - 1][0]) * t, P[k - 1][1] + (P[k][1] - P[k - 1][1]) * t], ...P.slice(k)]; } len -= s; } return [P[P.length - 1]]; };
   return cut(cut(pts, a).reverse(), b).reverse();
 }
-function drawWire(pts, ha, hb) {   // ha, hb: 양 끝 나사 머리
-  const body = trimPts(pts, FER - .6, FER - .6), d = body.length > 1 ? roundPath(body, 3.2) : '';
-  return (d ? `<path d="${d}" class="wire-o"/><path d="${d}" class="wire-i"/>` : '') + ferrule(pts, false, ha) + ferrule(pts, true, hb);
-}
+function wireBody(pts, ha, hb) { const body = trimPts(pts, ferLen(ha) - .6, ferLen(hb) - .6), d = body.length > 1 ? roundPath(body, 3.2) : ''; return d ? `<path d="${d}" class="wire-o"/><path d="${d}" class="wire-i"/>` : ''; }
+const wireEnds = (pts, ha, hb) => ferrule(pts, false, ha) + ferrule(pts, true, hb);
+function drawWire(pts, ha, hb) { return wireEnds(pts, ha, hb) + scrUse(ha) + scrUse(hb) + wireBody(pts, ha, hb); }   // ha, hb: 양 끝 단자 (나사 머리)
 
 'use strict';
 /* ===== 회로 동작 시뮬레이터 (배선 단계) =====
@@ -1438,7 +1446,8 @@ function drawConvLeads() {   // 센서선, 모터선 피복과 6가닥 (꽂힌 �
     const b = i < 4 ? bs : bm, e = leadEnd(k), to = S.convLeads[k] && TERM[S.convLeads[k]];
     if (to) {
       const hx = CAB_HOLE.x + 3 + i * 1.6, yd = DUCT_Y.dB - 6 + i * 1.6;   // 구멍으로 들어가 맨 아래 덕트를 지나 단자대 아래쪽 단자로
-      s += `<path d="M${F(b.x)} ${F(b.y)}C${F(b.x)} ${F(b.y - 45)} ${F(hx)} ${CAB_HOLE.y + 45} ${F(hx)} ${CAB_HOLE.y}V${F(yd)}H${F(to.x)}V${F(to.y + FER - .6)}" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" fill="none"/>` + ferruleAt(to.x, to.y, 0, 1, to);
+      const lx = to.x - (to.r + .25);   // 나사 왼쪽
+      s += `<path d="M${F(b.x)} ${F(b.y)}C${F(b.x)} ${F(b.y - 45)} ${F(hx)} ${CAB_HOLE.y + 45} ${F(hx)} ${CAB_HOLE.y}V${F(yd)}H${F(lx)}V${F(to.y + ferLen(to) - .6)}" stroke="${col}" stroke-width="2.2" stroke-linejoin="round" fill="none"/>` + ferruleAt(lx, to.y, 0, 1, to) + scrUse(to);
     } else {
       s += `<path d="M${F(b.x)} ${F(b.y)}C${F(b.x)} ${F(b.y - 12)} ${F(e.x)} ${F(e.y + 14)} ${F(e.x)} ${F(e.y + 3)}" stroke="${col}" stroke-width="2.2" fill="none"/>` + ferruleAt(e.x, e.y - 4, 0, 1);
       s += T(e.x, e.y - 7, k === 'S-' ? 'S−' : k, TX(5, '#ffffff', 'font-weight="800"'));
@@ -1839,14 +1848,14 @@ function names() {
   return m;
 }
 let TERMS = [], TERM = {};
-const SCREW_R = { mcb: 2.6, fuse: 2.6, smps: 2.6, servo: 0 };   // 나사 머리 반지름 (#scr 2.6, #scrS·#scrY 2.05). 서보 커넥터는 구멍이라 0: 핀이 구멍 안까지 들어간다
+const SCREW_R = { mcb: 2.6, fuse: 2.6, smps: 2.6, servo: 0 }, SCREW_SY = { relay: 'scrY', mcb: 'scr', fuse: 'scr', smps: 'scr', servo: '' };   // 나사 머리 반지름 (#scr 2.6, #scrS·#scrY 2.05). 서보 커넥터는 구멍이라 0: 핀이 구멍 안까지 들어간다
 function buildTerms() {
   TERMS = []; TERM = {}; UI.nm = names();
   const add = (dev, type, ox, oy, rowId) => {
     const row = ROW[rowId];
     for (const t of devTerms(type)) {
       const id = dev + '.' + t.k, o = { id, dev, k: t.k, x: ox + t.x, y: oy + t.y, r: SCREW_R[type] ?? 2.05, duct: t.d === 'up' ? row.top : row.bot, nm: (SHOW_NAME[dev] || dev) + ' ' + t.nm };
-      if (type === 'servo' && t.k === 'PE') o.r = 2.6;
+      o.sy = SCREW_SY[type] ?? 'scrS'; if (type === 'servo' && t.k === 'PE') { o.r = 2.6; o.sy = 'scr'; }
       if (type === 'servo') o.sx = t.x < 25 ? SERVO.x - 5 : SERVO.x + SERVO.w + 5;
       if (t.so !== undefined) o.sx = ox + t.x + t.so;
       if (t.ov) o.ov = true;
@@ -1855,10 +1864,10 @@ function buildTerms() {
   };
   { for (const i of S.inst) add(UI.nm[i.id], i.type, i.x, devY(i), RAIL_ROW[i.rail]); if (S.servo.placed) add('SV', 'servo', SERVO.x, SERVO.y, 'r1'); }
   if (S.conveyor) { CVW.x = S.conveyor.x; CVW.y = S.conveyor.y; for (const [k, nm] of CV_LEADS) { const e = leadEnd(k), id = 'CV.' + k, o = { id, dev: 'CV', k, lab: k, x: e.x, y: e.y, cv: true, nm: `컨베이어 선 ${k === 'S-' ? 'S−' : k}: ${nm}${S.convLeads[k] ? ' → ' + S.convLeads[k] : ''}` }; TERMS.push(o); TERM[id] = o; } }
-  if (S.opBack && S.op.hmi) for (const [k, lx, ly, lab] of HMI_PW(hmiGeom())) { const id = 'OP.HMI.' + k, o = { id, dev: 'HMI', k, lab, x: OPW.x + lx, y: OPW.y + ly, r: 1.6, op: true, nm: '조작판 뒷면 HMI 전원 ' + (k === '+' ? '+ (초록 1번)' : k === '-' ? '− (초록 2번)' : 'FG 접지 (초록 3번)') }; TERMS.push(o); TERM[id] = o; }
+  if (S.opBack && S.op.hmi) for (const [k, lx, ly, lab] of HMI_PW(hmiGeom())) { const id = 'OP.HMI.' + k, o = { id, dev: 'HMI', k, lab, x: OPW.x + lx, y: OPW.y + ly, r: 2.05, sy: 'scrS', op: true, nm: '조작판 뒷면 HMI 전원 ' + (k === '+' ? '+ (초록 1번)' : k === '-' ? '− (초록 2번)' : 'FG 접지 (초록 3번)') }; TERMS.push(o); TERM[id] = o; }
   if (S.opBack) for (const [hid, type] of Object.entries(S.op.dev)) {
     const sym = OP.answer[hid].sym, [hx, hy] = OP.holes[hid];
-    for (const [k, dx, dy, lab] of OP_TERM_DEF[OP_KIND[type]]) { const id = 'OP.' + sym + '.' + k, o = { id, dev: sym, k, lab, x: OPW.x + OP.w - hx - dx, y: OPW.y + hy + dy, r: 2.05, op: true, nm: '조작판 뒷면 ' + opTermName(sym, type, k) }; TERMS.push(o); TERM[id] = o; }
+    for (const [k, dx, dy, lab] of OP_TERM_DEF[OP_KIND[type]]) { const id = 'OP.' + sym + '.' + k, o = { id, dev: sym, k, lab, x: OPW.x + OP.w - hx - dx, y: OPW.y + hy + dy, r: 2.05, sy: 'scrS', op: true, nm: '조작판 뒷면 ' + opTermName(sym, type, k) }; TERMS.push(o); TERM[id] = o; }
   }
 }
 function makeUF(wires) {
@@ -2498,8 +2507,10 @@ function route(a, b, lane) {
   return pts;
 }
 // 한 나사에 처음 꽂은 압착단자는 나사 왼쪽, 두 번째는 오른쪽
-function ferOff(w, id) { const T = TERM[id]; if (T && T.dev === 'SV' && T.k !== 'PE') return 0;   // 서보 커넥터는 구멍 가운데로 꽂는다
-  let k = 0; for (const x of S.wires) { if (x === w) break; if (x.a === id || x.b === id) k++; } const o = k === 0 ? -1.7 : 1.7; return T && T.ov ? -o : o; }   // 바깥 줄 위로 지나가는 선은 반대쪽부터 (바깥 줄 선과 겹치지 않게)
+function ferOff(w, id) {   // 압착단자는 나사 옆에 끼운다: 첫 선은 왼쪽, 둘째 선은 오른쪽 (서보 커넥터 구멍은 가운데)
+  const T = TERM[id]; if (!T || !T.r) return 0;
+  let k = 0; for (const x of S.wires) { if (x === w) break; if (x.a === id || x.b === id) k++; }
+  const o = (k === 0 ? -1 : 1) * (T.r + .25); return T.ov ? -o : o; }   // 바깥 줄 위로 지나가는 선은 반대쪽부터   // 바깥 줄 위로 지나가는 선은 반대쪽부터 (바깥 줄 선과 겹치지 않게)
 function wirePts(w, i) { const pts = basePts(w, i); if (!pts || !(S.ties && S.ties.length)) return pts; const an = tieAnchors(w); return an.length ? deform(pts, an) : pts; }
 function basePts(w, i, ex = {}) { const a = TERM[w.a] || ex[w.a], b = TERM[w.b] || ex[w.b]; if (!a || !b) return null; return route({ ...a, x: a.x + ferOff(w, w.a) }, { ...b, x: b.x + ferOff(w, w.b) }, (((i * 7) % 13) - 6) * 1.7); }
 function segDist(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy; let t = l ? ((p.x - a[0]) * dx + (p.y - a[1]) * dy) / l : 0; t = clamp(t, 0, 1); return Math.hypot(p.x - (a[0] + t * dx), p.y - (a[1] + t * dy)); }
@@ -2647,8 +2658,8 @@ function guideUnder() {
 const CAB_HOLE = { x: 60, y: PANEL.h };   // 왼쪽 세로 덕트 아래 끝 구멍: 전원 케이블과 컨베이어 선이 판 밖으로 나가는 곳
 function drawPowerCable() {   // 단자대 1, 2번 아래 → 맨 아래 덕트 → 왼쪽 아래 덕트 구멍 → 밖 (플러그)
   const tb = S.inst.find(i => i.type === 'tb'); if (!tb) return '';
-  const by = devY(tb) + 34, rx = tb.x + 6.3, tx = tb.x + 14.9, yd = DUCT_Y.dB + 9, hx = CAB_HOLE.x - 8, oy = PANEL.h + 62;
-  return `<path d="M${F(rx)} ${F(by + FER - .6)}V${F(yd)}" stroke="#2a2d30" stroke-width="2.4" fill="none"/><path d="M${F(tx)} ${F(by + FER - .6)}V${F(yd)}" stroke="#e9e9e4" stroke-width="2.4" fill="none"/>` + ferruleAt(rx, by, 0, 1, { x: rx, y: by, r: 2.05 }) + ferruleAt(tx, by, 0, 1, { x: tx, y: by, r: 2.05 }) +
+  const by = devY(tb) + 34, rx0 = tb.x + 6.3, tx0 = tb.x + 14.9, rx = rx0 - 2.3, tx = tx0 - 2.3, hR = { r: 2.05 }, yd = DUCT_Y.dB + 9, hx = CAB_HOLE.x - 8, oy = PANEL.h + 62;
+  return `<path d="M${F(rx)} ${F(by + ferLen(hR) - .6)}V${F(yd)}" stroke="#2a2d30" stroke-width="2.4" fill="none"/><path d="M${F(tx)} ${F(by + ferLen(hR) - .6)}V${F(yd)}" stroke="#e9e9e4" stroke-width="2.4" fill="none"/>` + ferruleAt(rx, by, 0, 1, hR) + ferruleAt(tx, by, 0, 1, hR) + SCRS(rx0, by) + SCRS(tx0, by) +
     `<path d="M${F(tx + 2)} ${F(yd)}H${hx + 8}Q${hx} ${F(yd)} ${hx} ${F(yd + 8)}V${PANEL.h + 30}C${hx} ${oy} ${hx - 20} ${oy} ${hx - 52} ${oy}" stroke="#16191b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` +
     R(hx - 66, oy - 6, 13, 12, 'rx="2" fill="#3a3f44" stroke="#16191b" stroke-width=".6"') + R(hx - 71, oy - 4, 5.5, 2, 'fill="#c8ccd0"') + R(hx - 71, oy + 2, 5.5, 2, 'fill="#c8ccd0"') +
     `<text x="${hx - 72}" y="${oy + 19}" class="cable-label" font-size="8">전원 케이블 AC220V (R, T)</text>`;
@@ -2697,14 +2708,15 @@ function renderWorld() {
   const front = S.opBack ? '' : `<g transform="translate(${OPW.x} ${OPW.y})">${world0()}</g><text x="${OPW.x}" y="${OPW.y - 34}" class="cable-label" font-size="11" font-weight="700">조작판 앞면 (기기 끼우기, 견출지)</text><text x="${OPW.x}" y="${OPW.y - 22}" class="cable-label" font-size="6.5">배선은 HMI 뒤집기로 뒷면에서 해요</text>`;
   s += flipBtn + (S.opBack ? worldOp() : '');
   const ft = S.opBack ? null : opFrontTerms(), pts = (w, i) => !ft || !isOPWire(w) ? wirePts(w, i) : isExtWire(w) ? basePts(w, i, ft) : null;   // 앞면: 조작판 안쪽끼리 선은 뒤에 가려진다
-  const hd = id => TERM[id] || (ft && ft[id]), wire = (w, i) => { const q = pts(w, i); return q ? drawWire(q, hd(w.a), hd(w.b)) : ''; };
+  const hd = id => TERM[id] || (ft && ft[id]);
+  const wires = f => { let e = '', sc = '', bd = ''; S.wires.forEach((w, i) => { if (!f(w)) return; const q = pts(w, i); if (!q) return; const ha = hd(w.a), hb = hd(w.b); e += wireEnds(q, ha, hb); sc += scrUse(ha) + scrUse(hb); bd += wireBody(q, ha, hb); }); return e + sc + bd; };
   const loose = w => S.helical !== 2 && isExtWire(w);   // 덕트 밖으로 빼 둔 조작판 전선은 커버 위에 보인다
   const lifted = w => UI.replug && UI.replug.w === w;
-  S.wires.forEach((w, i) => { if (!loose(w) && !lifted(w)) s += wire(w, i); });
+  s += wires(w => !loose(w) && !lifted(w));
   if (S.helical === 2) s += drawBand(band2Duct(0));   // 덕트 안을 지나는 밴드 (커버를 닫으면 가려짐)
   s += drawConvLeads();   // 덕트 안을 지나는 컨베이어 선도 커버에 가려진다
   for (const [, q] of frList()) if (q.type === 'duct' && q.slot && q.covered) s += drawDuctCover(frRect(q));   // 커버는 덕트 안 전선을 덮는다
-  S.wires.forEach((w, i) => { if (loose(w) && !lifted(w)) s += wire(w, i); });
+  s += wires(w => loose(w) && !lifted(w));
   if (S.tbCover && tbRect()) s += drawTBCover(tbRect());
   s += lidsOver();
   if (S.opBack) {
