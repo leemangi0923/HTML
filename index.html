@@ -1372,7 +1372,8 @@ function runChecks(wires, fuses) {
 }
 function fuseState() { const f = {}, nm = names(); for (const i of S.inst) if (i.type === 'fuse') f[nm[i.id]] = (S.fuses[i.id] || [null, null]).map(Boolean); return f; }
 let _chk = { key: '', val: null };
-function getChecks() { const fz = fuseState(), key = JSON.stringify(S.wires) + JSON.stringify(fz); if (_chk.key !== key) _chk = { key, val: runChecks(S.wires, fz) }; return _chk.val; }
+const FUSE_IN = { FS1: [true, true], FS2: [true, true] };   // 배선 단계 검사는 퓨즈가 끼워져 있다고 본다 (퓨즈는 동작 검사 단계에서)
+function getChecks() { const key = JSON.stringify(S.wires); if (_chk.key !== key) _chk = { key, val: runChecks(S.wires, FUSE_IN) }; return _chk.val; }
 const checksAllOk = () => { const R = getChecks(); return !R.err && CHECKS.every(c => R.res[c.id].ok); };
 function checkSteps() { const R = getChecks(); return [...CHECKS.map(c => ({ no: c.no, title: c.title, n: R.res[c.id].ok ? 1 : 0, m: 1, done: R.res[c.id].ok, tip: '', why: R.res[c.id].ok ? '' : (R.res[c.id].why[0] || '') })), tbStep()]; }
 
@@ -1482,22 +1483,25 @@ const judgeKey = () => JSON.stringify(S.wires) + JSON.stringify(fuseState()) + J
 const judgeRan = () => !!(S.judge && S.judge.key === judgeKey());   // 검사를 받은 뒤 배선, 퓨즈가 그대로인지
 const prevDone = () => [0, 1, 2, 3].every(stageDone);
 const cablesIn = () => !!S.cables.power && convReady();
+const fusesIn = () => nFuses() === 4;   // 퓨즈는 동작 검사 단계에서 끼운다
 function getJudge() { const fz = fuseState(), key = judgeKey(); if (_jdg.key !== key) _jdg = { key, val: runJudge(S.wires, fz, S.cables, plugMap(), convLeads(), tsetMap()) }; return _jdg.val; }
 function judgeSteps() {
   const nLead = S.conveyor ? CV_LEADS.filter(l => S.convLeads[l[0]]).length : 0;
   const cs = [{ no: '케이블', title: `전원 케이블 꽂기 (${CABLES.power.where})`, n: S.cables.power ? 1 : 0, m: 1, done: !!S.cables.power, tip: `재료함 동작 검사 재료의 전원 케이블을 들고 단자대 ${CABLES.power.where}를 눌러요` },
     { no: '컨베이어', title: '컨베이어를 바닥(제어판 아래)에 내려놓기', n: S.conveyor ? 1 : 0, m: 1, done: !!S.conveyor, tip: '재료함 동작 검사 재료의 컨베이어를 들고 제어판 아래 바닥을 눌러요' },
     { no: '컨베이어', title: '컨베이어 선 결선 (S+, S1, S2, S−, FR, BR)', n: nLead, m: 6, done: nLead === 6, tip: '컨베이어 선 끝을 누르고 단자대(TB) 아래쪽 단자를 눌러요. S+ 19, S1 20, S2 21, S− 22, FR 24, BR 25번' }];
+  cs.push({ no: '채점 2-1', title: '퓨즈 끼우기 (FS1 5A, FS2 3A)', n: nFuses(), m: 4, done: fusesIn(), tip: '과제지 동작 조건 (1). 재료함 동작 검사 재료의 퓨즈를 퓨즈 홀더에 놓아요. FS1은 5A, FS2는 3A' });
   cs.push(...Object.values(PLUGS).map(g => ({ no: '소켓', title: `${g.name} 꽂기 (${g.sock === 'relay' ? 'R1~R6, 14P' : 'T1~T3, 8P'})`, n: nPlugged(g.sock), m: DEV[g.sock].qty, done: nPlugged(g.sock) === DEV[g.sock].qty, tip: `재료함 동작 검사 재료의 ${g.name}를 들고 찬넬의 ${DEV[g.sock].name}을 눌러요. 꽂힌 걸 손으로 누르면 빠져요` })));
   const nSet = S.inst.filter(i => i.type === 'timer' && S.plug[i.id] && S.tset[i.id] !== undefined).length;
   cs.push({ no: '타이머', title: '타이머 시간 맞추기 (T1~T3, 초 단위)', n: nSet, m: DEV.timer.qty, done: nSet === DEV.timer.qty, tip: '꽂은 타이머에 마우스를 올리고 Tab을 눌러 다이얼을 돌려요. t1은 약 1~3초, 나머지는 1초 이내 (동작 조건 (7))' });
-  if (!judgeRan()) { const tip = S.judge ? '배선, 퓨즈, 케이블, 릴레이, 타이머가 바뀌었어요. 동작 검사를 다시 받아요' : prevDone() && cablesIn() && plugsIn() ? '아래 동작 검사 받기를 눌러요' : '1~4 작업을 끝내고 케이블, 릴레이, 타이머를 꽂은 뒤 동작 검사 받기를 눌러요';
+  if (!judgeRan()) { const tip = S.judge ? '배선, 퓨즈, 케이블, 릴레이, 타이머가 바뀌었어요. 동작 검사를 다시 받아요' : prevDone() && cablesIn() && fusesIn() && plugsIn() ? '아래 동작 검사 받기를 눌러요' : '1~4 작업을 끝내고 케이블, 퓨즈, 릴레이, 타이머를 꽂은 뒤 동작 검사 받기를 눌러요';
     return [...cs, ...JUDGE.map(c => ({ no: c.no, title: c.title, n: 0, m: 1, done: false, tip, why: '' }))]; }
   const J = getJudge(); return [...cs, ...JUDGE.map(c => { const r = J.res[c.id]; return { no: c.no, title: c.title, n: r.ok ? 1 : 0, m: 1, done: r.ok, tip: '', why: r.ok ? '' : (r.why[0] || '') }; })];
 }
 function takeJudge() {   // 실제 대회처럼 1~5 작업을 끝낸 뒤에 심사를 받는다
   if (!prevDone()) return say('1~4 작업(조작판, 덕트·찬넬, 기구 설치, 배선)을 다 끝내야 동작 검사를 받을 수 있어요', 'info');
   if (!cablesIn()) return say('전원 케이블을 꽂고, 컨베이어를 내려놓아 선 6가닥을 단자대에 결선해요', 'info');
+  if (!fusesIn()) return say('퓨즈를 먼저 끼워요 (FS1 5A, FS2 3A)', 'info');
   if (!plugsIn()) return say('릴레이와 타이머를 소켓에 먼저 꽂아요', 'info');
   snap(); S.judge = { key: judgeKey() }; const J = getJudge(), bad = JUDGE.filter(c => !J.res[c.id].ok).length;
   commit(); say(bad ? `동작 검사에서 ${bad}개 항목이 안 됐어요. 할 일 목록에서 이유를 봐요` : '동작 검사를 모두 통과했어요', bad ? 'err' : 'ok');
@@ -2218,7 +2222,7 @@ function gate1() { return true; }   // 작업 순서는 강제하지 않는다
 function devPlaced() { let n = 0; for (const t of DEV_ORDER) n += t === 'servo' ? (S.servo.placed && S.servo.bolted ? 1 : 0) : Math.min(devCount(t), DEV[t].qty); return n; }
 const devTotal = () => DEV_ORDER.reduce((a, t) => a + DEV[t].qty, 0);
 const plugsIn = () => nPlugged('relay') === DEV.relay.qty && nPlugged('timer') === DEV.timer.qty;
-function stage2Steps() { const ends = groupEnds(), all = devPlaced() === devTotal(); return [all, all && ends.length > 0 && groupsOK() && ends.every(e => e.ok), nFuses() === 4]; }
+function stage2Steps() { const ends = groupEnds(), all = devPlaced() === devTotal(); return [all, all && ends.length > 0 && groupsOK() && ends.every(e => e.ok)]; }   // 퓨즈는 동작 검사 단계에서
 function stepsFor(stage) {
   if (stage === 0) return [
     { no: '(1)-1', title: '조작판에 HMI, 램프, 스위치 끼우기', n: opPlaced(), m: 11, tip: '아래 줄 왼쪽부터 WL1, WL2, RL, GL, YL. 오른쪽 세로줄 위부터 PB1, PB0, SS, BZ. 모서리는 EMS. 아래 램프 순서는 동작 조건 (2)~(6)에서 켜지는 순서와 같아요' },
@@ -2241,8 +2245,7 @@ function stepsFor(stage) {
     const d = stage2Steps(), ends = groupEnds();
     return [
       { no: '(1)-9', title: '기구를 찬넬에 끼우고 서보 고정', n: devPlaced(), m: devTotal(), tip: '1단: MCB / FS1 / FS2 / SMPS / PLC, POS (묶음끼리 띄워서), 오른쪽 빈자리에 서보(드라이버로 고정). 2단: R1~R6, T1~T3, 아이오 링크 1. 3단: TB, 아이오 링크 2' },
-      { no: '(1)-9', title: '스톱퍼로 고정', n: ends.filter(e => e.ok).length, m: ends.length, tip: '묶음마다 양옆에 스톱퍼. 1단은 MCB, FS1, FS2, SMPS, PLC+위치결정 카드가 각각 한 묶음. 2단은 R1~R6, T1~T3, 아이오 링크 1. 3단은 TB, 아이오 링크 2' },
-      { no: '채점 2-1', title: '퓨즈 끼우기 (FS1 5A, FS2 3A)', n: nFuses(), m: 4, tip: '과제지 동작 조건 (1). 재료함의 퓨즈를 퓨즈 홀더에 놓아요' }
+      { no: '(1)-9', title: '스톱퍼로 고정', n: ends.filter(e => e.ok).length, m: ends.length, tip: '묶음마다 양옆에 스톱퍼. 1단은 MCB, FS1, FS2, SMPS, PLC+위치결정 카드가 각각 한 묶음. 2단은 R1~R6, T1~T3, 아이오 링크 1. 3단은 TB, 아이오 링크 2' }
     ].map((s, i) => ({ ...s, done: d[i] }));
   }
   if (stage === 5) return [
@@ -2261,7 +2264,7 @@ function stageDone(st) {
   if (st === 1) return stage1Steps().every(Boolean);
   if (st === 2) return stage2Steps().every(Boolean);
   if (st === 3) return checksAllOk() && !tbBypass().length;
-  if (st === 4) return cablesIn() && plugsIn() && judgeRan() && JUDGE.every(c => getJudge().res[c.id].ok);
+  if (st === 4) return cablesIn() && fusesIn() && plugsIn() && judgeRan() && JUDGE.every(c => getJudge().res[c.id].ok);
   return nCovered() === 6 && !!S.tbCover && nTies() >= 12 && nTieCut() === nTies() && S.helical === 2;
 }
 function recommendedTool() { return MODE === 'prac' && PRAC.cur && PRAC.cur.tool || ''; }   // 자유 모드는 순서를 정하지 않으므로 연습에서만 알려준다
@@ -2312,12 +2315,10 @@ function fillStage(k) {
     pack('c1', GROUPS.c1, [4, 4, 4, 4]);
     pack('c2', GROUPS.c2, [10, 10]);
     pack('c3', GROUPS.c3, [4]);
-    const fz = S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x);
-    S.fuses[fz[0].id] = ['f5', 'f5']; S.fuses[fz[1].id] = ['f3', 'f3'];
     S.servo = { placed: true, bolted: true }; S.plug = {};
   }
   if (k === 3) S.wires = REF_WIRES.map(([a, b]) => ({ a, b }));
-  if (k === 4) { S.cables = { ...CAB_ALL }; S.conveyor = { x: 130, y: 880 }; S.convLeads = { ...CV_REF }; for (const i of S.inst) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true; const nm = names(); for (const i of S.inst) if (i.type === 'timer') S.tset[i.id] = TSET[nm[i.id]]; S.judge = { key: judgeKey() }; }   // 케이블을 꽂고 동작 검사까지 받은 상태
+  if (k === 4) { const fz = S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x); S.fuses = { [fz[0].id]: ['f5', 'f5'], [fz[1].id]: ['f3', 'f3'] }; S.cables = { ...CAB_ALL }; S.conveyor = { x: 130, y: 880 }; S.convLeads = { ...CV_REF }; for (const i of S.inst) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true; const nm = names(); for (const i of S.inst) if (i.type === 'timer') S.tset[i.id] = TSET[nm[i.id]]; S.judge = { key: judgeKey() }; }   // 케이블을 꽂고 동작 검사까지 받은 상태
   if (k === 5) {
     S.opBack = true; S.helical = S.wires.some(isExtWire) ? 2 : 0; buildTerms();
     for (const [, q] of frList()) if (q.type === 'duct' && q.stuck) q.covered = true;
@@ -2410,8 +2411,8 @@ function trayGroups() {
 }
 const trayGroups0 = trayGroups;
 trayGroups = function () {
-  const g = trayGroups0(), dev = g.find(x => x.id === 'dev'), fu = g.find(x => x.id === 'fuse');
-  if (dev && fu) { const i = dev.items.findIndex(it => it.key === 'fuse'); dev.items.splice(i + 1, 0, ...fu.items); }
+  const g = trayGroups0(), cab = g.find(x => x.id === 'cable'), fu = g.find(x => x.id === 'fuse');   // 퓨즈는 동작 검사 재료 (릴레이 앞)
+  if (cab && fu) { const i = cab.items.findIndex(it => it.key === 'relayU'); cab.items.splice(i < 0 ? 0 : i, 0, ...fu.items); }
   return g.filter(x => x.id !== 'fuse');
 };
 function trayItems() { return trayGroups().flatMap(g => g.items); }
@@ -2965,7 +2966,7 @@ function renderSteps() {
   GROUP_TITLE.forEach((name, k) => {
     const steps = stepsFor(k), d = steps.filter(s => s.done).length; marked = false;
     h += `<li class="grp" id="sec${k}">${esc(name)} <span class="gcount">${d}/${steps.length}</span><button class="fillbtn" data-act="fill" data-k="${k}">정답 채우기</button></li>`;
-    if (k === 4) h += `<li class="judgeli"><button class="nextbtn" data-act="judge"${prevDone() && cablesIn() && plugsIn() ? '' : ' disabled'}>${judgeRan() ? '동작 검사 다시 받기' : '동작 검사 받기'}</button></li>`;
+    if (k === 4) h += `<li class="judgeli"><button class="nextbtn" data-act="judge"${prevDone() && cablesIn() && fusesIn() && plugsIn() ? '' : ' disabled'}>${judgeRan() ? '동작 검사 다시 받기' : '동작 검사 받기'}</button></li>`;
     for (const s of steps) {
       const now = !s.done && !marked; if (now) marked = true;
       const tip = now && S.guide && (s.why || s.tip) ? `<span class="${s.why ? 'why' : 'tip'}">${esc(s.why || s.tip)}</span>` : '';
@@ -3626,7 +3627,6 @@ function demoScript() {   // 정답 채우기를 동작 하나 단위로 쪼갠�
       const a = S.stoppers[k], b = S.stoppers[k + 1], cy = ROW[RAIL_ROW[a.rail]].cy;
       add(2, `스톱퍼 2개로 양쪽 고정 (${ROW[RAIL_ROW[a.rail]].name})`, [['push', ['stoppers'], a], ['push', ['stoppers'], b]], { focus: rowV(a.rail), hl: { boxes: [a, b].map(t => ({ x: t.x, y: cy - 23, w: STOPPER_W, h: 46 })) } });
     }
-    S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x).forEach((f, k) => add(2, `퓨즈 ${k ? '3A' : '5A'} 2개 → ${nm[f.id]}`, [['set', ['fuses', f.id], S.fuses[f.id]]], { focus: rowV('c1'), sub: '과제지 동작 조건 (1): FS1은 5A, FS2는 3A', hl: { box: devR(f) } }));
     // 4. 배선: 7묶음 (교류 전원부 → 자동 → 수동 → +24V → 0V → PLC·아이오 링크 → 조작판)
     S.opBack = true; buildTerms();
     WIRE_GROUPS.forEach((g, gi) => {
@@ -3642,6 +3642,7 @@ function demoScript() {   // 정답 채우기를 동작 하나 단위로 쪼갠�
     add(4, '전원 케이블 꽂기: 단자대 1번(R), 2번(T) 아래', [['set', ['cables', 'power'], true]], { focus: CONV_V, sub: '왼쪽 아래 덕트 구멍으로 빼요', hl: { rings: ['TB.1.b', 'TB.2.b'].map(t => ({ x: TERM[t].x, y: TERM[t].y, r: 5 })) } });
     add(4, '컨베이어를 제어판 아래 바닥에 놓기', [['set', ['conveyor'], S.conveyor]], { focus: CONV_V, hl: { box: { x: S.conveyor.x - 16, y: S.conveyor.y - 100, w: CONV.L + 32, h: CVW.bw + 112 } } });
     for (const [k, ln, , t] of CV_LEADS) add(4, `컨베이어 ${k === 'S-' ? 'S−' : k}선 → ${TERM[t].nm}`, [['set', ['convLeads', k], t]], { focus: CONV_V, sub: ln, hl: { rings: [{ x: TERM[t].x, y: TERM[t].y, r: 5 }] } });
+    S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x).forEach((f, k) => add(4, `퓨즈 ${k ? '3A' : '5A'} 2개 → ${nm[f.id]}`, [['set', ['fuses', f.id], S.fuses[f.id]]], { focus: rowV('c1'), sub: '과제지 동작 조건 (1): FS1은 5A, FS2는 3A', hl: { box: devR(f) } }));
     const pl = S.inst.filter(i => i.type === 'relay' || i.type === 'timer').sort((a, b) => nm[a.id].localeCompare(nm[b.id]));
     for (const i of pl) add(4, `${i.type === 'relay' ? '릴레이' : '타이머'} ${nm[i.id]} 꽂기`, [['set', ['plug', i.id], true]], { focus: rowV('c2'), sub: i.type === 'relay' ? 'KACON HR705-4PL, 14P' : '한영넉스 T38N, 8P', hl: { box: devR(i) } });
     for (const i of pl.filter(i => i.type === 'timer')) { const n = nm[i.id]; add(4, `타이머 ${n} 다이얼 ${TSET[n]}초`, [['set', ['tset', i.id], TSET[n]]], { focus: rowV('c2'), sub: n === 'T3' ? 't2: 1초 이내 (동작 조건 (7))' : 't1: 약 1~3초', hl: { box: devR(i) } }); }
@@ -4085,14 +4086,6 @@ const LESSONS = [];
   L(2, '스톱퍼 고정', '기구 묶음마다 양옆에 스톱퍼를 끼워 고정해요', { keys: ['stoppers'], focus: P_V.panel,
     fill: () => { S.stoppers = pClone(R().stoppers); }, prog: () => { const e = groupEnds(); return [e.filter(x => x.ok).length, e.length]; }, goal: () => stage2Steps()[1],
     next: () => { const e = groupEnds().find(x => !x.ok); if (!e) return P_DONE; return { tx: `스톱퍼: ${ROW[RAIL_ROW[e.rail]].name} 찬넬`, sub: '도구 줄의 스톱퍼를 들고 빨간 테두리를 눌러요', tool: 'stopper', hl: { box: { x: e.x, y: ROW[RAIL_ROW[e.rail]].cy - 23, w: STOPPER_W, h: 46 } } }; } });
-  L(2, '퓨즈 끼우기', '과제지 동작 조건 (1): FS1에는 5A, FS2에는 3A 퓨즈를 2개씩 끼워요', { keys: ['fuses'], focus: rowV('c1'),
-    fill: () => { S.fuses = pClone(R().fuses); }, prog: () => [nFuses(), 4], goal: () => nFuses() === 4,
-    next: () => {
-      const nm = names(), fz = S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x);
-      for (const f of fz) for (const pole of [0, 1]) if (!(S.fuses[f.id] || [])[pole]) { const t = nm[f.id] === 'FS1' ? 'f5' : 'f3';
-        return { tx: `${nm[f.id]}에 ${t === 'f5' ? '5A' : '3A'} 퓨즈`, sub: UI.carry && UI.carry.key === t ? '빨간 테두리 퓨즈 홀더를 눌러요' : `재료함 '기구'의 ${FUSE_TYPES[t].name}을 들고 빨간 테두리를 눌러요. 용량이 틀리면 실패예요`, tray: t, hl: { box: fuseRect(f, pole) } }; }
-      return P_DONE;
-    } });
   // 4. 배선: 7묶음
   WIRE_GROUPS.forEach((G, gi) => {
     const before = WIRE_GROUPS.slice(0, gi).flatMap(g => g.ws).map(([a, b]) => pairKey(a, b)), mine = G.ws.map(([a, b]) => pairKey(a, b));
@@ -4128,6 +4121,14 @@ const LESSONS = [];
     next: () => { const l = CV_LEADS.find(x => S.convLeads[x[0]] !== x[3]); if (!l) return P_DONE; const e = leadEnd(l[0]), T = tRing(l[3]);
       const on = UI.pending === 'CV.' + l[0];   // 선 끝을 눌러 두었으면 단자만
       return { tx: `컨베이어 ${l[0] === 'S-' ? 'S−' : l[0]}선 → ${wireName(l[3])}`, sub: on ? '이제 빨간 원 단자를 눌러요' : `${l[1]}. 손으로 선 끝(빨간 원)을 누르고 단자대 단자를 눌러요. 다른 단자에 꽂으면 실패예요`, tool: on ? null : 'hand', hl: { rings: (on ? [T] : [{ x: e.x, y: e.y, r: 7 }, T]).filter(Boolean), line: T ? [e, T] : null } }; } });
+  L(4, '퓨즈 끼우기', '동작 검사 전에 퓨즈를 끼워요. 과제지 동작 조건 (1): FS1에는 5A, FS2에는 3A 퓨즈를 2개씩', { keys: ['fuses'], focus: rowV('c1'),
+    fill: () => { S.fuses = pClone(R().fuses); }, prog: () => [nFuses(), 4], goal: () => nFuses() === 4,
+    next: () => {
+      const nm = names(), fz = S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x);
+      for (const f of fz) for (const pole of [0, 1]) if (!(S.fuses[f.id] || [])[pole]) { const t = nm[f.id] === 'FS1' ? 'f5' : 'f3';
+        return { tx: `${nm[f.id]}에 ${t === 'f5' ? '5A' : '3A'} 퓨즈`, sub: UI.carry && UI.carry.key === t ? '빨간 테두리 퓨즈 홀더를 눌러요' : `재료함 '동작 검사 재료'의 ${FUSE_TYPES[t].name}을 들고 빨간 테두리를 눌러요. 용량이 틀리면 실패예요`, tray: t, hl: { box: fuseRect(f, pole) } }; }
+      return P_DONE;
+    } });
   for (const [t, nmK, key] of [['relay', '릴레이', 'plugR'], ['timer', '타이머', 'plugT']]) L(4, `${nmK} 꽂기`, `${nmK}를 ${t === 'relay' ? 'R1~R6' : 'T1~T3'} 소켓에 꽂아요`, { keys: [key], focus: rowV('c2'),
     fill: () => { for (const i of S.inst) if (i.type === t) S.plug[i.id] = true; }, prog: () => [nPlugged(t), DEV[t].qty], goal: () => nPlugged(t) === DEV[t].qty,
     next: () => { const nm = names(), i = S.inst.filter(q => q.type === t && !S.plug[q.id]).sort((a, b) => a.x - b.x)[0]; if (!i) return P_DONE;
@@ -4368,7 +4369,7 @@ function homeHelpHTML() {
     + sec('3', '들고 놓기', '<ul><li>재료함의 부품을 누르면 <b>마우스에 붙어요</b>. 맞는 자리를 누르면 끼워지고, 빈 바닥을 누르면 내려놓아요</li><li>도구도 누르면 들어요. 들고 판을 눌러서 써요. 같은 도구를 다시 누르거나 <b>손</b>을 누르면 내려놔요</li><li><b>우클릭</b>: 들고 있는 부품은 재료함으로, 도구는 내려놓기</li><li>잘못했으면 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 또는 되돌리기</li></ul>')
     + sec('4', '화면 움직이기', '<ul><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
     + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
-    + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
+    + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
     + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 다시 하기로 처음부터</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
