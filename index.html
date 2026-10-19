@@ -143,7 +143,8 @@ body.demo .zoom { display: none; }
 .demo-dia .dd-h button { pointer-events: auto; flex: none; height: 24px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); color: var(--ink); font-size: 11.5px; font-weight: 700; cursor: pointer; }
 .dd-done { fill: none; stroke: #16a34a; stroke-opacity: .6; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
 .dd-now { fill: none; stroke: #ff3b30; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: demoDraw .7s ease-out forwards, demoPulse 1s ease-in-out .7s infinite; }
-body.demo .tray, body.demo .side, body.demo #tools, body.demo #stages, body.demo .chip-btn:not(#btnDemo) { pointer-events: none; opacity: .55; }
+body.demo .tray, body.demo #tools, body.demo #stages, body.demo .chip-btn:not(#btnDemo) { pointer-events: none; opacity: .55; }
+body.demo .side { pointer-events: none; }   /* 시연 중 할 일은 체크박스로, 흐리게 하지 않는다 */
 .demo-hl { fill: none; stroke: #ff3b30; stroke-width: 3px; vector-effect: non-scaling-stroke; animation: demoPulse 1s ease-in-out infinite; }
 .demo-wire { fill: none; stroke: #ff3b30; stroke-width: 3.5px; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: demoDraw .8s ease-out forwards; }
 @keyframes demoPulse { 50% { stroke-opacity: .2; } }
@@ -400,6 +401,13 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
 .exam-badge { padding: 4px 11px; border-radius: 999px; background: var(--red); color: #fff; font-size: 13px; font-weight: 700; }
 #clock.late { background: var(--red); color: #fff; font-weight: 700; }
 .chip-btn:disabled { opacity: .45; cursor: default; }
+.steps li.ck { grid-template-columns: 18px auto minmax(0, 1fr) auto; align-items: center; }   /* 시연 보기: 할 일 체크박스 */
+.steps .bx { display: grid; place-items: center; width: 16px; height: 16px; box-sizing: border-box; border: 2px solid var(--muted); border-radius: 4px; color: #fff; font-size: 11px; font-weight: 900; line-height: 1; }
+.steps li.ck.done .bx { background: var(--green); border-color: var(--green); }
+.steps li.ck.done .bx::after { content: '✓'; }
+.steps li.ck.pop .bx { animation: ckPop .45s ease-out; }
+.steps li.ck.now .bx { border-color: #ff3b30; animation: ckBlink 1s ease-in-out infinite; }
+.steps li.grp.on { color: var(--ink); }
 .steps li.examcard { display: block; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); font-size: 13px; line-height: 1.55; }
 .sc-total { display: flex; align-items: baseline; gap: 4px; margin: 6px 0 10px; }
 .sc-total b { font-size: 34px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
@@ -2926,7 +2934,25 @@ function renderTray() {
     return `<details class="tgroup" data-g="${g.id}"${UI.trayOpen.has(g.id) ? ' open' : ''}><summary><span>${esc(g.name)}</span>${g.id === 'wire' ? '' : `<span class="gleft">${left}개 남음</span>`}</summary><div class="tray-items">${g.items.map(trayItemHTML).join('')}</div></details>`;
   }).join('');
 }
+function renderDemoSteps() {   // 시연 보기: 할 일을 체크박스로. 시연이 해낼 때마다 체크된다
+  const cur = DEMO.steps[DEMO.i], stg = cur ? cur.st : -1, all = [], prev = UI.dsPrev && UI.dsPrev.i === DEMO.i - 1 ? UI.dsPrev.done : null;
+  let h = '', k0 = 0, nowEl = false;
+  GROUP_TITLE.forEach((name, k) => {
+    const steps = stepsFor(k), d = steps.filter(x => x.done).length;
+    h += `<li class="grp${k === stg ? ' on' : ''}" id="sec${k}">${k + 1}. ${esc(name)} <span class="gcount">${d}/${steps.length}</span></li>`;
+    steps.forEach((x, j) => {
+      const now = k === stg && !x.done && !nowEl, pop = x.done && prev && !prev[k0 + j]; if (now) nowEl = true; all.push(!!x.done);
+      h += `<li class="ck${x.done ? ' done' : now ? ' now' : ' todo'}${pop ? ' pop' : ''}"><span class="bx"></span><span class="no">${esc(x.no)}</span><span class="tt">${esc(x.title)}</span><span class="pg">${x.m > 1 ? x.n + '/' + x.m : ''}</span></li>`;
+    });
+    k0 += steps.length;
+  });
+  UI.dsPrev = { i: DEMO.i, done: all };
+  $('#stepsTitle').textContent = '할 일 (시연이 하는 대로 체크)'; $('#steps').innerHTML = h; $('#nextWrap').innerHTML = '';
+  const pane = $('.side .pane-in'), li = $('#steps li.now') || $('#steps li.grp.on');   // 지금 하는 것이 보이게
+  if (li) { const top = li.offsetTop - pane.offsetTop, want = top - pane.clientHeight / 3; if (top < pane.scrollTop + 40 || top > pane.scrollTop + pane.clientHeight - 60) pane.scrollTo({ top: Math.max(0, want), behavior: 'smooth' }); }
+}
 function renderSteps() {
+  if (DEMO.on) return renderDemoSteps();
   if (MODE === 'prac' && PRAC.L) return renderPracSide();
   if (S.exam && S.exam.on) {
     $('#stepsTitle').textContent = '시험 모드';
