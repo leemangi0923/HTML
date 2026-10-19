@@ -4377,8 +4377,9 @@ function renderHome() {
 }
 function showHome(page = 'main') {
   if (DEMO.on) demoClose(); if (TZ.id) tzClose();
+  UI.carry = null; UI.pending = null; UI.replug = null; if (S.tool !== 'hand') S.tool = 'hand';   // 들고 있던 도구, 부품은 내려놓는다
   if (MODE !== 'prac') save();
-  UI.homePage = page; closeModal(); renderHome(); $('#home').hidden = false;
+  UI.homePage = page; closeModal(); renderHome(); $('#home').hidden = false; renderTools(); renderTray(); renderOver();
   const b = $('#home').querySelector(page === 'prac' ? '.hm-go, .ls' : '.hm-card, .hm-back'); if (b) setTimeout(() => b.focus({ preventScroll: true }), 30);
 }
 function hideHome() { $('#home').hidden = true; }
@@ -4430,7 +4431,7 @@ function toolCursor(p) {   // 누르는 곳은 십자 포인터와 원, 도구 �
 }
 function updateFollower() {
   const el = $('#follower'), m = UI.mouse;
-  if (!m || m.over || TZ.id || !(UI.carry || S.tool !== 'hand')) { el.hidden = true; return; }
+  if (!m || m.over || TZ.id || !$('#home').hidden || !(UI.carry || S.tool !== 'hand')) { el.hidden = true; return; }   // 메인 화면 위에서는 안 따라다닌다
   const key = UI.carry ? 'c' + UI.carry.kind + UI.carry.key + 'x' + (UI.carry.count || 1) : 't' + S.tool + (S.gloves ? 'g' : '');
   if (el.dataset.key !== key) { el.dataset.key = key; el.innerHTML = UI.carry ? `<div class="fitem">${trayThumb({ kind: UI.carry.kind, key: UI.carry.key })}${(UI.carry.count || 1) > 1 ? `<span class="fcount">×${UI.carry.count}</span>` : ''}</div>` : `<svg viewBox="-20 -60 90 90" width="72" height="72" aria-hidden="true">${toolArt(S.tool)}</svg>`; }
   el.hidden = false; el.style.left = (m.x + (UI.carry ? 14 : 0)) + 'px'; el.style.top = (m.y + (UI.carry ? 14 : -30)) + 'px';   // 도구 끝이 포인터 오른쪽 아래 (16, 18)
