@@ -104,7 +104,7 @@ h2.ph { font-size: 13px; margin: 2px 2px 8px; color: var(--muted); font-weight: 
 .status { padding: 6px 12px; font-size: 12.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--line); min-height: 31px; }
 .toast { position: absolute; left: 50%; top: 12px; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; background: var(--panel); color: var(--ink); border-radius: 8px; padding: 8px 14px; box-shadow: 0 6px 20px rgba(0, 0, 0, .28); font-size: 13.5px; max-width: min(92%, 560px); text-align: center; border-left: 4px solid var(--muted); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
-.board-wrap .toast { z-index: 6; }
+.board-wrap .toast { z-index: 6; top: var(--toast-top, 12px); }   /* 연습: 위 안내 칸 아래에 */
 /* 회로도: 판 위에 꺼내 두고 보는 창 (끌어서 옮기고, 오른쪽 아래 모서리로 크기 조절) */
 .circ { position: absolute; left: 12px; top: 12px; z-index: 4; width: min(640px, calc(100% - 24px)); min-width: 260px; min-height: 140px; max-width: calc(100% - 8px); max-height: calc(100% - 8px); display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 34px rgba(0, 0, 0, .35); resize: both; overflow: hidden; }
 .circ[hidden] { display: none; }
@@ -140,6 +140,7 @@ body.demo .zoom { display: none; }
 .demo-dia .dd-h span { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--muted); }
 .demo-dia .dd-h i { font-style: normal; } .demo-dia .dd-h .r { color: #e3232f; } .demo-dia .dd-h .g { color: #16a34a; }
 .demo-dia svg { display: block; width: 100%; height: auto; background: #fff; }
+.demo-dia .dd-h button { pointer-events: auto; flex: none; height: 24px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); color: var(--ink); font-size: 11.5px; font-weight: 700; cursor: pointer; }
 .dd-done { fill: none; stroke: #16a34a; stroke-opacity: .6; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
 .dd-now { fill: none; stroke: #ff3b30; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: demoDraw .7s ease-out forwards, demoPulse 1s ease-in-out .7s infinite; }
 body.demo .tray, body.demo .side, body.demo #tools, body.demo #stages, body.demo .chip-btn:not(#btnDemo) { pointer-events: none; opacity: .55; }
@@ -679,7 +680,7 @@ const WIRE_STEPS = [
   { no: '(2)-5', title: 'FS2 왼쪽 → PLC L, 오른쪽 → R3 a접점 → PLC N', nets: ['n7', 'n8', 'n9'] }
 ];
 const ANSWER_WIRES = [['TB.1.t','MCB.B1'],['TB.2.t','MCB.B2'],['MCB.T1','FS1.T1'],['MCB.T1','FS2.T1'],['MCB.T2','FS1.T2'],['MCB.T2','FS2.T2'],
-  ['FS1.B1','SMPS.L'],['FS1.B1','SV.L1'],['SMPS.L','SV.C1'],['FS1.B2','SMPS.N'],['FS1.B2','SV.L3'],['SMPS.N','SV.C2'],['FS2.B1','PLC.L'],['FS2.B2','R3.9'],['R3.5','PLC.N']];
+  ['FS1.B1','SMPS.L'],['FS1.B1','SV.L1'],['SMPS.L','SV.C1'],['FS1.B2','SMPS.N'],['FS1.B2','SV.L3'],['SMPS.N','SV.C2'],['FS2.B1','PLC.L'],['FS2.B2','R3.12'],['R3.8','PLC.N']];
 
 const STAGE_NAMES = ['조작판', '덕트·찬넬', '기구 설치', '배선', '마무리'];
 const TOOLS = [
@@ -1161,23 +1162,23 @@ function opTermName(sym, type, k) {
 }
 /* 정답 예시 배선 (이것만 정답은 아님: 동작이 같으면 다른 단자도 통과). 시연, 가이드 안내도 이 순서 */
 const WIRE_GROUPS = [
-  { t: '교류 전원부', d: '단자대 R·T → MCB → 퓨즈 FS1·FS2 → SMPS, 서보 드라이버. PLC 전원은 FS2 → R3 a접점(9 → 5)을 거쳐서', ws: [
+  { t: '교류 전원부', d: '단자대 R·T → MCB → 퓨즈 FS1·FS2 → SMPS, 서보 드라이버. PLC 전원은 FS2 → R3 a접점(12 → 8)을 거쳐서', ws: [
     ['TB.1.t', 'MCB.B1'], ['TB.2.t', 'MCB.B2'], ['MCB.T1', 'FS1.T1'], ['MCB.T1', 'FS2.T1'], ['MCB.T2', 'FS1.T2'], ['MCB.T2', 'FS2.T2'],
     ['FS1.B1', 'SMPS.L'], ['FS1.B1', 'SV.L1'], ['SMPS.L', 'SV.C1'], ['FS1.B2', 'SMPS.N'], ['FS1.B2', 'SV.L3'], ['SMPS.N', 'SV.C2'],
-    ['FS2.B1', 'PLC.L'], ['FS2.B2', 'R3.9'], ['R3.5', 'PLC.N']] },
+    ['FS2.B1', 'PLC.L'], ['FS2.B2', 'R3.12'], ['R3.8', 'PLC.N']] },
   { t: '자동(A) 회로 · 회로도 1', d: 'PB1(단자대 8·9번)로 R1·R2·R3을 번갈아 붙이고 R3 자기유지 → WL2(16번). PLC 출력 P20 → 부저(13번)', ws: [
-    ['TB.8.t', 'R2.9'], ['R2.1', 'R3.10'], ['R3.2', 'R1.13'], ['TB.8.t', 'R1.9'], ['R1.5', 'R1.13'],
-    ['R1.9', 'R1.10'], ['R1.2', 'R3.11'], ['R3.7', 'R2.13'], ['R2.9', 'R2.10'], ['R2.6', 'R2.13'],
-    ['TB.9.t', 'R1.11'], ['R1.11', 'R3.12'], ['R1.7', 'R3.8'], ['R3.8', 'R2.11'], ['R2.3', 'R3.13'], ['R3.13', 'TB.16.t'],
+    ['TB.8.t', 'R2.12'], ['R2.4', 'R3.11'], ['R3.3', 'R1.13'], ['TB.8.t', 'R1.12'], ['R1.8', 'R1.13'],
+    ['R1.12', 'R1.11'], ['R1.3', 'R3.10'], ['R3.6', 'R2.13'], ['R2.12', 'R2.11'], ['R2.7', 'R2.13'],
+    ['TB.9.t', 'R1.10'], ['R1.10', 'R3.9'], ['R1.6', 'R3.5'], ['R3.5', 'R2.10'], ['R2.2', 'R3.13'], ['R3.13', 'TB.16.t'],
     ['TB.13.t', 'PLC.P20']] },
   { t: '수동(M) 컨베이어 회로 · 회로도 2', d: 'PB0(11번) → T3 한시 b → S1·S2 → T1·T2 → R4·R5 자기유지 → GL·YL, 리셋 회로(T3·R6), 모터 FR·BR(24·25번)', ws: [
-    ['TB.11.t', 'T3.8'], ['T3.5', 'TB.19.t'], ['T3.5', 'T1.8'], ['T1.8', 'R4.9'], ['R4.9', 'T2.8'], ['T2.8', 'R5.9'], ['R5.9', 'T3.1'],
-    ['T1.6', 'R4.5'], ['R4.5', 'R4.13'], ['R4.13', 'TB.14.t'],
-    ['T2.6', 'R5.5'], ['R5.5', 'R5.13'], ['R5.13', 'TB.15.t'],
-    ['TB.20.t', 'R5.10'], ['R5.2', 'R6.9'], ['R6.1', 'T1.7'],
-    ['TB.21.t', 'R4.10'], ['R4.2', 'R6.10'], ['R6.2', 'T2.7'],
-    ['TB.20.t', 'R5.11'], ['TB.21.t', 'R4.11'], ['R5.7', 'T3.7'], ['T3.7', 'R4.7'], ['R4.7', 'R6.13'], ['R6.13', 'T3.3'],
-    ['TB.5.t', 'R4.12'], ['R4.12', 'R5.12'], ['R4.8', 'TB.24.t'], ['R5.8', 'TB.25.t']] },
+    ['TB.11.t', 'T3.8'], ['T3.5', 'TB.19.t'], ['T3.5', 'T1.8'], ['T1.8', 'R4.12'], ['R4.12', 'T2.8'], ['T2.8', 'R5.12'], ['R5.12', 'T3.1'],
+    ['T1.6', 'R4.8'], ['R4.8', 'R4.13'], ['R4.13', 'TB.14.t'],
+    ['T2.6', 'R5.8'], ['R5.8', 'R5.13'], ['R5.13', 'TB.15.t'],
+    ['TB.20.t', 'R5.11'], ['R5.3', 'R6.12'], ['R6.4', 'T1.7'],
+    ['TB.21.t', 'R4.11'], ['R4.3', 'R6.11'], ['R6.3', 'T2.7'],
+    ['TB.20.t', 'R5.10'], ['TB.21.t', 'R4.10'], ['R5.6', 'T3.7'], ['T3.7', 'R4.6'], ['R4.6', 'R6.13'], ['R6.13', 'T3.3'],
+    ['TB.5.t', 'R4.9'], ['R4.9', 'R5.9'], ['R4.5', 'TB.24.t'], ['R5.5', 'TB.25.t']] },
   { t: '+24V 공통', d: 'SMPS +V → PLC 입력 COM0(+ 공통) → 출력 P → 아이오 링크 1 B16 → 아이오 링크 2 B25 → 단자대 36 → 33 → 5번(+)', ws: [
     ['SMPS.V1', 'PLC.ICOM0'], ['PLC.ICOM0', 'PLC.P'], ['PLC.P', 'XTB1.B16'], ['XTB1.B16', 'XTB2.B25'], ['XTB2.B25', 'TB.36.t'], ['TB.36.t', 'TB.33.t'], ['TB.33.t', 'TB.5.t']] },
   { t: '0V 공통', d: 'SMPS −V → 단자대 6번, 릴레이·타이머 코일 −(R1~R6 14번, T1~T3 2번) → PLC 출력 COM0 → 22번. 아이오 링크 2의 − → 단자대 40 → 34 → 6번', ws: [
@@ -1201,27 +1202,37 @@ const WIRE_GROUPS = [
 const REF_WIRES = WIRE_GROUPS.flatMap(g => g.ws);
 /* 시연: 자동(A)·수동(M) 회로를 이을 때 회로도에 표시할 자리 (회로도 그림 픽셀 좌표). 전선 하나 = 회로도에서 그 선이 맡는 부분 */
 const CIRC_TRACE = {
-  // 회로도 1 (1269×511): PB1 아래 마디 y181, R1 줄 x826, R1-a x889, R2 줄 x961, R2-a x1024, R3 줄 x1105, R3-a x1168, 코일 위 y400
-  'TB.8.t|R2.9': [[826, 153], [826, 212]], 'R2.1|R3.10': [[826, 252], [826, 284]], 'R3.2|R1.13': [[826, 324], [826, 400]],
-  'TB.8.t|R1.9': [[826, 181], [889, 181], [889, 212]], 'R1.5|R1.13': [[889, 252], [889, 356], [826, 356], [826, 400]],
-  'R1.9|R1.10': [[889, 181], [961, 181], [961, 212]], 'R1.2|R3.11': [[961, 252], [961, 284]], 'R3.7|R2.13': [[961, 324], [961, 400]],
-  'R2.9|R2.10': [[961, 181], [1024, 181], [1024, 212]], 'R2.6|R2.13': [[1024, 252], [1024, 356], [961, 356], [961, 400]],
-  'TB.9.t|R1.11': [[826, 76], [1105, 76], [1105, 113]], 'R1.11|R3.12': [[1105, 76], [1168, 76], [1168, 113]],
-  'R1.7|R3.8': [[1105, 153], [1105, 181], [1168, 181], [1168, 153]], 'R3.8|R2.11': [[1105, 181], [1105, 212]],
-  'R2.3|R3.13': [[1105, 252], [1105, 400]], 'R3.13|TB.16.t': [[1105, 356], [1232, 356], [1232, 400]], 'TB.13.t|PLC.P20': [[601, 153], [601, 284]],
+  // 교류 전원부 (430×505, 새 도면에서 SMPS까지): R x54.5, T x108.5, FS1 줄 y198.5·234.5. 서보는 도면에 없어서 FS1과 SMPS 사이 원
+  'TB.1.t|MCB.B1': [[54.5, 53], [54.5, 93]], 'TB.2.t|MCB.B2': [[108.5, 53], [108.5, 93]], 'MCB.T1|FS1.T1': [[54.5, 140], [54.5, 198.5], [180, 198.5]],
+  'MCB.T1|FS2.T1': [[54.5, 140], [54.5, 279]], 'MCB.T2|FS1.T2': [[108.5, 140], [108.5, 234.5], [180, 234.5]], 'MCB.T2|FS2.T2': [[108.5, 140], [108.5, 279]],
+  'FS1.B1|SMPS.L': [[228, 198.5], [288, 198.5]], 'FS1.B1|SV.L1': { c: [258, 198.5], r: 16 }, 'SMPS.L|SV.C1': { c: [258, 198.5], r: 16 },
+  'FS1.B2|SMPS.N': [[228, 234.5], [288, 234.5]], 'FS1.B2|SV.L3': { c: [258, 234.5], r: 16 }, 'SMPS.N|SV.C2': { c: [258, 234.5], r: 16 }, 'FS2.B1|PLC.L': [[54.5, 323], [54.5, 432]],
+  'FS2.B2|R3.12': [[108.5, 323], [108.5, 349]], 'R3.8|PLC.N': [[108.5, 394], [108.5, 432]],
+  // 자동(A) (842×475, 새 도면에서 SMPS 오른쪽): 위 선 y42.5, 마디 y147.5·321.5, R1 줄 x390.5, R1-a x453.5, R2 줄 x525.5, R2-a x588.5, R3 줄 x669.5, R3-a x732.5, 코일 위 y366
+  'TB.8.t|R2.12': [[390.5, 120], [390.5, 177]], 'R2.4|R3.11': [[390.5, 219], [390.5, 249]], 'R3.3|R1.13': [[390.5, 291], [390.5, 366]],
+  'TB.8.t|R1.12': [[390.5, 147.5], [453.5, 147.5], [453.5, 177]], 'R1.8|R1.13': [[453.5, 219], [453.5, 321.5], [390.5, 321.5], [390.5, 366]],
+  'R1.12|R1.11': [[453.5, 147.5], [525.5, 147.5], [525.5, 177]], 'R1.3|R3.10': [[525.5, 219], [525.5, 249]], 'R3.6|R2.13': [[525.5, 291], [525.5, 366]],
+  'R2.12|R2.11': [[525.5, 147.5], [588.5, 147.5], [588.5, 177]], 'R2.7|R2.13': [[588.5, 219], [588.5, 321.5], [525.5, 321.5], [525.5, 366]],
+  'TB.9.t|R1.10': [[390.5, 42.5], [669.5, 42.5], [669.5, 77]], 'R1.10|R3.9': [[669.5, 42.5], [732.5, 42.5], [732.5, 77]],
+  'R1.6|R3.5': [[669.5, 120], [669.5, 147.5], [732.5, 147.5], [732.5, 120]], 'R3.5|R2.10': [[669.5, 147.5], [669.5, 177]], 'R2.2|R3.13': [[669.5, 219], [669.5, 366]],
+  'R3.13|TB.16.t': [[669.5, 321.5], [795.5, 321.5], [795.5, 366]], 'TB.13.t|PLC.P20': [[165.5, 120], [165.5, 248]],
   // 회로도 2 (1234×684): 위 선 y52, T1 줄 x314, T2 줄 x423, R4 줄 x545·630, R5 줄 x788·873, 리셋 x1019·1092·1165, 코일 위 y545
   'TB.11.t|T3.8': [[165, 52], [209, 52]], 'T3.5|TB.19.t': [[248, 52], [314, 52], [314, 112]], 'T3.5|T1.8': [[314, 52], [545, 52], [545, 112]],
-  'T1.8|R4.9': [[545, 52], [630, 52], [630, 112]], 'R4.9|T2.8': [[630, 52], [788, 52], [788, 112]], 'T2.8|R5.9': [[788, 52], [873, 52], [873, 112]],
-  'R5.9|T3.1': [[873, 52], [1165, 52], [1165, 112]],
-  'T1.6|R4.5': [[545, 148], [545, 186], [630, 186], [630, 148]], 'R4.5|R4.13': [[545, 186], [545, 545]], 'R4.13|TB.14.t': [[545, 490], [690, 490], [690, 545]],
-  'T2.6|R5.5': [[788, 148], [788, 186], [873, 186], [873, 148]], 'R5.5|R5.13': [[788, 186], [788, 545]], 'R5.13|TB.15.t': [[788, 490], [934, 490], [934, 545]],
-  'TB.20.t|R5.10': [[314, 148], [314, 198]], 'R5.2|R6.9': [[314, 233], [314, 283]], 'R6.1|T1.7': [[314, 318], [314, 545]],
-  'TB.21.t|R4.10': [[423, 148], [423, 198]], 'R4.2|R6.10': [[423, 233], [423, 283]], 'R6.2|T2.7': [[423, 318], [423, 545]],
-  'TB.20.t|R5.11': [[1019, 148], [1019, 198]], 'TB.21.t|R4.11': [[1092, 148], [1092, 198]], 'R5.7|T3.7': [[1019, 233], [1019, 545]],
-  'T3.7|R4.7': [[1019, 368], [1092, 368], [1092, 233]], 'R4.7|R6.13': [[1092, 368], [1092, 545]], 'R6.13|T3.3': [[1165, 148], [1165, 368], [1092, 368]],
-  'TB.5.t|R4.12': { c: [31, 52], r: 22 }, 'R4.12|R5.12': { c: [31, 52], r: 22 }, 'R4.8|TB.24.t': { c: [31, 52], r: 22 }, 'R5.8|TB.25.t': { c: [31, 52], r: 22 }
+  'T1.8|R4.12': [[545, 52], [630, 52], [630, 112]], 'R4.12|T2.8': [[630, 52], [788, 52], [788, 112]], 'T2.8|R5.12': [[788, 52], [873, 52], [873, 112]],
+  'R5.12|T3.1': [[873, 52], [1165, 52], [1165, 112]],
+  'T1.6|R4.8': [[545, 148], [545, 186], [630, 186], [630, 148]], 'R4.8|R4.13': [[545, 186], [545, 545]], 'R4.13|TB.14.t': [[545, 490], [690, 490], [690, 545]],
+  'T2.6|R5.8': [[788, 148], [788, 186], [873, 186], [873, 148]], 'R5.8|R5.13': [[788, 186], [788, 545]], 'R5.13|TB.15.t': [[788, 490], [934, 490], [934, 545]],
+  'TB.20.t|R5.11': [[314, 148], [314, 198]], 'R5.3|R6.12': [[314, 233], [314, 283]], 'R6.4|T1.7': [[314, 318], [314, 545]],
+  'TB.21.t|R4.11': [[423, 148], [423, 198]], 'R4.3|R6.11': [[423, 233], [423, 283]], 'R6.3|T2.7': [[423, 318], [423, 545]],
+  'TB.20.t|R5.10': [[1019, 148], [1019, 198]], 'TB.21.t|R4.10': [[1092, 148], [1092, 198]], 'R5.6|T3.7': [[1019, 233], [1019, 545]],
+  'T3.7|R4.6': [[1019, 368], [1092, 368], [1092, 233]], 'R4.6|R6.13': [[1092, 368], [1092, 545]], 'R6.13|T3.3': [[1165, 148], [1165, 368], [1092, 368]],
+  'TB.5.t|R4.9': { c: [31, 52], r: 22 }, 'R4.9|R5.9': { c: [31, 52], r: 22 }, 'R4.5|TB.24.t': { c: [31, 52], r: 22 }, 'R5.5|TB.25.t': { c: [31, 52], r: 22 }
 };
-const CIRC_SIZE = [[1269, 511], [1234, 684]], CIRC_NAME = ['회로도 1 · 자동(A)', '회로도 2 · 수동(M) 컨베이어'];
+const CIRC_DIA = [   // 배선 묶음 0~2의 도면 (src가 없으면 회로도 창의 2번 그림)
+  { name: '교류 전원부', size: [430, 505], src: 'data:image/png;base64,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' },
+  { name: '자동(A) 회로 · 회로도 1', size: [842, 475], src: 'data:image/png;base64,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' },
+  { name: '수동(M) 컨베이어 회로 · 회로도 2', size: [1234, 684], src: null }
+];
 
 const CHECKS = [
   { id: 'p1', grp: '전원부', no: '(2)-1~3', title: 'MCB를 거쳐 퓨즈, SMPS에 전원' },
@@ -2859,7 +2870,7 @@ function addWire(a, b) {
 }
 
 /* ---------- 그리기 ---------- */
-function renderAll() { if (MODE === 'prac') pracNext(); renderHeader(); renderTools(); renderTray(); renderSteps(); renderWorld(); renderOver(); opChkUI(); pracCapUI(); }
+function renderAll() { if (MODE === 'prac') pracNext(); renderHeader(); renderTools(); renderTray(); renderSteps(); renderWorld(); renderOver(); opChkUI(); pracCapUI(); pracDia(); }
 function renderHeader() {
   const exOn = !!(S.exam && S.exam.on), pr = MODE === 'prac' && PRAC.L;
   $('#stages').innerHTML = pr ? `<span class="exam-badge prac">연습 ${PRAC.L.id} · ${esc(PRAC.L.t)}</span>` : exOn ? '<span class="exam-badge">시험 모드 · 3시간 30분</span>' : GROUP_TITLE.map((n, i) => { const st = stepsFor(i), d = st.filter(s => s.done).length, ok = d === st.length;
@@ -3148,6 +3159,7 @@ function renderOver() {
   if (p && UI.overBoard && !UI.carry && S.tool !== 'hand') s += toolCursor(p);
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
   if (MODE === 'prac' && PRAC.hl) s += PRAC.hl;   // 연습: 할 자리
+  if (MODE === 'prac' && PRAC.L && PRAC.L.wg !== undefined) pracDia();   // 단자 하나를 누르면 그 선이 빨강
   gOver.innerHTML = s;
   svg.classList.toggle('nocur', !!(UI.overBoard && (UI.carry || S.tool !== 'hand')));
   updateFollower();
@@ -3490,7 +3502,7 @@ document.querySelector('.side').addEventListener('click', e => {
     if (a === 'pr-judge') return takeJudge();
     if (a === 'pr-retry') return pracStart(PRAC.L.id);
     if (a === 'pr-list') return showHome('prac');
-    if (a === 'pr-see') { const r = pracHLBox(); return r ? fitTo(r) : fitTo(PRAC.L.focus || FIT_V); }
+    if (a === 'pr-see') { const r = pracHLBox(); return fitAvoid(r || PRAC.L.focus || FIT_V); }
     if (a === 'pr-tz') { const i = S.inst.find(q => q.id === b.dataset.id); if (i) tzOpen(i); return; }
   }
   if (b.dataset.act === 'judge') return takeJudge();
@@ -3593,7 +3605,7 @@ function demoScript() {   // 정답 채우기를 동작 하나 단위로 쪼갠�
     WIRE_GROUPS.forEach((g, gi) => {
       const grp = `${gi + 1}) ${g.t}`;
       if (g.op) add(3, '조작판 뒤집기: 조작판 선은 뒷면에서 이어요', [['set', ['opBack'], true]], { grp, focus: OP_V, sub: '뒷면은 앞면과 좌우가 바뀌어요' });
-      const dg = gi === 1 ? 0 : gi === 2 ? 1 : -1;   // 자동(A), 수동(M) 회로는 회로도에 지금 자리와 이은 자리를 표시
+      const dg = CIRC_DIA[gi] ? gi : -1;   // 교류 전원부, 자동(A), 수동(M) 회로는 도면에 지금 자리와 이은 자리를 표시
       add(3, `${g.t} (${g.ws.length}개)`, [], { grp, sub: g.d, focus: span(g.ws.flat(), 60), intro: true, dia: dg >= 0 ? { img: dg, g: gi } : null });
       for (const [a, b] of g.ws) add(3, `${TERM[a].nm} → ${TERM[b].nm}`, [['push', ['wires'], { a, b }]], { grp, focus: span([a, b]), hl: { wire: true }, dia: dg >= 0 ? { img: dg, g: gi, tr: CIRC_TRACE[a + '|' + b] } : null });
     });
@@ -3701,16 +3713,31 @@ function demoNext() {
 }
 function demoStep(d) { clearTimeout(DEMO.timer); demoShow(DEMO.i + d); if (DEMO.play) DEMO.timer = setTimeout(demoNext, demoDur(DEMO.steps[DEMO.i])); }
 function demoJump(i) { clearTimeout(DEMO.timer); DEMO.cur = null; demoShow(i); if (DEMO.play) DEMO.timer = setTimeout(demoNext, demoDur(DEMO.steps[DEMO.i])); }
-function demoDia() {   // 회로도: 지금 잇는 곳은 빨강, 이미 이은 곳은 초록
-  const el = $('#demoDia'), st = DEMO.steps[DEMO.i], d = st && st.dia;
-  if (!d) { el.hidden = true; return; }
-  const [W, H] = CIRC_SIZE[d.img], src = document.querySelectorAll('#circ .circ-body img')[d.img].src;
+function diaRender(k, done, now, top, bottom, fold) {   // 도면: 지금 잇는 곳은 빨강, 이미 이은 곳은 초록. fold: 연습에서 접기 버튼
+  const el = $('#demoDia'), D = CIRC_DIA[k], [W, H] = D.size, P = el.parentElement, src = D.src || document.querySelectorAll('#circ .circ-body img')[1].src;
   const mark = (tr, cls) => !tr ? '' : Array.isArray(tr) ? `<path class="${cls}" pathLength="1" d="M${tr.map(q => q.join(' ')).join('L')}"/>` : `<circle class="${cls}" pathLength="1" cx="${tr.c[0]}" cy="${tr.c[1]}" r="${tr.r}"/>`;
-  let done = ''; for (let k = 0; k < DEMO.i; k++) { const x = DEMO.steps[k].dia; if (x && x.g === d.g && x.tr) done += mark(x.tr, 'dd-done'); }
-  el.style.bottom = ($('#demoBar').offsetHeight + 18) + 'px';
-  el.innerHTML = `<div class="dd-h">${CIRC_NAME[d.img]}<span><i class="r">━ 지금 잇는 곳</i> · <i class="g">━ 이은 곳</i></span></div><svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><image href="${src}" width="${W}" height="${H}"/>${done}${mark(d.tr, 'dd-now')}</svg>`;
+  el.style.bottom = bottom + 'px'; el.style.width = Math.round(Math.max(220, Math.min(P.clientWidth * .46, 560, (P.clientHeight - top - bottom - 34) * W / H))) + 'px';   // 세로로 긴 도면은 좁게
+  const key = JSON.stringify([k, done, now, fold]);
+  if (el._k !== key) { el._k = key;
+    el.innerHTML = `<div class="dd-h">${D.name}<span><i class="r">━ 지금 잇는 곳</i> · <i class="g">━ 이은 곳</i></span>${fold === undefined ? '' : `<button data-dd="fold">${fold ? '펴기' : '접기'}</button>`}</div>`
+      + (fold ? '' : `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true"><image href="${src}" width="${W}" height="${H}"/>${done.map(t => mark(t, 'dd-done')).join('')}${mark(now, 'dd-now')}</svg>`); }
   el.hidden = false;
 }
+function demoDia() {
+  const el = $('#demoDia'), st = DEMO.steps[DEMO.i], d = st && st.dia;
+  if (!d) { el.hidden = true; return; }
+  const done = []; for (let k = 0; k < DEMO.i; k++) { const x = DEMO.steps[k].dia; if (x && x.g === d.g && x.tr) done.push(x.tr); }
+  diaRender(d.img, done, d.tr, $('#demoCap').offsetHeight + 18, $('#demoBar').offsetHeight + 18);
+}
+function pracDia() {   // 연습: 교류 전원부, 자동(A), 수동(M) 배선 레슨은 오른쪽 아래에 도면
+  if (DEMO.on) return;
+  const el = $('#demoDia'), L = MODE === 'prac' && PRAC.L, gi = L ? L.wg : undefined;
+  if (gi === undefined || !CIRC_DIA[gi]) { el.hidden = true; return; }
+  const G = WIRE_GROUPS[gi], have = new Set(S.wires.map(w => pairKey(w.a, w.b))), tr = ([a, b]) => CIRC_TRACE[a + '|' + b] || CIRC_TRACE[b + '|' + a];
+  const m = PRAC.state === 'run' ? wireNext(G) : null;
+  diaRender(gi, G.ws.filter(([a, b]) => have.has(pairKey(a, b))).map(tr).filter(Boolean), m ? tr(m) || null : null, ($('#pracCap').hidden ? 0 : $('#pracCap').offsetHeight) + 18, 54, !!UI.diaFold);
+}
+$('#demoDia').addEventListener('click', e => { if (e.target.closest('[data-dd="fold"]')) { UI.diaFold = !UI.diaFold; pracDia(); } });
 function demoUI() {   // 자막: 지금 몇 단계 몇 번째, 무엇을 어디에
   const N = DEMO.steps.length, st = DEMO.steps[DEMO.i];
   let h;
@@ -4040,7 +4067,7 @@ const LESSONS = [];
   // 4. 배선: 7묶음
   WIRE_GROUPS.forEach((G, gi) => {
     const before = WIRE_GROUPS.slice(0, gi).flatMap(g => g.ws).map(([a, b]) => pairKey(a, b)), mine = G.ws.map(([a, b]) => pairKey(a, b));
-    L(3, G.t.replace(/ · 회로도 \d/, ''), G.d, { keys: ['wires'], focus: P_V.panel, prep: () => { S.opBack = true; },
+    L(3, G.t.replace(/ · 회로도 \d/, ''), G.d, { keys: ['wires'], wg: gi, focus: P_V.panel, prep: () => { S.opBack = true; },
       fill: () => { for (const [a, b] of G.ws) S.wires.push({ a, b }); },
       prog: () => { const h = new Set(S.wires.map(w => pairKey(w.a, w.b))); return [mine.filter(k => h.has(k)).length, mine.length]; },
       goal: () => { const h = new Set(S.wires.map(w => pairKey(w.a, w.b))); return mine.every(k => h.has(k)); },
@@ -4055,7 +4082,7 @@ const LESSONS = [];
         if (G.op && !S.opBack) return { tx: '조작판 뒤집기', sub: '조작판 선은 뒷면에서 이어요. 위의 조작판 버튼을 눌러요' };
         const m = wireNext(G); if (!m) return P_DONE;
         const [a, b] = m, A = tRing(a), B = tRing(b);
-        return { tx: `${wireName(a)} → ${wireName(b)}`, sub: UI.pending === a ? '이제 빨간 원 단자를 눌러요' : '전선 도구로 빨간 원 단자 두 개를 차례로 눌러요. 다른 단자에 이으면 실패예요', tool: 'wire', hl: { rings: (UI.pending === a ? [B] : [A, B]).filter(Boolean), line: A && B ? [A, B] : null } };
+        return { tx: `${wireName(a)} → ${wireName(b)}`, sub: (UI.pending === a ? '이제 빨간 원 단자를 눌러요' : '전선 도구로 빨간 원 단자 두 개를 차례로 눌러요. 다른 단자에 이으면 실패예요') + (CIRC_DIA[gi] ? '. 오른쪽 아래 도면의 빨간 선이 지금 잇는 곳' : ''), tool: 'wire', hl: { rings: (UI.pending === a ? [B] : [A, B]).filter(Boolean), line: A && B ? [A, B] : null } };
       } });
   });
   // 5. 동작 검사
@@ -4166,7 +4193,7 @@ function pracStart(id) {
   const st = pracSetup(L);
   PRAC.L = L; PRAC.state = 'run'; PRAC.cur = null; PRAC.hl = '';
   setMode('prac', st); PRAC.L = L; PRAC.sig = pracSig(); renderAll();
-  requestAnimationFrame(() => requestAnimationFrame(() => { fitTo(L.focus || FIT_V); renderOver(); }));
+  requestAnimationFrame(() => requestAnimationFrame(() => fitAvoid(L.focus || FIT_V)));
   say(`연습 ${L.id} ${L.t}: 빨간 테두리를 따라 해요`, 'info');
 }
 function pracNext() {   // 다음 동작 안내와 판 위 강조
@@ -4180,6 +4207,12 @@ function pracHL(h) {
   for (const c of [h.ring, ...(h.rings || [])].filter(Boolean)) o += `<circle class="demo-hl" cx="${F(c.x)}" cy="${F(c.y)}" r="${F(c.r)}"/>`;
   if (h.line) o += `<path class="pr-line" d="M${F(h.line[0].x)} ${F(h.line[0].y)}L${F(h.line[1].x)} ${F(h.line[1].y)}"/>`;
   return `<g pointer-events="none">${o}</g>`;
+}
+function fitAvoid(b) {   // 연습: 위 안내 칸과 오른쪽 아래 도면을 피해서 보여 준다
+  const r = svg.getBoundingClientRect(), W = r.width, H = r.height, cap = $('#pracCap'), dia = $('#demoDia');
+  const T = cap.hidden ? 0 : cap.offsetHeight + 18, aw = Math.max(160, W - (dia.hidden ? 0 : dia.offsetWidth + 24)), ah = Math.max(120, H - T - 10), sc = Math.min(aw / b.w, ah / b.h);
+  if (!(sc > 0 && isFinite(sc))) return fitTo(b);
+  UI.cam = { x: b.x + b.w / 2 - aw / 2 / sc, y: b.y + b.h / 2 - (T + ah / 2) / sc, w: W / sc, h: H / sc }; applyCam(); renderOver();
 }
 function pracHLBox() {   // 지금 할 자리 전체 (자리 보기)
   const h = PRAC.cur && PRAC.cur.hl; if (!h) return null;
@@ -4218,11 +4251,11 @@ function pracWin() {
 }
 function pracCapUI() {   // 판 위 안내: 연습 번호, 진행, 다음에 할 것
   const el = $('#pracCap'), L = PRAC.L;
-  if (MODE !== 'prac' || !L || DEMO.on) { el.hidden = true; return; }
+  if (MODE !== 'prac' || !L || DEMO.on) { el.hidden = true; $('#boardWrap').style.removeProperty('--toast-top'); return; }
   const [n, m] = L.prog(), c = PRAC.cur || (PRAC.state === 'win' ? { tx: '성공!' } : PRAC.state === 'fail' ? { tx: '실패' } : {});
   el.innerHTML = `<div class="dc-h"><b>연습 ${L.id}</b><span>${esc(L.t)}</span><span class="dc-all">${n} / ${m}</span></div><div class="pc-bar"><i style="width:${Math.round(100 * Math.min(1, n / Math.max(1, m)))}%"></i></div>`
     + (c.tx ? `<div class="dc-t">${esc(c.tx)}</div>` : '') + (c.sub ? `<div class="dc-s">${esc(c.sub)}</div>` : '') + (L.btn && PRAC.state === 'run' ? `<button data-pr="${L.btn[0]}">${L.btn[1]}</button>` : '');
-  el.hidden = false;
+  el.hidden = false; $('#boardWrap').style.setProperty('--toast-top', (el.offsetHeight + 18) + 'px');
 }
 function renderPracSide() {   // 오른쪽 칸: 이 챕터의 레슨, 다음에 할 것, 버튼
   const L = PRAC.L, pd = pracDone(), [n, m] = L.prog(), c = PRAC.cur || {};
