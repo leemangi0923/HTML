@@ -4425,19 +4425,19 @@ const TOOL_ART = {
   wire: '<path d="M2 -4 C 8 -16, 22 -6, 26 -20 S 42 -30, 50 -36" fill="none" stroke="#4a3b00" stroke-width="4.6" stroke-linecap="round"/><path d="M2 -4 C 8 -16, 22 -6, 26 -20 S 42 -30, 50 -36" fill="none" stroke="#f5c518" stroke-width="3" stroke-linecap="round"/><path d="M0 0 L3 -7" stroke="#4a3b00" stroke-width="6" stroke-linecap="round"/><path d="M0 0 L3 -7" stroke="#f7d038" stroke-width="4.4" stroke-linecap="round"/>',
   cut: '<g transform="rotate(-45)"><path d="M0 -1 Q7 -7 13 -3 L13 3 Q7 7 0 1 Z" fill="#7d868d" stroke="#3a4045"/><circle cx="14" cy="0" r="2.6" fill="#a7aeb4" stroke="#3a4045"/><path d="M15 -2 L44 -10 L45 -5.5 L16 1.2 Z" fill="#d42f3c" stroke="#7a1015"/><path d="M15 2 L44 10 L45 5.5 L16 -1.2 Z" fill="#d42f3c" stroke="#7a1015"/></g>'
 };
-function toolArt(id) { return (TOOL_ART[id] || '') + (S.gloves && id !== 'glove' && TOOL_ART[id] ? `<g transform="translate(-26 26) scale(.55)">${GLOVE_ART}</g>` : ''); }
-const TIP_TOOLS = new Set(['drill', 'driver']);   // 드릴, 드라이버는 비트 끝이 포인터에 닿는다
-function toolCursor(p) {   // 누르는 곳은 십자 포인터와 원, 도구 그림은 오른쪽 아래 옆에 (드릴, 드라이버는 끝이 포인터)
+function toolArt(id) { return (TOOL_ART[id] || '') + (S.gloves && id !== 'glove' && TOOL_ART[id] ? `<g transform="translate(2 -46) scale(.55)">${GLOVE_ART}</g>` : ''); }   // 장갑을 끼면 포인터 위에 작은 장갑
+const TOOL_OFF = { stopper: 'translate(15 -24)', glove: 'translate(20 -8)' };   // 끝이 없는 그림은 포인터 오른쪽 위로 비켜 둔다
+const toolPlaced = id => `<g transform="${TOOL_OFF[id] || ''}">${toolArt(id)}</g>`;   // 나머지는 끝이 포인터에 닿고 몸통은 오른쪽 위
+function toolCursor(p) {   // 누르는 곳은 십자 포인터와 원, 도구 그림은 포인터 오른쪽 위
   const k = (UI.cam.w / Math.max(1, svg.clientWidth)).toFixed(5);
-  return `<g transform="translate(${F(p.x)} ${F(p.y)}) scale(${k})" pointer-events="none"><circle r="7" fill="none" stroke="#fff" stroke-width="3" stroke-opacity=".9"/><circle r="7" fill="none" stroke="#111" stroke-width="1.2"/><circle r="1.3" fill="#111" stroke="#fff" stroke-width=".8"/><g transform="${TIP_TOOLS.has(S.tool) ? '' : 'translate(16 18) '}scale(.8)">${toolArt(S.tool)}</g></g>`;
+  return `<g transform="translate(${F(p.x)} ${F(p.y)}) scale(${k})" pointer-events="none"><circle r="7" fill="none" stroke="#fff" stroke-width="3" stroke-opacity=".9"/><circle r="7" fill="none" stroke="#111" stroke-width="1.2"/><circle r="1.3" fill="#111" stroke="#fff" stroke-width=".8"/><g transform="scale(.8)">${toolPlaced(S.tool)}</g></g>`;
 }
 function updateFollower() {
   const el = $('#follower'), m = UI.mouse;
   if (!m || m.over || TZ.id || !$('#home').hidden || !(UI.carry || S.tool !== 'hand')) { el.hidden = true; return; }   // 메인 화면 위에서는 안 따라다닌다
   const key = UI.carry ? 'c' + UI.carry.kind + UI.carry.key + 'x' + (UI.carry.count || 1) : 't' + S.tool + (S.gloves ? 'g' : '');
-  if (el.dataset.key !== key) { el.dataset.key = key; el.innerHTML = UI.carry ? `<div class="fitem">${trayThumb({ kind: UI.carry.kind, key: UI.carry.key })}${(UI.carry.count || 1) > 1 ? `<span class="fcount">×${UI.carry.count}</span>` : ''}</div>` : `<svg viewBox="-20 -60 90 90" width="72" height="72" aria-hidden="true">${toolArt(S.tool)}</svg>`; }
-  const tip = !UI.carry && TIP_TOOLS.has(S.tool);   // 도구 끝이 포인터 오른쪽 아래 (16, 18), 드릴과 드라이버는 포인터에
-  el.hidden = false; el.style.left = (m.x + (UI.carry ? 14 : tip ? -16 : 0)) + 'px'; el.style.top = (m.y + (UI.carry ? 14 : tip ? -48 : -30)) + 'px';
+  if (el.dataset.key !== key) { el.dataset.key = key; el.innerHTML = UI.carry ? `<div class="fitem">${trayThumb({ kind: UI.carry.kind, key: UI.carry.key })}${(UI.carry.count || 1) > 1 ? `<span class="fcount">×${UI.carry.count}</span>` : ''}</div>` : `<svg viewBox="-20 -60 90 90" width="72" height="72" aria-hidden="true">${toolPlaced(S.tool)}</svg>`; }
+  el.hidden = false; el.style.left = (m.x + (UI.carry ? 14 : -16)) + 'px'; el.style.top = (m.y + (UI.carry ? -70 : -48)) + 'px';   // 포인터 오른쪽 위 (도구는 끝이 포인터에)
 }
 
 </script>
