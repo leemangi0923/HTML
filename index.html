@@ -1158,17 +1158,19 @@ for (let i = 3; i <= 10; i++) PLC_OLD['O' + i] = 'P2' + (i - 3); for (let i = 12
 const OPW = { x: 840, y: 170 };
 const OP_TERM_DEF = {
   lamp: [['+', 7, -5.5, '+'], ['-', 7, 5.5, '−']],   // 오른쪽으로 90도 돌림: 뒷면에서 왼쪽에 세로로 두 단자
-  bz: [['1', -5.5, 7, '1'], ['2', 5.5, 7, '2']],
+  bz: [['1', -5.5, 7, '+'], ['2', 5.5, 7, '−']],   // 뒷면에서 오른쪽 1번이 +, 왼쪽 2번이 −
   sw: [['1', -6.5, -5, '1'], ['2', -6.5, 6, '2'], ['3', 6.5, -5, '3'], ['4', 6.5, 6, '4']]
 };
 const OP_KIND = { lampW: 'lamp', lampR: 'lamp', lampG: 'lamp', lampY: 'lamp', bz: 'bz', pbG: 'sw', pbR: 'sw', ss: 'sw', ems: 'sw' };
 function opTermName(sym, type, k) {
   if (OP_KIND[type] === 'lamp') return `${sym} ${k === '+' ? '+' : '−'}`;
-  if (type === 'bz') return `BZ ${k}번`;
+  if (type === 'bz') return `BZ ${k === '1' ? '+ (1번)' : '− (2번)'}`;
   const a = k === '3' || k === '4';
   if (type === 'ss') return `SS ${a ? 'a접점(파랑)' : 'b접점(빨강)'} ${k}번, ${a ? '자동일 때 닫힘' : '수동일 때 닫힘'}`;
   return `${sym} ${a ? 'a접점(파랑)' : 'b접점(빨강)'} ${k}번`;
 }
+const termMax = id => /^OP\.HMI\./.test(id) ? 1 : 2;   // HMI 전원 단자는 한 가닥만, 나머지는 압착단자 2개까지
+const termFull = id => termMax(id) === 1 ? 'HMI 전원 단자에는 선을 한 가닥만 꽂아요' : '한 단자에는 압착단자를 2개까지만 꽂아요';
 /* 정답 예시 배선 (이것만 정답은 아님: 동작이 같으면 다른 단자도 통과). 시연, 가이드 안내도 이 순서 */
 const WIRE_GROUPS = [
   { t: '교류 전원부', d: '단자대 R·T → MCB → 퓨즈 FS1·FS2 → SMPS, 서보 드라이버. PLC 전원은 FS2 → R3 a접점(9 → 5)을 거쳐서', ws: [
@@ -1198,12 +1200,11 @@ const WIRE_GROUPS = [
     ['XTB2.A3', 'XTB1.A20'], ['XTB1.B19', 'XTB2.B2'],
     ['XTB2.A5', 'XTB1.A12'], ['XTB2.A6', 'XTB1.A13'], ['XTB2.B5', 'XTB1.B12'], ['XTB2.B6', 'XTB1.B13'],
     ['TB.29.t', 'XTB1.A15'], ['TB.30.t', 'XTB1.A14'], ['TB.31.t', 'XTB1.B14']] },
-  { t: '조작판 (뒷면)', d: '조작판 안쪽 점퍼를 먼저 잇고, 단자대 아래쪽(바깥쪽)으로 (제작 조건 (11): 조작판 전선은 단자대를 거쳐서)', op: true, ws: [
-    ['OP.SS.1', 'OP.SS.3'], ['OP.SS.3', 'OP.WL1.+'], ['OP.WL1.+', 'OP.BZ.1'], ['OP.BZ.1', 'OP.HMI.+'],
-    ['OP.WL1.-', 'OP.WL2.-'], ['OP.WL2.-', 'OP.RL.-'], ['OP.RL.-', 'OP.GL.-'], ['OP.GL.-', 'OP.YL.-'], ['OP.YL.-', 'OP.HMI.-'],
-    ['OP.SS.4', 'OP.PB1.3'], ['OP.SS.2', 'OP.RL.+'], ['OP.RL.+', 'OP.PB0.1'],
-    ['TB.5.b', 'OP.SS.1'], ['TB.6.b', 'OP.WL1.-'], ['OP.PB1.3', 'TB.9.b'], ['OP.PB1.4', 'TB.8.b'], ['OP.PB0.2', 'TB.11.b'],
-    ['OP.BZ.2', 'TB.13.b'], ['OP.GL.+', 'TB.14.b'], ['OP.YL.+', 'TB.15.b'], ['OP.WL2.+', 'TB.16.b']] }
+  { t: '조작판 (뒷면)', d: '+ 공통: 단자대 5 → SS 4 → SS 2 → BZ + → WL1 + → HMI +. SS 자동(3) → PB1 → 단자대 8·9, SS 수동(1) → PB0 → RL·단자대 11. − 공통: YL → GL → RL → WL2 → WL1 → HMI −, YL − → 단자대 6. HMI 전원 단자는 한 가닥씩 (제작 조건 (11): 조작판 전선은 단자대를 거쳐서)', op: true, ws: [
+    ['OP.SS.4', 'OP.SS.2'], ['OP.SS.2', 'OP.BZ.1'], ['OP.BZ.1', 'OP.WL1.+'], ['OP.WL1.+', 'OP.HMI.+'], ['OP.SS.3', 'OP.PB1.4'], ['OP.SS.1', 'OP.PB0.2'], ['OP.PB0.2', 'OP.RL.+'],
+    ['OP.YL.-', 'OP.GL.-'], ['OP.GL.-', 'OP.RL.-'], ['OP.RL.-', 'OP.WL2.-'], ['OP.WL2.-', 'OP.WL1.-'], ['OP.WL1.-', 'OP.HMI.-'],
+    ['OP.PB1.3', 'TB.8.b'], ['TB.9.b', 'OP.PB1.4'], ['OP.PB0.1', 'TB.11.b'], ['TB.13.b', 'OP.BZ.2'], ['OP.YL.+', 'TB.15.b'], ['TB.14.b', 'OP.GL.+'], ['OP.WL2.+', 'TB.16.b'],
+    ['TB.5.b', 'OP.SS.4'], ['OP.YL.-', 'TB.6.b']] }
 ];
 const REF_WIRES = WIRE_GROUPS.flatMap(g => g.ws);
 /* 시연: 자동(A)·수동(M) 회로를 이을 때 회로도에 표시할 자리 (회로도 그림 픽셀 좌표). 전선 하나 = 회로도에서 그 선이 맡는 부분 */
@@ -1519,7 +1520,7 @@ function mixesACDC(a, b) {
 function nextPair() {
   const { f, u } = UF(); for (const [x, y] of staticLinks(S.wires)) u(x, y);
   const cnt = id => S.wires.filter(w => w.a === id || w.b === id).length;
-  for (const [a, b] of REF_WIRES) { if (!TERM[a] || !TERM[b] || f(a) === f(b) || cnt(a) >= 2 || cnt(b) >= 2) continue; return [a, b]; }
+  for (const [a, b] of REF_WIRES) { if (!TERM[a] || !TERM[b] || f(a) === f(b) || cnt(a) >= termMax(a) || cnt(b) >= termMax(b)) continue; return [a, b]; }
   return null;
 }
 
@@ -2077,7 +2078,7 @@ function finishReplug(p) {
   if (term.id === keep) return say('반대쪽과 같은 단자예요. 다른 단자를 눌러요', 'info');
   if (S.wires.some(x => x !== w && ((x.a === keep && x.b === term.id) || (x.b === keep && x.a === term.id)))) return say('이미 연결돼 있어요', 'info');
   const lock = wireLock(keep, term.id); if (lock) return say(lock, 'info');
-  if (S.wires.filter(x => x !== w && (x.a === term.id || x.b === term.id)).length >= 2) return mistake('한 단자에는 압착단자를 2개까지만 꽂아요');
+  if (S.wires.filter(x => x !== w && (x.a === term.id || x.b === term.id)).length >= termMax(term.id)) return mistake(termFull(term.id));
   const all = S.wires; S.wires = all.filter(x => x !== w); const bad = mixesACDC(keep, term.id); S.wires = all;
   if (bad) return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요');
   snap(); w[end] = term.id; UI.replug = null; say(`다시 꽂았어요: ${TERM[keep].nm} ↔ ${term.nm}`, 'ok'); commit();
@@ -2869,7 +2870,7 @@ function addWire(a, b) {
   if (S.wires.some(w => (w.a === a && w.b === b) || (w.a === b && w.b === a))) return say('이미 연결돼 있어요', 'info');
   if (wireLock(a, b)) return say(wireLock(a, b), 'info');
   const cnt = id => S.wires.filter(w => w.a === id || w.b === id).length;
-  if (cnt(a) >= 2 || cnt(b) >= 2) return mistake('한 단자에는 압착단자를 2개까지만 꽂아요');
+  const full = [a, b].find(id => cnt(id) >= termMax(id)); if (full) return mistake(termFull(full));
   if (mixesACDC(a, b)) { UI.flash = { a, b }; renderOver(); setTimeout(() => { UI.flash = null; renderOver(); }, 900); return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요'); }
   snap(); S.wires.push({ a, b, t: S.elapsed }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit();
   if (LIVE.inp.mcb) say('전원이 켜진 채로 배선했어요. 배선할 때는 MCB를 내려요 (제작 조건 (9))', 'err');
