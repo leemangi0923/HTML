@@ -1224,7 +1224,7 @@ const CIRC_TRACE = {
   // 회로도 2 (1234×684): 위 선 y52, T1 줄 x314, T2 줄 x423, R4 줄 x545·630, R5 줄 x788·873, 리셋 x1019·1092·1165, 마디 y186·368·490, 코일 위 y545. 모터 선은 도면에 없어서 M 둘레 원
   'TB.11.t|T3.8': [[165, 52], [209, 52]], 'T3.5|T3.3': [[248, 52], [1165, 52], [1165, 112]], 'T3.3|T2.6': [[1165, 112], [1165, 52], [788, 52], [788, 112]],
   'T2.6|T1.6': [[788, 112], [788, 52], [545, 52], [545, 112]], 'T1.6|R5.8': [[545, 112], [545, 52], [873, 52], [873, 112]], 'R5.8|R4.8': [[873, 112], [873, 52], [630, 52], [630, 112]],
-  'R4.8|TB.19.t': [[630, 112], [630, 52], [314, 52], [314, 110]], 'TB.20.t|R5.3': [[314, 148], [314, 198]], 'R5.11|R6.4': [[314, 233], [314, 283]], 'R6.12|T1.7': [[314, 318], [314, 545]],
+  'R4.8|TB.19.t': [[[630, 112], [630, 52], [314, 52], [314, 110]], [[423, 52], [423, 110]], [[630, 52], [1092, 52], [1092, 110]], [[1019, 52], [1019, 110]]],   // S+는 모든 센서 위쪽 공통 + 'TB.20.t|R5.3': [[314, 148], [314, 198]], 'R5.11|R6.4': [[314, 233], [314, 283]], 'R6.12|T1.7': [[314, 318], [314, 545]],
   'TB.21.t|R4.3': [[423, 148], [423, 198]], 'R4.11|R6.3': [[423, 233], [423, 283]], 'R6.11|T2.7': [[423, 318], [423, 545]],
   'T1.8|R4.12': [[545, 148], [545, 186], [630, 186], [630, 148]], 'R4.12|R4.14': [[630, 148], [630, 186], [545, 186], [545, 545]], 'R4.14|TB.14.t': [[545, 490], [690, 490], [690, 545]],
   'T2.8|R5.12': [[788, 148], [788, 186], [873, 186], [873, 148]], 'R5.12|R5.14': [[873, 148], [873, 186], [788, 186], [788, 545]], 'R5.14|TB.15.t': [[788, 490], [934, 490], [934, 545]],
@@ -3739,7 +3739,8 @@ function demoStep(d) { clearTimeout(DEMO.timer); demoShow(DEMO.i + d); if (DEMO.
 function demoJump(i) { clearTimeout(DEMO.timer); DEMO.cur = null; demoShow(i); if (DEMO.play) DEMO.timer = setTimeout(demoNext, demoDur(DEMO.steps[DEMO.i])); }
 function diaRender(k, done, now, top, bottom, fold) {   // 도면: 지금 잇는 곳은 빨강, 이미 이은 곳은 초록. fold: 연습에서 접기 버튼
   const el = $('#demoDia'), D = CIRC_DIA[k], [W, H] = D.size, P = el.parentElement, src = D.src || document.querySelectorAll('#circ .circ-body img')[1].src;
-  const mark = (tr, cls) => !tr ? '' : Array.isArray(tr) ? `<path class="${cls}" pathLength="1" d="M${tr.map(q => q.join(' ')).join('L')}"/>` : `<circle class="${cls}" pathLength="1" cx="${tr.c[0]}" cy="${tr.c[1]}" r="${tr.r}"/>`;
+  const mark = (tr, cls) => !tr ? '' : !Array.isArray(tr) ? `<circle class="${cls}" pathLength="1" cx="${tr.c[0]}" cy="${tr.c[1]}" r="${tr.r}"/>`
+    : (Array.isArray(tr[0][0]) ? tr : [tr]).map(l => `<path class="${cls}" pathLength="1" d="M${l.map(q => q.join(' ')).join('L')}"/>`).join('');   // 경로 여러 개 (S+처럼 여러 곳으로 갈라지는 선)
   el.style.bottom = bottom + 'px'; el.style.width = Math.round(Math.max(220, Math.min(P.clientWidth * .46, 560, (P.clientHeight - top - bottom - 34) * W / H))) + 'px';   // 세로로 긴 도면은 좁게
   const key = JSON.stringify([k, done, now, fold]);
   if (el._k !== key) { el._k = key;
