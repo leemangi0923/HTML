@@ -3013,7 +3013,8 @@ function route(a, b, lane) {
 // 한 나사에 처음 꽂은 압착단자는 나사 왼쪽, 두 번째는 오른쪽
 function ferOff(w, id) {   // 압착단자는 나사 옆에 끼운다: 첫 선은 왼쪽, 둘째 선은 오른쪽 (서보 커넥터 구멍은 가운데)
   const T = TERM[id]; if (!T || !T.r) return 0;
-  let k = 0; for (const x of S.wires) { if (x === w) break; if (x.a === id || x.b === id) k++; }
+  const ws = S.wires.filter(x => x.a === id || x.b === id); let k = ws.indexOf(w);
+  if (ws.length === 2 && !T.ov) { const ox = x => { const o = TERM[x.a === id ? x.b : x.a]; return o ? o.x : T.x; }, a0 = ox(ws[0]), a1 = ox(ws[1]); if (Math.abs(a0 - a1) > .5) k = ox(w) === Math.min(a0, a1) ? 0 : 1; }   // 두 선이면 왼쪽으로 가는 선을 왼쪽에 (단자 바로 아래에서 꼬이지 않게)
   const o = (k === 0 ? -1 : 1) * (T.r + .25); return T.ov ? -o : o; }   // 바깥 줄 위로 지나가는 선은 반대쪽부터   // 바깥 줄 위로 지나가는 선은 반대쪽부터 (바깥 줄 선과 겹치지 않게)
 function wirePts(w, i) { const pts = basePts(w, i); if (!pts || !(S.ties && S.ties.length)) return pts; const an = tieAnchors(w); return an.length ? deform(pts, an) : pts; }
 function basePts(w, i, ex = {}) { const a = TERM[w.a] || ex[w.a], b = TERM[w.b] || ex[w.b]; if (!a || !b) return null; const fa = ferOff(w, w.a), fb = ferOff(w, w.b); return route({ ...a, x: a.x + fa, fo: fa }, { ...b, x: b.x + fb, fo: fb }, (((i * 7) % 13) - 6) * 1.7); }
