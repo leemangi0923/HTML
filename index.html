@@ -199,6 +199,8 @@ body.demo .zoom { display: none; }
   .xp-body.role { grid-template-rows: minmax(0, 1fr); }
   .xp-side { border-left: 0; border-top: 1px solid var(--line); }
 }
+.chip-miss { cursor: pointer; font: inherit; font-size: 13px; border: 0; color: inherit; } .chip-miss:hover { filter: brightness(1.08); }
+.ml-h { font-size: 14px; margin: 12px 0 4px; color: var(--red); }
 .set-list { display: grid; gap: 6px; margin: 8px 0 4px; }
 .set-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 9px; background: var(--panel2); cursor: pointer; }
 .set-row input { flex: none; width: 18px; height: 18px; accent-color: #d9a400; }
@@ -534,7 +536,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
     <nav class="stages" id="stages" aria-label="단계"></nav>
     <div class="meta">
       <span class="chip" id="clock" title="작업 시간">0:00</span>
-      <span class="chip" id="miss">실수 0</span>
+      <button class="chip chip-miss" id="miss" title="눌러서 어떤 실수였는지 봐요">실수 0</button>
       <button class="chip-btn" id="btnHome" title="메인 화면 (연습, 자유, 시험 모드)">메인</button><button class="chip-btn" id="btnSet" title="설정: 표시 기능 켜고 끄기, 화면 테마">설정</button>
       <button class="chip-btn" id="btnExam" hidden>제출하고 채점</button>
       <button class="chip-btn" id="btnScore">채점표</button>
@@ -1927,7 +1929,7 @@ function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'nul
 function snap() { undoStack.push(JSON.stringify(S)); if (undoStack.length > 80) undoStack.shift(); }
 function undo() {
   if (!undoStack.length) return say('되돌릴 작업이 없어요', 'info');
-  const keep = { mistakes: S.mistakes, violations: S.violations, hints: S.hints, guide: S.guide, elapsed: S.elapsed, stageEl: S.stageEl, exam: S.exam, usedFill: S.usedFill, selfChk: S.selfChk, finished: S.finished };
+  const keep = { mistakes: S.mistakes, mlog: S.mlog, violations: S.violations, hints: S.hints, guide: S.guide, elapsed: S.elapsed, stageEl: S.stageEl, exam: S.exam, usedFill: S.usedFill, selfChk: S.selfChk, finished: S.finished };
   S = JSON.parse(undoStack.pop()); Object.assign(S, keep); UI.carry = null; UI.pending = null; say('되돌렸어요', 'info'); commit();
 }
 
@@ -1941,6 +1943,7 @@ function say(msg, kind = 'info') {
 }
 function mistake(msg) {
   S.mistakes[0]++; say(msg, 'err');
+  (S.mlog = S.mlog || []).push({ t: S.elapsed, msg, at: MODE === 'prac' && PRAC.L ? `연습 ${PRAC.L.id}` : (k => k === undefined ? '마무리 뒤' : GROUP_TITLE[k])(STAGES.find(k => !stageDone(k))) }); if (S.mlog.length > 200) S.mlog.shift();   // 실수 기록 (실수 버튼으로 본다)
   const w = $('#boardWrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
   renderHeader(); save(); if (MODE === 'prac' && !(PRAC.L && PRAC.L.lenient)) pracFail(msg);   // 연습: 틀린 자리, 틀린 동작은 바로 실패 (고장 찾기는 실패 없음)
 }
@@ -4017,6 +4020,14 @@ function showSettings() {
 function setApply() { applyTheme(); opChkUI(); drawLivePack(); $('#zLens').hidden = !SET.lens; if (!SET.lens) UI.lensPin = false; renderWorld(); renderOver(); }
 $('#modal').addEventListener('change', e => { const c = e.target.closest && e.target.closest('[data-set]'); if (!c) return; SET[c.dataset.set] = c.type === 'checkbox' ? c.checked : c.value; setSave(); setApply(); });
 $('#btnSet').addEventListener('click', showSettings);
+function showMistakes() {   // 실수 버튼: 어떤 실수였는지
+  const L = S.mlog || [], n = S.mistakes.reduce((a, b) => a + b, 0), old = Math.max(0, n - L.length), v = [...new Set(S.violations || [])];
+  openModal(`<h2>실수 ${n}번</h2>` + (L.length ? `<ol class="wl">${L.map((m, k) => `<li class="bad"><span class="wl-n">${k + 1}</span><span class="wl-t">${esc(m.msg)}<small>${esc(m.at || '')}</small></span><span class="wl-m">${fmt(m.t || 0)}</span></li>`).join('')}</ol>` : `<p>${n ? '' : '아직 실수가 없어요.'}</p>`)
+    + (old ? `<p class="muted">앞의 실수 ${old}번은 이번 업데이트 전이라 내용이 남아 있지 않아요.</p>` : '')
+    + (v.length ? `<h3 class="ml-h">시간점수가 0점이 되는 위반</h3><ul>${v.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '')
+    + '<div class="actions"><button class="primary" data-act="close">닫기</button></div>');
+}
+$('#miss').addEventListener('click', showMistakes);
 $('#zLens').hidden = !SET.lens;
 $('#zLens').addEventListener('click', () => { UI.lensPin = !UI.lensPin; $('#zLens').classList.toggle('on', UI.lensPin); say(UI.lensPin ? '돋보기를 켰어요. 판 위에서 마우스를 움직여요 (Z를 누르고 있어도 돼요)' : '돋보기를 껐어요', 'info'); lensUpdate(); });
 
@@ -4700,7 +4711,7 @@ function pracFail(msg, undo) {   // undo: 틀린 작업이 이미 들어갔음 (
 }
 function pracResume() {   // 틀리기 바로 전 상태로 돌아가 이어서 (도움 받은 통과로 기록)
   const L = PRAC.L, F = PRAC.fail; if (MODE !== 'prac' || !L || PRAC.state !== 'fail') return;
-  if (F && F.undo) { if (!PRAC.good) return pracStart(L.id); const keep = { elapsed: S.elapsed, mistakes: S.mistakes, violations: S.violations, hints: S.hints }; S = JSON.parse(PRAC.good); Object.assign(S, keep); }
+  if (F && F.undo) { if (!PRAC.good) return pracStart(L.id); const keep = { elapsed: S.elapsed, mistakes: S.mistakes, mlog: S.mlog, violations: S.violations, hints: S.hints }; S = JSON.parse(PRAC.good); Object.assign(S, keep); }
   PRAC.state = 'run'; PRAC.assist = true; PRAC.fail = null; UI.carry = null; UI.pending = null; UI.replug = null;
   buildTerms(); PRAC.sig = pracSig(); closeModal(); renderAll(); say('틀리기 바로 전으로 돌아왔어요. 이어서 해요 (이번 통과는 최고 기록에 들어가지 않아요)', 'info');
 }
