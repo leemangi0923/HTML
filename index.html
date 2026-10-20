@@ -204,9 +204,7 @@ body.demo .zoom { display: none; }
 .set-row input { flex: none; width: 18px; height: 18px; accent-color: #d9a400; }
 .set-row span { flex: 1; min-width: 0; } .set-row b { display: block; font-size: 14px; } .set-row small { display: block; color: var(--muted); font-size: 12px; }
 .set-row select { font: inherit; font-size: 13px; padding: 4px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
-.rw1, .rw2, .netw { fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-.rw1 { stroke: #ff8a00; stroke-width: 2.6; stroke-opacity: .9; }   /* 방금 꽂은 선 */
-.rw2 { stroke: #38bdf8; stroke-width: 2.2; stroke-opacity: .9; stroke-dasharray: 3 2; }   /* 그 전에 꽂은 선 */
+.netw { fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .netw { stroke: #22c55e; stroke-width: 2.6; stroke-opacity: .85; }   /* 테스터: 같은 줄 */
 .netw.b { stroke: #a78bfa; }
 .dd-done { fill: none; stroke: #16a34a; stroke-opacity: .6; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
@@ -452,6 +450,7 @@ svg text { font-family: var(--font); }
 .bad-wire { stroke: #e3232f; stroke-width: 2.2; stroke-linecap: round; }
 .wire-o { fill: none; stroke: #4a3b00; stroke-width: 2.7; stroke-linecap: round; stroke-linejoin: round; }
 .wire-i { fill: none; stroke: #f5c518; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.wire-i.wr1 { stroke: #ff8a00; } .wire-i.wr2 { stroke: #38bdf8; }   /* 방금 꽂은 선, 그 전 선 (설정에서 끄기) */
 @keyframes pulse { 50% { opacity: .3; } }
 .board-wrap.shake { animation: shake .32s; }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
@@ -1212,8 +1211,8 @@ function trimPts(pts, a, b) {   // 꺾은선의 앞에서 a, 뒤에서 b만큼 �
   const cut = (P, len) => { for (let k = 1; k < P.length; k++) { const s = Math.hypot(P[k][0] - P[k - 1][0], P[k][1] - P[k - 1][1]); if (s > len) { const t = len / s; return [[P[k - 1][0] + (P[k][0] - P[k - 1][0]) * t, P[k - 1][1] + (P[k][1] - P[k - 1][1]) * t], ...P.slice(k)]; } len -= s; } return [P[P.length - 1]]; };
   return cut(cut(pts, a).reverse(), b).reverse();
 }
-function wireBody(pts, ha, hb) { const body = trimPts(pts, ferLen(ha) - 1.8, ferLen(hb) - 1.8),   // 전선 끝은 노란 슬리브 안으로 (슬리브가 위에 덮인다)
-    d = body.length > 1 ? roundPath(body, 3.2) : ''; return d ? `<path d="${d}" class="wire-o"/><path d="${d}" class="wire-i"/>` : ''; }
+function wireBody(pts, ha, hb, cls = '') { const body = trimPts(pts, ferLen(ha) - 1.8, ferLen(hb) - 1.8),   // 전선 끝은 노란 슬리브 안으로 (슬리브가 위에 덮인다)
+    d = body.length > 1 ? roundPath(body, 3.2) : ''; return d ? `<path d="${d}" class="wire-o"/><path d="${d}" class="wire-i${cls}"/>` : ''; }   // cls: 방금 꽂은 선 색
 const wireEnds = (pts, ha, hb, part) => ferrule(pts, false, ha, part) + ferrule(pts, true, hb, part);
 function drawWire(pts, ha, hb) { return wireEnds(pts, ha, hb, 1) + scrUse(ha) + scrUse(hb) + wireBody(pts, ha, hb) + wireEnds(pts, ha, hb, 2); }   // 핀 → 나사 머리 → 전선 → 슬리브   // ha, hb: 양 끝 단자 (나사 머리)
 
@@ -3183,7 +3182,8 @@ function renderWorld() {
   s += flipBtn + (S.opBack ? worldOp() : '');
   const ft = S.opBack ? null : opFrontTerms(), pts = (w, i) => !ft || !isOPWire(w) ? wirePts(w, i) : isExtWire(w) ? basePts(w, i, ft) : null;   // 앞면: 조작판 안쪽끼리 선은 뒤에 가려진다
   const hd = id => TERM[id] || (ft && ft[id]);
-  const wires = f => { let e = '', sc = '', bd = '', cl = ''; S.wires.forEach((w, i) => { if (!f(w)) return; const q = pts(w, i); if (!q) return; const ha = hd(w.a), hb = hd(w.b); e += wireEnds(q, ha, hb, 1); sc += scrUse(ha) + scrUse(hb); bd += wireBody(q, ha, hb); cl += wireEnds(q, ha, hb, 2); }); return e + sc + bd + cl; };   // 핀 → 나사 머리 → 전선 → 슬리브
+  const rk = new Map(recentWires().map((w, n) => [w, n ? ' wr2' : ' wr1']));   // 방금 꽂은 선은 주황, 그 전 선은 하늘색
+  const wires = f => { let e = '', sc = '', bd = '', cl = ''; S.wires.forEach((w, i) => { if (!f(w)) return; const q = pts(w, i); if (!q) return; const ha = hd(w.a), hb = hd(w.b); e += wireEnds(q, ha, hb, 1); sc += scrUse(ha) + scrUse(hb); bd += wireBody(q, ha, hb, rk.get(w) || ''); cl += wireEnds(q, ha, hb, 2); }); return e + sc + bd + cl; };   // 핀 → 나사 머리 → 전선 → 슬리브
   const loose = w => S.helical !== 2 && isExtWire(w);   // 덕트 밖으로 빼 둔 조작판 전선은 커버 위에 보인다
   const lifted = w => UI.replug && UI.replug.w === w;
   s += wires(w => !loose(w) && !lifted(w));
@@ -3308,7 +3308,7 @@ function renderOver() {
     if (UI.pending && TERM[UI.pending]) { const a = TERM[UI.pending]; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (p) s += LN(a.x, a.y, p.x, p.y, 'class="rubber"'); }
     if (UI.flash && TERM[UI.flash.a] && TERM[UI.flash.b]) { const a = TERM[UI.flash.a], b = TERM[UI.flash.b]; s += LN(a.x, a.y, b.x, b.y, 'class="bad-wire"'); }
   }
-  if ((MODE === 'free' || MODE === 'exam') && !DEMO.on && (SET.recent1 || SET.recent2) && ['wire', 'cut', 'meter'].includes(S.tool)) s += recentOver(px1);   // 방금 꽂은 선 ①, 그 전 선 ②
+  if (recentOn()) s += recentOver(px1);   // 방금 꽂은 선 ①, 그 전 선 ②
   if (S.tool === 'meter') s += meterOver(p, px1);
   if (p && UI.overBoard && !UI.carry && S.tool !== 'hand' && SET.toolArt) s += toolCursor(p);
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
@@ -3922,9 +3922,14 @@ function meterTap(p) {
 }
 const wD = pts => 'M' + pts.map(q => F(q[0]) + ' ' + F(q[1])).join('L');
 const numTag = (q, n, col, px1) => `<g transform="translate(${F(q[0])} ${F(q[1])}) scale(${px1.toFixed(5)})" pointer-events="none"><circle cx="9" cy="-9" r="8" fill="${col}" stroke="#1a1a1a" stroke-width="1.5"/><text x="9" y="-5" font-size="11" font-weight="900" text-anchor="middle" fill="#1a1a1a">${n}</text></g>`;
-function recentOver(px1) {   // 꽂은 순번(k)이 가장 큰 두 선: ① 주황, ② 하늘색 점선
-  const ws = S.wires.map((w, i) => ({ w, i })).filter(x => x.w.k).sort((p, q) => q.w.k - p.w.k).slice(0, 2); let s = '';
-  ws.forEach(({ w, i }, n) => { if (!SET[n ? 'recent2' : 'recent1']) return; const pts = wirePts(w, i); if (!pts) return; s += `<path class="rw${n + 1}" d="${wD(pts)}"/>` + numTag(pts[0], n + 1, n ? '#38bdf8' : '#ff8a00', px1) + numTag(pts[pts.length - 1], n + 1, n ? '#38bdf8' : '#ff8a00', px1); });
+const recentOn = () => (MODE === 'free' || MODE === 'exam') && !DEMO.on && ['wire', 'cut', 'meter'].includes(S.tool);
+function recentWires() {   // 꽂은 순번(k)이 가장 큰 두 선 [방금, 그 전]. 설정에서 끈 쪽은 null
+  if (!recentOn()) return [];
+  const ws = S.wires.filter(w => w.k).sort((p, q) => q.k - p.k).slice(0, 2);
+  return ws.map((w, n) => SET[n ? 'recent2' : 'recent1'] ? w : null);
+}
+function recentOver(px1) {   // 선 색은 그리기에서 바꾸고, 여기서는 양 끝 번호 ①②만
+  let s = ''; recentWires().forEach((w, n) => { if (!w) return; const pts = wirePts(w, S.wires.indexOf(w)); if (!pts) return; const col = n ? '#38bdf8' : '#ff8a00'; s += numTag(pts[0], n + 1, col, px1) + numTag(pts[pts.length - 1], n + 1, col, px1); });
   return s;
 }
 function netOf(id) {   // 같은 줄: 전선, 단자대 위·아래, SMPS 같은 극, 컨베이어 선으로 이어진 단자와 선 (릴레이·스위치 접점은 안 건넘)
@@ -3947,7 +3952,7 @@ function meterOver(p, px1) {   // 리드봉 자리와 읽은 값 (값은 검은 
 /* ---------- 설정: 표시 기능 켜고 끄기 ---------- */
 const SET_ITEMS = [
   ['recent1', '방금 꽂은 선 ①', '전선·니퍼·테스터를 들면 방금 꽂은 선을 주황으로 (자유·시험 모드)'],
-  ['recent2', '그 전 선 ②', '그 전에 꽂은 선을 하늘색 점선으로 (자유·시험 모드)'],
+  ['recent2', '그 전 선 ②', '그 전에 꽂은 선을 하늘색으로 (자유·시험 모드)'],
   ['net', '테스터: 같은 줄 표시', '테스터를 단자에 대면 같은 줄의 선과 단자를 초록으로'],
   ['opChk', '1과제 동작 체크 창', 'MCB를 올리면 오른쪽 위에 동작 체크 목록'],
   ['hold', '팩 잡기 진행 표시', '조건 (7): 팩을 잡고 있는 시간을 고리와 초로'],
@@ -3959,7 +3964,7 @@ function showSettings() {
     + `<label class="set-row"><span><b>화면 테마</b><small>자동은 기기의 밝게·어둡게 설정을 따라요</small></span><select data-set="theme">${[['auto', '자동'], ['light', '밝게'], ['dark', '어둡게']].map(([v, n]) => `<option value="${v}"${SET.theme === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>`
     + '<div class="actions"><button data-act="set-reset">기본값으로</button><button class="primary" data-act="close">닫기</button></div>');
 }
-function setApply() { applyTheme(); opChkUI(); drawLivePack(); renderOver(); }
+function setApply() { applyTheme(); opChkUI(); drawLivePack(); renderWorld(); renderOver(); }
 $('#modal').addEventListener('change', e => { const c = e.target.closest && e.target.closest('[data-set]'); if (!c) return; SET[c.dataset.set] = c.type === 'checkbox' ? c.checked : c.value; setSave(); setApply(); });
 $('#btnSet').addEventListener('click', showSettings);
 
