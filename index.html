@@ -199,6 +199,11 @@ body.demo .zoom { display: none; }
   .xp-body.role { grid-template-rows: minmax(0, 1fr); }
   .xp-side { border-left: 0; border-top: 1px solid var(--line); }
 }
+.set-list { display: grid; gap: 6px; margin: 8px 0 4px; }
+.set-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border-radius: 9px; background: var(--panel2); cursor: pointer; }
+.set-row input { flex: none; width: 18px; height: 18px; accent-color: #d9a400; }
+.set-row span { flex: 1; min-width: 0; } .set-row b { display: block; font-size: 14px; } .set-row small { display: block; color: var(--muted); font-size: 12px; }
+.set-row select { font: inherit; font-size: 13px; padding: 4px 8px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
 .rw1, .rw2, .netw { fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .rw1 { stroke: #ff8a00; stroke-width: 2.6; stroke-opacity: .9; }   /* 방금 꽂은 선 */
 .rw2 { stroke: #38bdf8; stroke-width: 2.2; stroke-opacity: .9; stroke-dasharray: 3 2; }   /* 그 전에 꽂은 선 */
@@ -526,7 +531,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
     <div class="meta">
       <span class="chip" id="clock" title="작업 시간">0:00</span>
       <span class="chip" id="miss">실수 0</span>
-      <button class="chip-btn" id="btnHome" title="메인 화면 (연습, 자유, 시험 모드)">메인</button>
+      <button class="chip-btn" id="btnHome" title="메인 화면 (연습, 자유, 시험 모드)">메인</button><button class="chip-btn" id="btnSet" title="설정: 표시 기능 켜고 끄기, 화면 테마">설정</button>
       <button class="chip-btn" id="btnExam" hidden>제출하고 채점</button>
       <button class="chip-btn" id="btnScore">채점표</button>
       <button class="chip-btn" id="btnWires">배선 목록</button>
@@ -1662,7 +1667,7 @@ function opChkStep(dt) {   // 지금 상태와 바로 전 상태를 보고 해�
   } else c.ht = 0;
   c.prev = { d, plc: !!o.plc, ss: i.ss };
 }
-const opChkOn = () => DEMO.on ? !!(DEMO.steps[DEMO.i] && (DEMO.steps[DEMO.i].live || DEMO.steps[DEMO.i].chk)) : !(S.exam && S.exam.on) && LIVE.inp.mcb;   // 시연의 동작 시연 구간, 또는 MCB를 올렸을 때
+const opChkOn = () => DEMO.on ? !!(DEMO.steps[DEMO.i] && (DEMO.steps[DEMO.i].live || DEMO.steps[DEMO.i].chk)) : SET.opChk && !(S.exam && S.exam.on) && LIVE.inp.mcb;   // 시연의 동작 시연 구간, 또는 MCB를 올렸을 때 (설정에서 끌 수 있음)
 function opChkUI() {
   const el = $('#opChk'), on = opChkOn(); UI.ckOn = on;
   if (!on) { el.hidden = true; return; }
@@ -1695,7 +1700,7 @@ const packSVG = (x, y, held) => R(x + 1.2, y + 2, 40, 40, 'rx="2" fill="#000" fi
 function drawLivePack() {
   if (LIVE.pack === null) { $('#gLive').innerHTML = ''; return; }
   let s = packSVG(CVW.x + LIVE.pack - 20, CVW.y + 5, LIVE.inp.grab) + (MODE === 'prac' && PRAC.cur && PRAC.cur.pack ? `<circle class="demo-hl" cx="${F(CVW.x + LIVE.pack)}" cy="${F(CVW.y + 25)}" r="30"/>` : '');   // 연습: 잡을 팩
-  if (LIVE.inp.grab && LIVE.inp.mcb && !(S.exam && S.exam.on)) {   // 잡고 있는 동안: 조건 (7) 몇 초 잡았는지
+  if (SET.hold && LIVE.inp.grab && LIVE.inp.mcb && !(S.exam && S.exam.on)) {   // 잡고 있는 동안: 조건 (7) 몇 초 잡았는지
     const d = convDir(LIVE.out), run = !!d && !!LIVE.out[d > 0 ? 'GL' : 'YL'], ht = Math.min(CK_HOLD, LIVE.ck.ht), cx = CVW.x + LIVE.pack, cy = CVW.y + 25, px = UI.cam.w / Math.max(1, svg.clientWidth);
     const ok = run && ht >= CK_HOLD - 1e-6, txt = ok ? '조건 (7) 됐어요 ✓' : run ? `잡고 있어요 ${ht.toFixed(1)} / ${CK_HOLD}초` : '누른 채로 벨트가 돌 때까지 기다려요';
     s += `<circle cx="${F(cx)}" cy="${F(cy)}" r="31" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="5"/><circle cx="${F(cx)}" cy="${F(cy)}" r="31" fill="none" stroke="${ok ? '#2fb35a' : '#ffd34d'}" stroke-width="5" pathLength="1" stroke-dasharray="${(run ? ht / CK_HOLD : 0).toFixed(3)} 1" transform="rotate(-90 ${F(cx)} ${F(cy)})"/>`
@@ -1887,6 +1892,11 @@ const UI = { cam: { x: 0, y: 0, w: 800, h: 600 }, ckPop: {}, carry: null, pointe
   ptrs: new Map(), flash: null, peek: false, peekKey: '', press: null, lastDone: null, chooserZone: null, onOk: null, modalClosable: true, nm: {}, trayOpen: new Set() };
 let S = null, undoStack = [];
 const STORE = 't1sim', STORE_EXAM = STORE + '.exam', STORE_PRAC = STORE + '.prac';   // 자유 모드, 시험 모드 작업, 연습 통과 기록
+const SET_DEF = { recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
+let SET = (() => { try { return { ...SET_DEF, ...(JSON.parse(localStorage.getItem(STORE + '.set') || '{}') || {}) }; } catch (e) { return { ...SET_DEF }; } })();
+const setSave = () => { try { localStorage.setItem(STORE + '.set', JSON.stringify(SET)); } catch (e) { /* 저장할 수 없는 환경 */ } };
+const applyTheme = () => { const r = document.documentElement; if (SET.theme === 'light' || SET.theme === 'dark') r.dataset.theme = SET.theme; else r.removeAttribute('data-theme'); };
+applyTheme();
 let MODE = 'free';   // free: 자유, exam: 시험, prac: 연습
 const EXAM_LIMIT = 3.5 * 3600 * 1000;   // 경기 시간 3.5시간 (ms)
 const TOOL_HELP = {
@@ -3285,9 +3295,9 @@ function renderOver() {
     if (UI.pending && TERM[UI.pending]) { const a = TERM[UI.pending]; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (p) s += LN(a.x, a.y, p.x, p.y, 'class="rubber"'); }
     if (UI.flash && TERM[UI.flash.a] && TERM[UI.flash.b]) { const a = TERM[UI.flash.a], b = TERM[UI.flash.b]; s += LN(a.x, a.y, b.x, b.y, 'class="bad-wire"'); }
   }
-  if ((MODE === 'free' || MODE === 'exam') && !DEMO.on && ['wire', 'cut', 'meter'].includes(S.tool)) s += recentOver(px1);   // 방금 꽂은 선 ①, 그 전 선 ②
+  if ((MODE === 'free' || MODE === 'exam') && !DEMO.on && (SET.recent1 || SET.recent2) && ['wire', 'cut', 'meter'].includes(S.tool)) s += recentOver(px1);   // 방금 꽂은 선 ①, 그 전 선 ②
   if (S.tool === 'meter') s += meterOver(p, px1);
-  if (p && UI.overBoard && !UI.carry && S.tool !== 'hand') s += toolCursor(p);
+  if (p && UI.overBoard && !UI.carry && S.tool !== 'hand' && SET.toolArt) s += toolCursor(p);
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
   if (MODE === 'prac' && PRAC.hl) s += PRAC.hl;   // 연습: 할 자리
   if (MODE === 'prac' && PRAC.L && PRAC.L.wg !== undefined) pracDia();   // 단자 하나를 누르면 그 선이 빨강
@@ -3682,6 +3692,7 @@ $('#modal').addEventListener('click', e => {
   else if (a === 'exam') startExam();
   else if (a === 'p-retry') pracStart(PRAC.L.id);
   else if (a === 'p-resume') pracResume();
+  else if (a === 'set-reset') { SET = { ...SET_DEF }; setSave(); setApply(); showSettings(); }
   else if (a === 'p-next') { const N = LESSONS[LESSONS.indexOf(PRAC.L) + 1]; if (N) pracStart(N.id); }
   else if (a === 'p-list') showHome('prac');
   else if (a === 'p-go') pracStart(b.dataset.id);
@@ -3891,7 +3902,7 @@ function meterRead(a, b) {
 function meterTap(p) {
   const term = termNear(p, tolMM(16)), M = UI.meter;
   if (!term) { if (M) { UI.meter = null; renderOver(); } return say('테스터 리드봉을 단자(나사)에 대요. 두 단자를 차례로 눌러요', 'info'); }
-  if (!M || M.b) { UI.meter = { a: term.id }; const N = netOf(term.id); say(`빨간 리드봉: ${wireName(term.id)}. 같은 줄(초록): 단자 ${N.n}곳, 선 ${N.wires.length}가닥. 검은 리드봉을 댈 단자를 눌러요`, 'info'); return renderOver(); }
+  if (!M || M.b) { UI.meter = { a: term.id }; const N = SET.net && netOf(term.id); say(`빨간 리드봉: ${wireName(term.id)}. ${N ? `같은 줄(초록): 단자 ${N.n}곳, 선 ${N.wires.length}가닥. ` : ''}검은 리드봉을 댈 단자를 눌러요`, 'info'); return renderOver(); }
   if (M.a === term.id) { UI.meter = null; return renderOver(); }
   M.b = term.id; const v = meterRead(M.a, M.b);
   say(`테스터 ${v.txt} (${LIVE.inp.mcb ? '전압' : '도통, MCB OFF'}): ${wireName(M.a)} ↔ ${wireName(M.b)}`, v.k === 'off' || v.k === 'zero' ? 'info' : 'ok'); renderOver();
@@ -3900,7 +3911,7 @@ const wD = pts => 'M' + pts.map(q => F(q[0]) + ' ' + F(q[1])).join('L');
 const numTag = (q, n, col, px1) => `<g transform="translate(${F(q[0])} ${F(q[1])}) scale(${px1.toFixed(5)})" pointer-events="none"><circle cx="9" cy="-9" r="8" fill="${col}" stroke="#1a1a1a" stroke-width="1.5"/><text x="9" y="-5" font-size="11" font-weight="900" text-anchor="middle" fill="#1a1a1a">${n}</text></g>`;
 function recentOver(px1) {   // 꽂은 순번(k)이 가장 큰 두 선: ① 주황, ② 하늘색 점선
   const ws = S.wires.map((w, i) => ({ w, i })).filter(x => x.w.k).sort((p, q) => q.w.k - p.w.k).slice(0, 2); let s = '';
-  ws.forEach(({ w, i }, n) => { const pts = wirePts(w, i); if (!pts) return; s += `<path class="rw${n + 1}" d="${wD(pts)}"/>` + numTag(pts[0], n + 1, n ? '#38bdf8' : '#ff8a00', px1) + numTag(pts[pts.length - 1], n + 1, n ? '#38bdf8' : '#ff8a00', px1); });
+  ws.forEach(({ w, i }, n) => { if (!SET[n ? 'recent2' : 'recent1']) return; const pts = wirePts(w, i); if (!pts) return; s += `<path class="rw${n + 1}" d="${wD(pts)}"/>` + numTag(pts[0], n + 1, n ? '#38bdf8' : '#ff8a00', px1) + numTag(pts[pts.length - 1], n + 1, n ? '#38bdf8' : '#ff8a00', px1); });
   return s;
 }
 function netOf(id) {   // 같은 줄: 전선, 단자대 위·아래, SMPS 같은 극, 컨베이어 선으로 이어진 단자와 선 (릴레이·스위치 접점은 안 건넘)
@@ -3911,14 +3922,33 @@ function netOf(id) {   // 같은 줄: 전선, 단자대 위·아래, SMPS 같은
 function netOver(N, cls) { let s = ''; for (const i of N.wires) { const pts = wirePts(S.wires[i], i); if (pts) s += `<path class="netw ${cls}" d="${wD(pts)}"/>`; } for (const t of N.terms) { const q = TERM[t]; s += C(q.x, q.y, 3.4, `fill="none" stroke="${cls ? '#a78bfa' : '#22c55e'}" stroke-width="1.1" pointer-events="none"`); } return s; }
 function meterOver(p, px1) {   // 리드봉 자리와 읽은 값 (값은 검은 리드봉 오른쪽 아래: 오른쪽 위는 도구 그림)
   const M = UI.meter, A = M && TERM[M.a], B = M && M.b && TERM[M.b]; if (!A) return '';
-  const NA = netOf(M.a), NB = M.b && TERM[M.b] && netOf(M.b);
-  let s = netOver(NA, '') + (NB && NB.r !== NA.r ? netOver(NB, 'b') : '') + C(A.x, A.y, 4.4, `fill="none" stroke="#e3232f" stroke-width="${F(2.4 * px1)}" pointer-events="none"`);   // 같은 줄 전체 (검은 리드봉 쪽이 다른 줄이면 보라)
+  const NA = SET.net && netOf(M.a), NB = SET.net && M.b && TERM[M.b] && netOf(M.b);
+  let s = (NA ? netOver(NA, '') : '') + (NB && NB.r !== NA.r ? netOver(NB, 'b') : '') + C(A.x, A.y, 4.4, `fill="none" stroke="#e3232f" stroke-width="${F(2.4 * px1)}" pointer-events="none"`);   // 같은 줄 전체 (검은 리드봉 쪽이 다른 줄이면 보라)
   if (!M.b) return s + (p ? LN(A.x, A.y, p.x, p.y, `stroke="#e3232f" stroke-width="${F(1.6 * px1)}" stroke-dasharray="${F(5 * px1)} ${F(4 * px1)}" pointer-events="none"`) : '');
   if (!B) return s;
   const v = meterRead(M.a, M.b), w = [...v.txt].reduce((n, c) => n + (c.charCodeAt(0) > 255 ? 14 : 8.6), 18);
   s += C(B.x, B.y, 4.4, `fill="none" stroke="#1d1f21" stroke-width="${F(2.4 * px1)}" pointer-events="none"`) + LN(A.x, A.y, B.x, B.y, `stroke="#e3232f" stroke-opacity=".55" stroke-width="${F(1.4 * px1)}" stroke-dasharray="${F(5 * px1)} ${F(4 * px1)}" pointer-events="none"`);
   return s + `<g transform="translate(${F(B.x)} ${F(B.y)}) scale(${px1.toFixed(5)})" pointer-events="none"><rect x="10" y="10" width="${F(w + 10)}" height="34" rx="7" fill="#f3c11b" stroke="#6b5200" stroke-width="1.2"/><rect x="15" y="15" width="${F(w)}" height="24" rx="3.5" fill="#c8d6b9" stroke="#55603f"/><text x="${F(15 + w / 2)}" y="32.5" font-size="15" font-weight="800" text-anchor="middle" fill="#1d2416">${v.txt}</text></g>`;
 }
+
+/* ---------- 설정: 표시 기능 켜고 끄기 ---------- */
+const SET_ITEMS = [
+  ['recent1', '방금 꽂은 선 ①', '전선·니퍼·테스터를 들면 방금 꽂은 선을 주황으로 (자유·시험 모드)'],
+  ['recent2', '그 전 선 ②', '그 전에 꽂은 선을 하늘색 점선으로 (자유·시험 모드)'],
+  ['net', '테스터: 같은 줄 표시', '테스터를 단자에 대면 같은 줄의 선과 단자를 초록으로'],
+  ['opChk', '1과제 동작 체크 창', 'MCB를 올리면 오른쪽 위에 동작 체크 목록'],
+  ['hold', '팩 잡기 진행 표시', '조건 (7): 팩을 잡고 있는 시간을 고리와 초로'],
+  ['toolArt', '도구 그림', '마우스 옆에 들고 있는 도구 그림 (끄면 십자 포인터만)']
+];
+function showSettings() {
+  openModal('<h2>설정</h2><p class="muted">바로 적용되고, 이 브라우저에 저장돼요.</p><div class="set-list">'
+    + SET_ITEMS.map(([k, t, d]) => `<label class="set-row"><input type="checkbox" data-set="${k}"${SET[k] ? ' checked' : ''}><span><b>${t}</b><small>${d}</small></span></label>`).join('')
+    + `<label class="set-row"><span><b>화면 테마</b><small>자동은 기기의 밝게·어둡게 설정을 따라요</small></span><select data-set="theme">${[['auto', '자동'], ['light', '밝게'], ['dark', '어둡게']].map(([v, n]) => `<option value="${v}"${SET.theme === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>`
+    + '<div class="actions"><button data-act="set-reset">기본값으로</button><button class="primary" data-act="close">닫기</button></div>');
+}
+function setApply() { applyTheme(); opChkUI(); drawLivePack(); renderOver(); }
+$('#modal').addEventListener('change', e => { const c = e.target.closest && e.target.closest('[data-set]'); if (!c) return; SET[c.dataset.set] = c.type === 'checkbox' ? c.checked : c.value; setSave(); setApply(); });
+$('#btnSet').addEventListener('click', showSettings);
 
 /* ---------- 회로 해설: 회로가 어떻게 움직이는지 장면별로 ---------- */
 const XP = { tab: 'ac', i: 0 };
@@ -4687,7 +4717,7 @@ function homeMainHTML() {
     + `<button class="hm-card free" data-home="free">${hmIc('free')}<b>자유 모드</b><p>순서는 자유. 가이드를 켜고 끄며 처음부터 끝까지</p><small>${frTxt}</small></button>`
     + `<button class="hm-card exam" data-home="exam">${hmIc('exam')}<b>시험 모드</b><p>가이드 없이 실제 시험처럼. 제출하면 과제지 기준 채점</p><small>${exTxt}</small></button>`
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
-    + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button>'
+    + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
 }
@@ -4713,7 +4743,7 @@ function homeHelpHTML() {
     + sec('4', '화면 움직이기', '<ul><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
     + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
-    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 ① 주황, 그 전 선은 ② 하늘색으로 보여요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
+    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 ① 주황, 그 전 선은 ② 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(①·②, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
 }
@@ -4739,6 +4769,7 @@ $('#home').addEventListener('click', e => {
   if (a === 'exam') return goExam();
   if (a === 'demo') { goFree(); return demoOpen(); }
   if (a === 'xp') return xpOpen();
+  if (a === 'set') return showSettings();
   if (a === 'ver') openModal(`<h2>현재 버전 ${APP_VER.v}</h2><p class="muted">${APP_VER.date}</p><ul>${APP_VER.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">닫기</button></div>`);
 });
 $('#pracCap').addEventListener('click', e => { const b = e.target.closest('[data-pr]'); if (b && b.dataset.pr === 'judge') takeJudge(); if (b && b.dataset.pr === 'fjudge') faultJudge(); });
@@ -4783,7 +4814,7 @@ function toolCursor(p) {   // 누르는 곳은 십자 포인터, 도구 그림�
 }
 function updateFollower() {
   const el = $('#follower'), m = UI.mouse;
-  if (!m || m.over || TZ.id || !$('#home').hidden || !(UI.carry || S.tool !== 'hand')) { el.hidden = true; return; }   // 메인 화면 위에서는 안 따라다닌다
+  if (!m || m.over || TZ.id || !$('#home').hidden || !(UI.carry || (S.tool !== 'hand' && SET.toolArt))) { el.hidden = true; return; }   // 메인 화면 위에서는 안 따라다닌다
   const key = UI.carry ? 'c' + UI.carry.kind + UI.carry.key + 'x' + (UI.carry.count || 1) : 't' + S.tool + (S.gloves ? 'g' : '');
   if (el.dataset.key !== key) { el.dataset.key = key; el.innerHTML = UI.carry ? `<div class="fitem">${trayThumb({ kind: UI.carry.kind, key: UI.carry.key })}${(UI.carry.count || 1) > 1 ? `<span class="fcount">×${UI.carry.count}</span>` : ''}</div>` : `<svg viewBox="-20 -60 90 90" width="72" height="72" aria-hidden="true">${toolPlaced(S.tool)}</svg>`; }
   el.hidden = false; el.style.left = (m.x + (UI.carry ? 14 : -16)) + 'px'; el.style.top = (m.y + (UI.carry ? -70 : -48)) + 'px';   // 포인터 오른쪽 위 (도구는 끝이 포인터에)
