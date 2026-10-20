@@ -3194,17 +3194,31 @@ function intoHole(q, y) {   // 단자 → 구멍 → 덕트 안 y까지
   P.push(...bez(e0, [e0[0], e0[1] + q.dir * g * .55], [hx, q.h.y - q.dir * g * .45], [hx, q.h.y - q.dir * .3], 10), [hx, q.h.yi + q.dir * .5], [hx, y]);
   return P;
 }
-function slackCurve(P0, t0, P1, t1, len, i) {   // P0에서 t0 쪽으로 나가 P1로 t1 쪽에서 들어오는 길이 len인 늘어진 선 (P0 뺀 점들)
+function crSpline(P, n) {   // 점들을 지나는 매끈한 곡선 (centripetal Catmull-Rom: 뾰족해지지 않는다). P[0], P[끝]은 양 끝 방향만 정하는 점, P[1]은 빼고 돌려준다
+  const out = [], dt = (a, b) => Math.max(1e-3, Math.sqrt(Math.hypot(b[0] - a[0], b[1] - a[1]))), L = (a, b, ta, tb, t) => [a[0] + (b[0] - a[0]) * (t - ta) / (tb - ta), a[1] + (b[1] - a[1]) * (t - ta) / (tb - ta)];
+  for (let k = 1; k < P.length - 2; k++) {
+    const [p0, p1, p2, p3] = [P[k - 1], P[k], P[k + 1], P[k + 2]], t1 = dt(p0, p1), t2 = t1 + dt(p1, p2), t3 = t2 + dt(p2, p3);
+    for (let j = 1; j <= n; j++) {
+      const t = t1 + (t2 - t1) * j / n, A1 = L(p0, p1, 0, t1, t), A2 = L(p1, p2, t1, t2, t), A3 = L(p2, p3, t2, t3, t), B1 = L(A1, A2, 0, t2, t), B2 = L(A2, A3, t1, t3, t);
+      out.push(L(B1, B2, t1, t2, t));
+    }
+  }
+  return out;
+}
+function slackCurve(P0, t0, P1, t1, len, i) {   // P0에서 t0 쪽으로 나가 P1로 t1 쪽에서 들어오는 길이 len인 늘어진 선 (P0 뺀 점들). 넓게 둘러 가는 점들을 매끈하게 이어 좁게 꺾이지 않게
   const dx = P1[0] - P0[0], dy = P1[1] - P0[1], d = Math.hypot(dx, dy) || 1, u = [dx / d, dy / d], mid = [(P0[0] + P1[0]) / 2, (P0[1] + P1[1]) / 2];
   const same = t0[0] * t1[0] + t0[1] * t1[1] > .5; let n = same ? [t0[0], t0[1]] : [-u[1], u[0]];   // 두 끝이 같은 쪽으로 나가면 그쪽으로, 아니면 판 바깥쪽으로 휜다
   if (!same && n[0] * (mid[0] - 380) + n[1] * (mid[1] - 300) < 0) n = [-n[0], -n[1]];
-  const a = (((i * 37) % 9) - 4) * .07, ca = Math.cos(a), sa = Math.sin(a); n = [n[0] * ca - n[1] * sa, n[0] * sa + n[1] * ca];   // 선마다 조금씩 다르게
-  const sp = .25 + ((i * 13) % 5) * .06, k = 14;
-  const cv = h => { const w = Math.max(0, h - d * .5) * sp; return bez(P0, [P0[0] + t0[0] * k + n[0] * h - u[0] * w, P0[1] + t0[1] * k + n[1] * h - u[1] * w], [P1[0] + t1[0] * k + n[0] * h + u[0] * w, P1[1] + t1[1] * k + n[1] * h + u[1] * w], P1, 48); };
-  const L = h => pathLen([P0, ...cv(h)]);
-  if (L(0) >= len) return cv(0);
-  let lo = 0, hi = Math.max(20, len); while (L(hi) < len && hi < 1e4) hi *= 1.6;
-  for (let it = 0; it < 24; it++) { const h = (lo + hi) / 2; if (L(h) < len) lo = h; else hi = h; }
+  const ang = (((i * 37) % 9) - 4) * .07, ca = Math.cos(ang), sa = Math.sin(ang); n = [n[0] * ca - n[1] * sa, n[0] * sa + n[1] * ca];   // 선마다 조금씩 다르게
+  let v = [-n[1], n[0]]; if (v[0] * u[0] + v[1] * u[1] < 0) v = [-v[0], -v[1]];
+  const e = 14, sp = .25 + ((i * 13) % 5) * .06, A = [P0[0] + t0[0] * e, P0[1] + t0[1] * e], B = [P1[0] + t1[0] * e, P1[1] + t1[1] * e];
+  const pv = p => (p[0] - mid[0]) * v[0] + (p[1] - mid[1]) * v[1], av = pv(A), bv = pv(B), mv = (av + bv) / 2, at = (hn, hv) => [mid[0] + n[0] * hn + v[0] * hv, mid[1] + n[1] * hn + v[1] * hv];
+  const cv = h => { const w = Math.max(Math.abs(bv - av) / 2, h * (.22 + sp * .4));   // 고리 반폭: 길수록 넓게
+    return crSpline([[P0[0] - t0[0] * e, P0[1] - t0[1] * e], P0, A, at(h * .6, mv - w), at(h, mv), at(h * .6, mv + w), B, P1, [P1[0] - t1[0] * e, P1[1] - t1[1] * e]], 14); };
+  const Lh = h => pathLen([P0, ...cv(h)]);
+  if (Lh(0) >= len) return cv(0);
+  let lo = 0, hi = Math.max(20, len / 2); while (Lh(hi) < len && hi < 1e4) hi *= 1.6;
+  for (let it = 0; it < 24; it++) { const h = (lo + hi) / 2; if (Lh(h) < len) lo = h; else hi = h; }
   return cv((lo + hi) / 2);
 }
 function loosePts(I, i) {   // 덜 넣은 선: 넣은 끝은 구멍으로 조금 들어갔다가, 나머지는 길이 그대로 널브러진다
