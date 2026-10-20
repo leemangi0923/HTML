@@ -712,7 +712,7 @@ const RAIL_TEXT = { c1: 'MCB → FS1 → FS2 → SMPS → PLC → POS', c2: 'R1~
 const GROUP_OF = { mcb: 'mcb', fuse: 'fuse', smps: 'smps', plc: 'plc', pos: 'plc', relay: 'relay', timer: 'timer', xtb40: 'xtb40', tb: 'tb', xtb50: 'xtb50' };
 const SOLO = new Set(['mcb', 'fuse', 'smps', 'xtb40', 'tb', 'xtb50']);
 const GROUPS = { c1: [['mcb'], ['fuse'], ['fuse'], ['smps'], ['plc', 'pos']], c2: [Array(6).fill('relay'), Array(3).fill('timer'), ['xtb40']], c3: [['tb'], ['xtb50']] };
-const FUSE_TYPES = { f5: { name: '퓨즈 5A', spec: '30mm 유리관 2개 (FS1용)', qty: 2 }, f3: { name: '퓨즈 3A', spec: '30mm 유리관 2개 (FS2용)', qty: 2 } };
+const FUSE_TYPES = { f5: { name: '퓨즈 5A', spec: '뚜껑에 끼운 30mm 유리관 2개 (FS1용)', qty: 2 }, f3: { name: '퓨즈 3A', spec: '뚜껑에 끼운 30mm 유리관 2개 (FS2용)', qty: 2 } };
 const STOPPER_W = 8;
 
 /* --- 단자 정의 (x,y: 기구 왼쪽 위 기준) d: 전선이 나가는 방향 --- */
@@ -957,11 +957,9 @@ function dFuse(x, y, name, fz) {
     s += R(x0 + 3, y + .8, 12, 10.4, 'rx=".8" fill="#0c0e0f"') + R(x0 + 3, y + h - 11.2, 12, 10.4, 'rx=".8" fill="#0c0e0f"');
     s += R(x0 + 3.4, y + 19, 11.2, 36, 'rx="1.2" fill="#121416"');
     for (const cy of [y + 21.6, y + 49.4]) s += R(x0 + 5.2, cy, 7.6, 3.4, 'rx=".6" fill="#b9c0c5" stroke="#6f777d" stroke-width=".3"');   // 퓨즈 클립
-    if (f) s += fuseGlass(x0 + 6.3, y + 23.5, 5.4, 27, f) + T(x0 + 9, y + 59.6, f.startsWith('f5') ? '5A' : '3A', TX(3.4, f.startsWith('f5') ? '#ffd34d' : '#86d6ff', 'font-weight="700"'));
+    if (f) s += fuseGlass(x0 + 6.3, y + 23.5, 5.4, 27, f) + fuseCover(x0 + 1.2, y + 13.6, 15.6, h - 27.2) + T(x0 + 9, y + 59.6, f.startsWith('f5') ? '5A' : '3A', TX(3.4, f.startsWith('f5') ? '#ffd34d' : '#86d6ff', 'font-weight="700"'));   // 퓨즈는 투명 뚜껑과 한 몸으로 끼운다
   }
   for (const t of devTerms('fuse')) s += SCR(x + t.x, y + t.y);
-  // 투명 덮개: 나사 칸만 비우고 퓨즈 쪽을 덮는다
-  s += R(x + .9, y + 13.6, 34.2, h - 27.2, 'rx="1.6" fill="#e6f2f8" fill-opacity=".16" stroke="#d7e9f2" stroke-opacity=".85" stroke-width=".5"') + R(x + 2, y + 14.6, 32, 1.1, 'rx=".5" fill="#fff" fill-opacity=".45"') + R(x + 2.2, y + 16, 1, h - 33, 'rx=".5" fill="#fff" fill-opacity=".3"');
   return s + nameTag(x + 18, y + 12.6, name);
 }
 function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −V, 아래 L N FG
@@ -1188,7 +1186,11 @@ function fuseGlass(x, y, w, h, k) {   // 유리관 퓨즈 (세로): 위아래 �
   for (const cy of [y, gy1]) s += R(x, cy, w, cap, 'rx=".7" fill="url(#gCap)" stroke="#5f666c" stroke-width=".3"') + R(x + w * .22, cy + .5, w * .14, cap - 1, 'rx=".3" fill="#fff" fill-opacity=".75"');   // 크롬 마개
   return s;
 }
-function fuseIcon(k) { return fuseGlass(3, 2, 6, 30, k); }
+function fuseCover(x, y, w, h, st = '#d7e9f2') {   // 퓨즈 뚜껑(캐리어): 퓨즈가 끼워진 투명 뚜껑. 퓨즈와 한 몸으로 홀더에 꽂는다
+  return R(x, y, w, h, `rx="1.6" fill="#e6f2f8" fill-opacity=".18" stroke="${st}" stroke-opacity=".9" stroke-width=".5"`) + R(x + 1.1, y + 1, w - 2.2, 1.1, 'rx=".5" fill="#fff" fill-opacity=".5"')
+    + R(x + 1.3, y + 2.4, .9, h - 4.8, 'rx=".45" fill="#fff" fill-opacity=".32"') + R(x + w / 2 - 3, y + h - 3, 6, 1.4, 'rx=".7" fill="#c3d6df" fill-opacity=".8"');   // 아래 손잡이 홈
+}
+function fuseIcon(k) { return fuseGlass(3, 2, 6, 30, k) + fuseCover(.4, .4, 11.2, 33.2, '#7f939d'); }   // 재료함, 손에 든 퓨즈: 뚜껑과 한 몸
 function roundPath(pts, r) {
   const q = [];
   for (const p of pts) { const l = q[q.length - 1]; if (!l || Math.abs(l[0] - p[0]) > .01 || Math.abs(l[1] - p[1]) > .01) q.push(p); }
