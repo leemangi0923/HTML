@@ -2924,6 +2924,14 @@ function bez(p0, p1, p2, p3, n = 14) {
 const opHook = o => [[o.x, o.y], [o.x, o.y - 6], ...bez([o.x, o.y - 6], [o.x, o.y - 18], [o.x + o.sd * 13, o.y - 18], [o.x + o.sd * 13, o.y + 6], 10)];   // 조작판 위쪽 단자: 위에서 아래로 꽂고, 바깥으로 돌아 내려간다
 function route(a, b, lane) {
   if (a.op && b.op) {
+    const da = a.top ? -1 : 1, db = b.top ? -1 : 1, A1 = [a.x, a.y + da * 6], B1 = [b.x, b.y + db * 6];   // 위쪽 단자는 위로, 아래쪽 단자는 아래로 나간다
+    if ((b.y - a.y) * da > 0 && (a.y - b.y) * db > 0) {   // 서로 마주 보는 단자: 거의 일자로, 사이에 있는 다른 단자는 옆으로 비켜서
+      const xAt = y => A1[0] + (B1[0] - A1[0]) * (y - A1[1]) / ((B1[1] - A1[1]) || 1), y0 = Math.min(A1[1], B1[1]), y1 = Math.max(A1[1], B1[1]), span = y1 - y0;
+      const hit = TERMS.find(t => t.op && t.id !== a.id && t.id !== b.id && t.y > y0 && t.y < y1 && Math.abs(t.x - xAt(t.y)) < 4.5);
+      const k = hit ? ((Math.sign(xAt(hit.y) - hit.x) || a.sd || 1) * 6.5 + lane * .2) / .75 : 0;   // 베지어 가운데가 6.5mm 비켜 가게
+      return [[a.x, a.y], A1, ...bez(A1, [A1[0] + k, A1[1] + da * span * .3], [B1[0] + k, B1[1] + db * span * .3], B1, 16), [b.x, b.y]];
+    }
+    if (a.top && b.top) { const top = Math.min(A1[1], B1[1]) - 16 - Math.abs(lane); return [[a.x, a.y], A1, ...bez(A1, [A1[0], top], [B1[0], top], B1), [b.x, b.y]]; }   // 둘 다 위쪽: 위로 넘어서
     const A = a.top ? opHook(a) : [[a.x, a.y]], B = b.top ? opHook(b).reverse() : [[b.x, b.y]], s0 = A[A.length - 1], e0 = B[0], sag = Math.max(s0[1], e0[1]) + 22 + Math.abs(lane);
     return [...A, ...bez(s0, [s0[0], sag], [e0[0], sag], e0), ...B.slice(1)];
   }
