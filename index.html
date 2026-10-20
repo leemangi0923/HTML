@@ -1923,7 +1923,7 @@ const EXAM_LIMIT = 3.5 * 3600 * 1000;   // 경기 시간 3.5시간 (ms)
 const TOOL_HELP = {
   hand: '부품을 들어서 놓아요. 판을 끌면 화면이 움직여요', tape: '재료함의 덕트·찬넬을 눌러 양면테이프를 붙여요', pen: '판 끝에 댄 덕트나 서보 구멍 자리를 눌러 빨간 선을 그어요',
   ruler: '붙인 첫 덕트에 자를 대고 덕트, 찬넬 간격을 표시해요', glove: '장갑을 끼고 벗어요', drill: '붙인 덕트·찬넬을 눌러 구멍을 뚫어요. 장갑 필수',
-  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '기기 바로 아래를 눌러 견출지를 붙여요', wire: '단자 두 개를 차례로 눌러 연결해요. 꽂은 선은 늘어져 있다가 선 정리(J)로 덕트에 넣어요', dress: '단자 쪽 전선 끝을 둘러싸게 끌어서 고르고(단자를 눌러도 돼요) 가까운 덕트의 회색 구멍을 누르면 그 구멍으로 들어가요. 두 끝을 넣으면 남는 선 고리를 잡고 위나 아래로 끌어 덕트 안에 접어 넣어요', cut: '전선, 부품, 견출지를 빼요', tie: '조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
+  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '기기 바로 아래를 눌러 견출지를 붙여요', wire: '단자 두 개를 차례로 눌러 연결해요. 꽂은 선은 늘어져 있다가 선 정리(J)로 덕트에 넣어요', dress: '단자 쪽 전선 끝을 둘러싸게 끌어서 고르고(단자를 눌러도 돼요) 가까운 덕트의 회색 구멍을 누르면 그 구멍으로 들어가요. 두 끝을 넣으면 남는 선 고리를 잡고(여러 개는 가로질러) 위나 아래로 끌어 덕트 안에 접어 넣어요', cut: '전선, 부품, 견출지를 빼요', tie: '조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
 };
 const toolName = id => (TOOLS.find(t => t.id === id) || { name: id }).name;
 const fmt = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
@@ -3088,9 +3088,9 @@ const dressAll = () => { const [n, m] = dressCount(), [t, u] = tuckCount(); retu
 const dressLeft = id => S.wires.filter(w => dressable(w) && !tucked(w) && routeDucts(w.a, w.b).includes(id)).length;   // 이 덕트를 지나는 선 중 아직 덜 넣은 것
 function dressStep() { const [n, m] = dressCount(); return { no: '배선', title: '선 정리: 전선 끝을 덕트 구멍으로 넣기', n, m, done: m > 0 && n === m, tip: '선 정리 도구(J)로 단자 쪽 전선 끝을 둘러싸게 끌어서 고르고, 단자와 마주 보는 덕트의 회색 구멍을 눌러요. 비슷한 선은 한 구멍으로 모아요 (예: R, T, E는 가운데 T 아래 구멍)', why: '' }; }
 function tuckStep() { const [n, m] = tuckCount(); return { no: '배선', title: '선 정리: 남는 선을 덕트 안에 접어 넣기', n, m, done: m > 0 && n === m, tip: '선은 80cm라 두 끝을 넣으면 남는 길이가 고리로 튀어나와요. 선 정리 도구로 고리를 잡고 위나 아래로 곧게 끌면 세로 덕트 안에 접혀 들어가요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽)', why: '' }; }
-function dressPlan() {   // 아직 안 넣은 끝: 덕트 벽마다 왼쪽부터 2cm 안쪽끼리 한 묶음, 묶음 가운데에서 가장 가까운 구멍으로
+function dressPlan(ws = S.wires) {   // 아직 안 넣은 끝: 덕트 벽마다 왼쪽부터 2cm 안쪽끼리 한 묶음, 묶음 가운데에서 가장 가까운 구멍으로
   const ends = [];
-  S.wires.forEach(w => { if (!dressable(w)) return; for (const e of ['a', 'b']) if (!w['h' + e]) { const T = TERM[w[e]], wl = termWall(T); ends.push({ w, e, T, x: exitX(T), g: HDUCTS.indexOf(T.duct) * 2 + (wl === 'b' ? 0 : 1), d: T.duct, wl }); } });
+  ws.forEach(w => { if (!dressable(w)) return; for (const e of ['a', 'b']) if (!w['h' + e]) { const T = TERM[w[e]], wl = termWall(T); ends.push({ w, e, T, x: exitX(T), g: HDUCTS.indexOf(T.duct) * 2 + (wl === 'b' ? 0 : 1), d: T.duct, wl }); } });
   ends.sort((p, q) => p.g - q.g || p.x - q.x);
   const out = [];
   for (const p of ends) { const c = out[out.length - 1]; if (c && c.g === p.g && p.x - c.x0 <= 20) c.ends.push(p); else out.push({ g: p.g, d: p.d, wl: p.wl, x0: p.x, ends: [p] }); }
@@ -3099,15 +3099,41 @@ function dressPlan() {   // 아직 안 넣은 끝: 덕트 벽마다 왼쪽부터
 }
 function autoTuck() { for (const w of S.wires) if (dressable(w) && w.ha && w.hb && !w.tk) w.tk = tuckDir(w, 0, 0) || (tuckRoom(w).v ? 'd' : 'r'); }
 function autoDress() { for (const c of dressPlan()) for (const p of c.ends) p.w['h' + p.e] = c.hole; autoTuck(); }
-function autoDressNew() {   // 자동 선 정리 (설정): 안 넣은 끝은 옆 단자(1.5cm 안) 선이 들어간 구멍으로, 없으면 가까운 끝끼리 모아 가까운 구멍으로. 그다음 남는 선 접기. 붙인 덕트만
-  const used = []; for (const w of S.wires) if (dressable(w)) for (const e of ['a', 'b']) if (w['h' + e]) used.push({ x: exitX(TERM[w[e]]), h: holeOf(w['h' + e]) });
-  for (const w of S.wires) if (dressable(w)) for (const e of ['a', 'b']) {
-    const T = TERM[w[e]]; if (w['h' + e] || !ductStuck(T.duct)) continue; const wl = termWall(T), x = exitX(T); let best = null, bd = 15;
-    for (const u of used) if (u.h.d === T.duct && u.h.wl === wl && Math.abs(u.x - x) <= bd && Math.abs(u.h.x - x) <= HOLE_MAX) { bd = Math.abs(u.x - x); best = u.h; }
-    if (best) w['h' + e] = best.id;
+function dressWires(ws, { stuck = false, holes = true, tuck = true } = {}) {   // 이 선들 선 정리: 안 넣은 끝은 옆 단자(1.5cm 안) 선이 들어간 구멍으로, 없으면 가까운 끝끼리 모아 가까운 구멍으로. 그다음 남는 선 접기
+  ws = ws.filter(dressable);
+  if (holes) {
+    const used = []; for (const w of S.wires) if (dressable(w)) for (const e of ['a', 'b']) if (w['h' + e]) used.push({ x: exitX(TERM[w[e]]), h: holeOf(w['h' + e]) });
+    for (const w of ws) for (const e of ['a', 'b']) {
+      const T = TERM[w[e]]; if (w['h' + e] || (stuck && !ductStuck(T.duct))) continue; const wl = termWall(T), x = exitX(T); let best = null, bd = 15;
+      for (const u of used) if (u.h.d === T.duct && u.h.wl === wl && Math.abs(u.x - x) <= bd && Math.abs(u.h.x - x) <= HOLE_MAX) { bd = Math.abs(u.x - x); best = u.h; }
+      if (best) w['h' + e] = best.id;
+    }
+    for (const c of dressPlan(ws)) if (!stuck || ductStuck(c.d)) for (const p of c.ends) p.w['h' + p.e] = c.hole;
   }
-  for (const c of dressPlan()) if (ductStuck(c.d)) for (const p of c.ends) p.w['h' + p.e] = c.hole;
-  autoTuck();
+  if (tuck) for (const w of ws) if (w.ha && w.hb && !w.tk) w.tk = tuckDir(w, 0, 0) || (tuckRoom(w).v ? 'd' : 'r');
+}
+const autoDressNew = () => dressWires(S.wires, { stuck: true });   // 자동 선 정리 (설정)
+const DRESS_AT = [0, 1, 2, 3, 4, 6];   // 이 묶음까지 꽂으면 선 정리: 교류 전원부, A, M, +24V, 0V는 묶음마다, PLC 신호와 조작판(나머지 선)은 같이 꽂고 한 번에
+let _grpOf = null;
+const groupOf = w => { if (!_grpOf) { _grpOf = new Map(); WIRE_GROUPS.forEach((g, gi) => g.ws.forEach(([a, b]) => _grpOf.set(pairKey(a, b), gi))); } const g = _grpOf.get(pairKey(w.a, w.b)); return g === undefined ? -1 : g; };
+function dressDue() {   // 가이드: 다음 묶음으로 가기 전에 선 정리할 선들 (다 꽂은 묶음까지)
+  const np = nextPair(), g = np ? groupOf({ a: np[0], b: np[1] }) : WIRE_GROUPS.length, D = Math.max(-1, ...DRESS_AT.filter(k => k < g));
+  if (D < 0) return null; const ws = S.wires.filter(w => dressable(w) && !tucked(w) && groupOf(w) <= D);
+  return ws.length ? { D, ws } : null;
+}
+function dressNext(ws) {   // 연습 안내: 이 선들의 선 정리 다음 할 일 (구멍에 넣기 → 남는 선 접기)
+  const c = dressPlan(ws)[0];
+  if (!c) { const w = ws.find(x => dressable(x) && x.ha && x.hb && !x.tk); if (!w) return null; const m = loopGrip(w), k = tuckDir(w, 0, 0);
+    return { tx: `남는 선 넣기: ${wireName(w.a)} ↔ ${wireName(w.b)}`, sub: `선 정리 도구로 빨간 원의 고리를 ${TUCK_NM[k]} 곧게 끌어요 (고리 여러 개를 가로질러 끌면 한 번에). 덕트 안에 접혀 들어가요`, tool: 'dress', hl: { rings: [{ x: m.x, y: m.y, r: 9 }] } }; }
+  const sel = dselNow(), H = holeOf(c.hole), ring = { x: H.x, y: (H.y + H.yi) / 2, r: 4.5 };
+  if (c.ends.every(q => sel.some(x => sameEnd(x, q)))) return { tx: `${SLOT[c.d].name} 구멍에 넣기`, sub: '빨간 원 구멍을 눌러요. 고른 선이 모두 이 구멍으로 들어가요', tool: 'dress', hl: { rings: [ring] } };
+  const xs = c.ends.map(q => q.T.x), ys = c.ends.map(q => q.T.y), x0 = Math.min(...xs), y0 = Math.min(...ys);
+  return { tx: `선 정리: ${[...new Set(c.ends.map(q => wireName(q.T.id)))].join(', ')}`, sub: '선 정리 도구(J)로 빨간 테두리의 단자들을 둘러싸게 끌어서 골라요 (단자를 눌러도 돼요). 그다음 빨간 원 구멍', tool: 'dress', hl: { box: { x: x0 - 6, y: y0 - 6, w: Math.max(...xs) - x0 + 12, h: Math.max(...ys) - y0 + 12 }, rings: [ring] } };
+}
+function dressGuide(ws) {   // 가이드 표시: 고를 단자들과 넣을 구멍, 다 넣었으면 접을 고리
+  const c = dressPlan(ws)[0];
+  if (c) { const xs = c.ends.map(q => q.T.x), ys = c.ends.map(q => q.T.y), H = holeOf(c.hole); return R(Math.min(...xs) - 6, Math.min(...ys) - 6, Math.max(...xs) - Math.min(...xs) + 12, Math.max(...ys) - Math.min(...ys) + 12, 'rx="2" class="guide-ring" fill="none"') + C(H.x, (H.y + H.yi) / 2, 4.2, 'class="guide-ring"'); }
+  const w = ws.find(x => dressable(x) && x.ha && x.hb && !x.tk), m = w && loopGrip(w); return m ? C(m.x, m.y, 9, 'class="guide-ring"') : '';
 }
 const foldFits = (r, sl) => r >= 25 && Math.ceil(Math.max(0, sl) / (2 * r)) <= 4;   // 지그재그 4번 안으로 접히나
 const foldRoom = (near, far, sl) => foldFits(near, sl) ? near : far;   // 끈 쪽 끝에 자리가 모자라면 반대쪽 끝에서 같은 쪽으로 (자기 줄 옆을 따라)
@@ -3222,7 +3248,16 @@ function tuckWires(ws, dx, dy) {
   snap(); for (const [w, k] of ok) w.tk = k;
   say(`남는 선 ${ok.length}가닥을 ${[...new Set(ok.map(([, k]) => TUCK_NM[k]))].join('·')} 접어 덕트 안에 넣었어요${bad.length ? `. ${bad.length}가닥은 그쪽에 자리가 모자라요` : ''}`, 'ok'); commit();
 }
-const tuckMode = (g, p1) => { if (!g.ws || !g.ws.length) return false; const dx = Math.abs(p1.x - g.p0.x), dy = Math.abs(p1.y - g.p0.y); return Math.min(dx, dy) < .35 * Math.max(dx, dy) || !endsIn(boxOf(g.p0, p1)).length; };   // 고리에서 시작해 곧게 끌거나 단자를 안 둘러싸면 접기
+function tuckCross(p0, p1) {   // 끈 선이 가로지른 고리들
+  const out = []; S.wires.forEach((w, i) => { if (!dressable(w) || !w.ha || !w.hb || w.tk) return; const pts = wirePts(w, i); if (pts) for (let k = 1; k < pts.length; k++) if (segInt(p0, p1, pts[k - 1], pts[k])) { out.push(w); return; } });
+  return out;
+}
+const tuckSet = (g, p1) => [...new Set([...(g.ws || []), ...tuckCross(g.p0, p1)])];
+const tuckMode = (g, p1) => {   // 고리에서 시작해 곧게 끌거나 단자를 안 둘러싸면 접기. 빈 곳에서 시작해도 단자 없이 고리를 가로지르면 접기
+  const dx = Math.abs(p1.x - g.p0.x), dy = Math.abs(p1.y - g.p0.y), ends = endsIn(boxOf(g.p0, p1)).length;
+  if (g.ws && g.ws.length) return Math.min(dx, dy) < .35 * Math.max(dx, dy) || !ends;
+  return !ends && tuckCross(g.p0, p1).length > 0;
+};
 function loopGrip(w) {   // 고리를 잡기 좋은 자리: 판 안이고 단자, 구멍에서 떨어진 곳 중 고리 가운데에 가까운 점
   const pts = wirePts(w, S.wires.indexOf(w)); if (!pts) return null;
   const L = pathLen(pts); let best = null, bd = Infinity, acc = 0;
@@ -3234,8 +3269,8 @@ function loopGrip(w) {   // 고리를 잡기 좋은 자리: 판 안이고 단자
   return best || ptAtS(pts, L / 2);
 }
 function tuckOver(g, p1, px1) {   // 고리를 끄는 중: 잡은 선, 끄는 방향
-  const dx = p1.x - g.p0.x, dy = p1.y - g.p0.y, ks = g.ws.map(w => tuckDir(w, dx, dy)), ok = ks.filter(Boolean);
-  let s = ''; g.ws.forEach((w, j) => { const pts = wirePts(w, S.wires.indexOf(w)); if (pts) s += `<path d="${wD(pts)}" fill="none" stroke="${ks[j] ? '#f3c11b' : '#e3232f'}" stroke-opacity=".7" stroke-width="1.6" pointer-events="none"/>`; });
+  const dx = p1.x - g.p0.x, dy = p1.y - g.p0.y, ws = tuckSet(g, p1), ks = ws.map(w => tuckDir(w, dx, dy)), ok = ks.filter(Boolean);
+  let s = ''; ws.forEach((w, j) => { const pts = wirePts(w, S.wires.indexOf(w)); if (pts) s += `<path d="${wD(pts)}" fill="none" stroke="${ks[j] ? '#f3c11b' : '#e3232f'}" stroke-opacity=".7" stroke-width="1.6" pointer-events="none"/>`; });
   s += LN(g.p0.x, g.p0.y, p1.x, p1.y, `stroke="#f3c11b" stroke-width="${F(2.2 * px1)}" stroke-linecap="round" stroke-dasharray="${F(6 * px1)} ${F(4 * px1)}" pointer-events="none"`);
   return s + `<text x="${F(p1.x + 10 * px1)}" y="${F(p1.y - 8 * px1)}" font-size="${F(12 * px1)}" font-weight="800" fill="${ok.length ? '#f3c11b' : '#ff6b6b'}" stroke="#1a1a1a" stroke-width="${F(3 * px1)}" paint-order="stroke" pointer-events="none">${ok.length ? `${[...new Set(ok.map(k => TUCK_NM[k]))].join('·')} 접어 넣기 (${ok.length}가닥)` : '그쪽은 자리가 모자라요'}</text>`;
 }
@@ -3293,8 +3328,7 @@ function dressPut(h, sel) {
 function dressOver(p, px1) {   // 고르는 상자, 고른 전선, 넣을 수 있는 구멍
   let s = ''; const sel = dselNow(), g = UI.gesture && UI.gesture.type === 'dbox' && UI.gesture.moved && UI.dboxEnd ? UI.gesture : null;
   const hr = (h, c, sw) => R(h.x - 2.3, Math.min(h.y, h.yi) - .4, 4.6, 7.3, `rx=".8" fill="${c}" fill-opacity=".35" stroke="${c}" stroke-width="${F(sw * px1)}" pointer-events="none"`);
-  if (S.guide && MODE !== 'prac' && !sel.length && !g) { const lw = S.wires.find(w => dressable(w) && w.ha && w.hb && !w.tk), m = lw && loopGrip(lw); if (m) s += C(m.x, m.y, 9, 'class="guide-ring"'); }
-  if (S.guide && MODE !== 'prac' && !sel.length && !g) { const c = dressPlan()[0]; if (c) { const xs = c.ends.map(q => q.T.x), ys = c.ends.map(q => q.T.y), H = holeOf(c.hole); s += R(Math.min(...xs) - 6, Math.min(...ys) - 6, Math.max(...xs) - Math.min(...xs) + 12, Math.max(...ys) - Math.min(...ys) + 12, 'rx="2" class="guide-ring" fill="none"') + C(H.x, (H.y + H.yi) / 2, 4.2, 'class="guide-ring"'); } }
+  if (S.guide && MODE !== 'prac' && !sel.length && !g) { const due = dressDue(); s += dressGuide(due ? due.ws : S.wires); }
   for (const q of sel) { const i = S.wires.indexOf(q.w), pts = wirePts(q.w, i), T = TERM[q.w[q.e]]; if (pts) s += `<path d="${wD(pts)}" fill="none" stroke="#f3c11b" stroke-opacity=".6" stroke-width="1.5" pointer-events="none"/>`; s += C(T.x, T.y, 3.4, 'fill="none" stroke="#f3c11b" stroke-width="1.2" pointer-events="none"'); }
   if (sel.length) {   // 고른 끝이 들어갈 수 있는 구멍: 전부 초록, 일부 노랑
     const cnt = {}; for (const q of sel) { const T = TERM[q.w[q.e]], wl = termWall(T), s0 = SLOT[T.duct]; if (!ductStuck(T.duct)) continue; for (let k = 0; k < HOLE_N; k++) { const x = s0.x + 7.7 + k * 10; if (Math.abs(x - exitX(T)) <= HOLE_MAX) { const id = `${T.duct}:${wl}:${k}`; cnt[id] = (cnt[id] || 0) + 1; } } }
@@ -3649,7 +3683,9 @@ function renderOver() {
   }
   if (UI.carry && p && UI.overBoard) { s += ghost(p); if ((UI.carry.count || 1) > 1) s += `<g transform="translate(${F(p.x)} ${F(p.y)}) scale(${(UI.cam.w / Math.max(1, svg.clientWidth)).toFixed(5)})" pointer-events="none"><circle cx="22" cy="-22" r="12" fill="#f3c11b" stroke="#261f00" stroke-width="1.2"/><text x="22" y="-17.5" font-size="12" font-weight="800" text-anchor="middle" fill="#261f00">×${UI.carry.count}</text></g>`; }
   {
-    if (S.guide && S.tool === 'wire' && MODE !== 'prac') { const np = nextPair(); if (np) { const a = TERM[np[0]], b = TERM[np[1]]; s += LN(a.x, a.y, b.x, b.y, 'class="guide-line"') + C(a.x, a.y, 4.2, 'class="guide-ring"') + C(b.x, b.y, 4.2, 'class="guide-ring"'); } }
+    const due = S.guide && MODE !== 'prac' && S.tool === 'wire' ? dressDue() : null;
+    if (due && S.tool === 'wire') s += dressGuide(due.ws);
+    else if (S.guide && S.tool === 'wire' && MODE !== 'prac') { const np = nextPair(); if (np) { const a = TERM[np[0]], b = TERM[np[1]]; s += LN(a.x, a.y, b.x, b.y, 'class="guide-line"') + C(a.x, a.y, 4.2, 'class="guide-ring"') + C(b.x, b.y, 4.2, 'class="guide-ring"'); } }
     if (UI.replug && TERM[UI.replug.keep]) { const a = TERM[UI.replug.keep], e = UI.hoverTerm || p; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (e) s += `<path d="M${F(a.x)} ${F(a.y)}Q${F((a.x + e.x) / 2)} ${F(Math.max(a.y, e.y) + 25)} ${F(e.x)} ${F(e.y)}" class="wire-o"/><path d="M${F(a.x)} ${F(a.y)}Q${F((a.x + e.x) / 2)} ${F(Math.max(a.y, e.y) + 25)} ${F(e.x)} ${F(e.y)}" class="wire-i"/>`; }
     if (UI.hoverTerm) s += C(UI.hoverTerm.x, UI.hoverTerm.y, 3.6, 'class="hov-ring"');
     if (UI.pending && TERM[UI.pending]) { const a = TERM[UI.pending]; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (p) s += LN(a.x, a.y, p.x, p.y, 'class="rubber"'); }
@@ -3675,6 +3711,7 @@ function statusText() {
   if (ti && ti.type === 'timer') return S.plug[ti.id] ? `${UI.nm[ti.id]} 타이머 ${(S.tset[ti.id] || 0).toFixed(1)}초 (단위 s): Tab을 누르면 확대해서 다이얼을 돌려요` : `${UI.nm[ti.id]} 타이머 소켓: 타이머를 꽂으면 Tab으로 시간을 맞춰요`;
   if (UI.pending && TERM[UI.pending]) return `${TERM[UI.pending].nm}에서 시작: 연결할 단자를 눌러요 (빈 곳을 누르면 취소)`;
   if ((S.tool === 'dress' || S.tool === 'hand') && !UI.carry && !UI.gesture && UI.overBoard && UI.pointer && tuckGrab(UI.pointer).length) return S.tool === 'dress' ? '남는 선 고리: 잡고 위나 아래로 곧게 끌면 덕트 안에 접혀 들어가요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽)' : '남는 선 고리: 선 정리 도구(J)로 잡고 위나 아래로 끌면 덕트 안에 접혀 들어가요';
+  if (S.guide && MODE !== 'prac' && S.tool === 'wire' && !UI.pending) { const due = dressDue(); if (due) return `${due.D === 6 ? '나머지 선' : WIRE_GROUPS[due.D].t.replace(/ · 회로도 \d/, '')}까지 다 꽂았어요. 다음 선을 꽂기 전에 선 정리(J): 단자 쪽 끝을 구멍에 넣고 남는 선 고리를 접어요 (${due.ws.length}가닥)`; }
   if (S.tool === 'dress' && dselNow().length) return `선 정리: 전선 끝 ${dselNow().length}개를 골랐어요. 넣을 덕트 구멍(초록)을 눌러요 (빈 곳이나 우클릭: 고르기 취소, Shift+끌기: 더 고르기)`;
   if (UI.carry && UI.carry.kind === 'tie') return `케이블 타이 ${UI.carry.count || 1}개: 조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요. 재료함을 누르면 다시 넣어요`;
   if (UI.carry) { const it = trayItems().find(i => i.key === UI.carry.key), n = UI.carry.count || 1; return `${it ? it.name : '부품'}${n > 1 ? ' ' + n + '개를' : '을(를)'} 들고 있어요. 누를 때마다 하나씩 내려놓아요. 재료함을 누르면 다시 넣어요`; }
@@ -3934,7 +3971,7 @@ svg.addEventListener('pointerup', e => {
   if (g && g.live) { UI.gesture = null; if (g.live === 'grab' && performance.now() - g.t0 < 250) { liveRelease(); if (S.tool !== 'hand') { S.tool = 'hand'; UI.meter = null; renderTools(); } pickPack(); } return; }   // 팩을 살짝 누르면 집기
   if (g && g.type === 'press' && !g.moved) { const p = toWorld(e.clientX, e.clientY); UI.pointer = p; handleTap(p, e); }
   if (g && g.type === 'tiedrag') { const p1 = toWorld(e.clientX, e.clientY); UI.tieEnd = null; UI.gesture = null; if (g.moved) makeTie(g.p0, p1); else handleTap(p1, e); }
-  if (g && g.type === 'dbox') { const p1 = toWorld(e.clientX, e.clientY); UI.dboxEnd = null; UI.gesture = null; if (!g.moved) handleTap(p1, e); else if (tuckMode(g, p1)) tuckWires(g.ws, p1.x - g.p0.x, p1.y - g.p0.y); else dressPick(g.p0, p1, e.shiftKey || e.ctrlKey); }
+  if (g && g.type === 'dbox') { const p1 = toWorld(e.clientX, e.clientY); UI.dboxEnd = null; UI.gesture = null; if (!g.moved) handleTap(p1, e); else if (tuckMode(g, p1)) tuckWires(tuckSet(g, p1), p1.x - g.p0.x, p1.y - g.p0.y); else dressPick(g.p0, p1, e.shiftKey || e.ctrlKey); }
   if (g && g.type === 'tiemove') { const p1 = toWorld(e.clientX, e.clientY); UI.gesture = null; if (g.moved) { commit(); say('케이블 타이를 옮겼어요. 묶인 전선이 같이 따라와요', 'ok'); } else handleTap(p1, e); }
   if (!UI.ptrs.size || (g && g.type === 'pinch')) UI.gesture = null;
 });
@@ -4130,22 +4167,25 @@ function demoScript() {   // 정답 채우기를 동작 하나 단위로 쪼갠�
       add(2, `스톱퍼 2개로 양쪽 고정 (${ROW[RAIL_ROW[a.rail]].name})`, [['push', ['stoppers'], a], ['push', ['stoppers'], b]], { focus: rowV(a.rail), hl: { boxes: [a, b].map(t => ({ x: t.x, y: cy - 23, w: STOPPER_W, h: 46 })) } });
     }
     // 4. 배선: 7묶음 (교류 전원부 → 자동 → 수동 → +24V → 0V → PLC·아이오 링크 → 조작판)
-    S.opBack = true; buildTerms();
+    S.opBack = true; buildTerms(); S.wires = [];
+    const dressSteps = gi => {   // 선 정리: 지금까지 꽂고 아직 안 넣은 선 → 구멍, 그다음 남는 선 접기
+      const ws = S.wires.filter(w => dressable(w) && !tucked(w)); if (!ws.length) return;
+      const grp = gi === WIRE_GROUPS.length - 1 ? `${gi + 1}) 나머지 선 선 정리` : `${gi + 1}) ${WIRE_GROUPS[gi].t.replace(/ · 회로도 \d/, '')} 선 정리`, was = S.wires.map(w => [w.ha, w.hb]), hs = new Set(), ops = [];
+      dressWires(ws, { tuck: false });
+      S.wires.forEach((w, i) => { for (const [k, e] of [[0, 'ha'], [1, 'hb']]) if (w[e] !== was[i][k]) { ops.push(['set', ['wires', i, e], w[e]]); hs.add(w[e]); } });
+      if (ops.length) add(3, `선 정리: 꽂은 선 끝을 덕트 구멍으로 (${ops.length}개)`, ops, { grp, focus: PANEL_V, sub: '단자 쪽 끝을 끌어서 고르고 가까운 구멍을 눌러요. 옆 단자 선이 들어간 구멍이 있으면 거기로 모아요', hl: { boxes: [...hs].map(id => { const h = holeOf(id); return { x: h.x - 2.5, y: Math.min(h.y, h.yi), w: 5, h: 6.5 }; }) } });
+      dressWires(ws, { holes: false });
+      const tops = S.wires.map((w, i) => ws.includes(w) && w.tk ? ['set', ['wires', i, 'tk'], w.tk] : null).filter(Boolean);
+      if (tops.length) add(3, `남는 선을 덕트 안에 접어 넣기 (${tops.length}가닥)`, tops, { grp, focus: PANEL_V, sub: '선은 80cm라 두 끝을 넣으면 남는 길이가 고리로 튀어나와요. 고리들을 가로질러 위나 아래로 끌면 한 번에 접혀 들어가요' });
+    };
     WIRE_GROUPS.forEach((g, gi) => {
       const grp = `${gi + 1}) ${g.t}`;
       if (g.op) add(3, '조작판 뒤집기: 조작판 선은 뒷면에서 이어요', [['set', ['opBack'], true]], { grp, focus: OP_V, sub: '뒷면은 앞면과 좌우가 바뀌어요' });
       const dg = CIRC_DIA[gi] ? gi : -1;   // 교류 전원부, 자동(A), 수동(M) 회로는 도면에 지금 자리와 이은 자리를 표시
       add(3, `${g.t} (${g.ws.length}개)`, [], { grp, sub: g.d, focus: span(g.ws.flat(), 60), intro: true, dia: dg >= 0 ? { img: dg, g: gi } : null });
-      for (const [a, b] of g.ws) add(3, `${TERM[a].nm} → ${TERM[b].nm}`, [['push', ['wires'], { a, b }]], { grp, focus: span([a, b]), hl: { wire: true }, dia: dg >= 0 ? { img: dg, g: gi, tr: CIRC_TRACE[a + '|' + b] } : null });
+      for (const [a, b] of g.ws) { add(3, `${TERM[a].nm} → ${TERM[b].nm}`, [['push', ['wires'], { a, b }]], { grp, focus: span([a, b]), hl: { wire: true }, dia: dg >= 0 ? { img: dg, g: gi, tr: CIRC_TRACE[a + '|' + b] } : null }); S.wires.push({ a, b }); }
+      if (DRESS_AT.includes(gi)) dressSteps(gi);   // 교류 전원부, A, M, +24V, 0V는 묶음마다, PLC 신호와 조작판은 같이 꽂고 한 번에
     });
-    S.wires = REF_WIRES.map(([a, b]) => ({ a, b }));   // 선 정리: 덕트 벽마다 한 번에
-    for (const cs of Object.values(dressPlan().reduce((o, c) => ((o[c.g] = o[c.g] || []).push(c), o), {}))) {
-      const c0 = cs[0], s0 = SLOT[c0.d], ops = cs.flatMap(c => c.ends.map(q => ['set', ['wires', S.wires.indexOf(q.w), 'h' + q.e], c.hole]));
-      add(3, `선 정리: ${s0.name} ${c0.wl === 't' ? '위쪽' : '아래쪽'} 벽 구멍으로 넣기 (${ops.length}가닥)`, ops, { grp: `${WIRE_GROUPS.length + 1}) 선 정리`, focus: { x: -20, y: s0.y - 70, w: 800, h: 180 }, sub: '단자 쪽 끝을 끌어서 고르고 가까운 구멍으로. 비슷한 선은 한 구멍에 모으고, 덕트 안에서 멀리 가는 선일수록 깊이', hl: { boxes: [...new Set(cs.map(c => c.hole))].map(id => { const h = holeOf(id); return { x: h.x - 2.5, y: Math.min(h.y, h.yi), w: 5, h: 6.5 }; }) } });
-    }
-    autoDress();   // 남는 선: 고리를 잡고 위나 아래로 끌어 접어 넣기
-    { const ops = S.wires.map((w, i) => w.tk ? ['set', ['wires', i, 'tk'], w.tk] : null).filter(Boolean); add(3, `남는 선을 덕트 안에 접어 넣기 (${ops.length}가닥)`, ops, { grp: `${WIRE_GROUPS.length + 1}) 선 정리`, focus: PANEL_V, sub: '선은 80cm라 두 끝을 넣으면 남는 길이가 고리로 튀어나와요. 고리를 잡고 위나 아래로 끌면 세로 덕트 안에 접혀 들어가요' }); }
-    fillStage(3);
     // 5. 동작 검사: 케이블, 컨베이어, 릴레이·타이머, 타이머 시간
     fillStage(4); buildTerms();
     add(4, '전원 케이블 꽂기: 단자대 1번(R), 2번(T) 아래', [['set', ['cables', 'power'], true]], { focus: CONV_V, sub: '왼쪽 아래 덕트 구멍으로 빼요', hl: { rings: ['TB.1.b', 'TB.2.b'].map(t => ({ x: TERM[t].x, y: TERM[t].y, r: 5 })) } });
@@ -4833,13 +4873,15 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
   L(2, '스톱퍼 고정', '기구 묶음마다 양옆에 스톱퍼를 끼워 고정해요', { keys: ['stoppers'], focus: P_V.panel,
     fill: () => { S.stoppers = pClone(R().stoppers); }, prog: () => { const e = groupEnds(); return [e.filter(x => x.ok).length, e.length]; }, goal: () => stage2Steps()[1],
     next: () => { const e = groupEnds().find(x => !x.ok); if (!e) return P_DONE; return { tx: `스톱퍼: ${ROW[RAIL_ROW[e.rail]].name} 찬넬`, sub: '도구 줄의 스톱퍼를 들고 빨간 테두리를 눌러요', tool: 'stopper', hl: { box: { x: e.x, y: ROW[RAIL_ROW[e.rail]].cy - 23, w: STOPPER_W, h: 46 } } }; } });
-  // 4. 배선: 7묶음 (꽂기만), 그다음 선 정리
+  // 4. 배선: 7묶음. 교류 전원부, A, M, +24V, 0V는 꽂고 그 묶음 선 정리, PLC 신호와 조작판은 꽂기만 하고 4-8에서 나머지 선 정리
   WIRE_GROUPS.forEach((G, gi) => {
     const before = WIRE_GROUPS.slice(0, gi).flatMap(g => g.ws).map(([a, b]) => pairKey(a, b)), mine = G.ws.map(([a, b]) => pairKey(a, b));
-    L(3, G.t.replace(/ · 회로도 \d/, ''), G.d, { keys: ['wires'], wg: gi, focus: P_V.panel, prep: () => { S.opBack = true; },
-      fill: () => { for (const [a, b] of G.ws) S.wires.push({ a, b }); },
-      prog: () => { const h = new Set(S.wires.map(w => pairKey(w.a, w.b))); return [mine.filter(k => h.has(k)).length, mine.length]; },
-      goal: () => { const h = new Set(S.wires.map(w => pairKey(w.a, w.b))); return mine.every(k => h.has(k)); },
+    const dr = DRESS_AT.includes(gi) && gi < WIRE_GROUPS.length - 1, mineW = () => S.wires.filter(w => mine.includes(pairKey(w.a, w.b)) && dressable(w));
+    L(3, G.t.replace(/ · 회로도 \d/, ''), G.d + (dr ? ' 다 꽂으면 이 선들을 선 정리해요 (구멍에 넣고 남는 선 접기)' : ''), { keys: dr ? ['wires', 'dress'] : ['wires'], wg: gi, focus: P_V.panel, prep: () => { S.opBack = true; },
+      fill: () => { for (const [a, b] of G.ws) S.wires.push({ a, b }); if (dr) dressWires(mineW()); },
+      prog: () => { const h = new Set(S.wires.map(w => pairKey(w.a, w.b))), n = mine.filter(k => h.has(k)).length; if (!dr) return [n, mine.length];
+        const m = G.ws.filter(([a, b]) => dressable({ a, b })).length; return [n + mineW().reduce((t, w) => t + (w.ha ? 1 : 0) + (w.hb ? 1 : 0) + (tucked(w) ? 1 : 0), 0), mine.length + m * 3]; },
+      goal: () => { const h = new Set(S.wires.map(w => pairKey(w.a, w.b))); return mine.every(k => h.has(k)) && (!dr || mineW().every(tucked)); },
       check: () => {
         const ok = new Set([...before, ...mine]), h = new Set(S.wires.map(w => pairKey(w.a, w.b)));
         for (const w of S.wires) { const k = pairKey(w.a, w.b); if (ok.has(k)) continue;
@@ -4849,22 +4891,14 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
       },
       next: () => {
         if (G.op && !S.opBack) return { tx: '조작판 뒤집기', sub: '조작판 선은 뒷면에서 이어요. 위의 조작판 버튼을 눌러요' };
-        const m = wireNext(G); if (!m) return P_DONE;
+        const m = wireNext(G); if (!m) return (dr && dressNext(mineW())) || P_DONE;
         const [a, b] = m, A = tRing(a), B = tRing(b);
         return { tx: `${wireName(a)} → ${wireName(b)}`, sub: (UI.pending === a ? '이제 빨간 원 단자를 눌러요' : '전선 도구로 빨간 원 단자 두 개를 차례로 눌러요. 다른 단자에 이으면 실패예요') + (CIRC_DIA[gi] ? '. 오른쪽 아래 도면의 빨간 선이 지금 잇는 곳' : ''), tool: 'wire', hl: { rings: (UI.pending === a ? [B] : [A, B]).filter(Boolean), line: A && B ? [A, B] : null } };
       } });
   });
-  L(3, '선 정리', '꽂은 선(80cm)은 널브러져 있어요. 단자 쪽 끝을 끌어서 고르고 가까운 덕트의 회색 구멍을 눌러 넣어요 (비슷한 선은 한 구멍으로). 두 끝을 넣으면 남는 선 고리를 잡고 위나 아래로 끌어 덕트 안에 접어 넣어요', { keys: ['dress'], focus: P_V.panel, prep: () => { S.opBack = true; },
+  L(3, '선 정리', '나머지 선(PLC·아이오 링크 신호)을 선 정리해요. 단자 쪽 끝을 끌어서 고르고 가까운 덕트의 회색 구멍을 눌러 넣어요 (비슷한 선은 한 구멍으로). 두 끝을 넣으면 남는 선 고리들을 가로질러 위나 아래로 끌어 덕트 안에 접어 넣어요', { keys: ['dress'], focus: P_V.panel, prep: () => { S.opBack = true; },
     fill: autoDress, prog: () => { const [a, b] = dressCount(), [c, d] = tuckCount(); return [a + c, b + d]; }, goal: dressAll,
-    next: () => {
-      const c = dressPlan()[0];
-      if (!c) { const w = S.wires.find(x => dressable(x) && x.ha && x.hb && !x.tk); if (!w) return P_DONE; const m = loopGrip(w), k = tuckDir(w, 0, 0);
-        return { tx: `남는 선 넣기: ${wireName(w.a)} ↔ ${wireName(w.b)}`, sub: `선 정리 도구로 빨간 원의 고리를 잡고 ${TUCK_NM[k]} 곧게 끌어요. 덕트 안에 접혀 들어가요`, tool: 'dress', hl: { rings: [{ x: m.x, y: m.y, r: 9 }] } }; }
-      const sel = dselNow(), H = holeOf(c.hole), ring = { x: H.x, y: (H.y + H.yi) / 2, r: 4.5 };
-      if (c.ends.every(q => sel.some(x => sameEnd(x, q)))) return { tx: `${SLOT[c.d].name} 구멍에 넣기`, sub: '빨간 원 구멍을 눌러요. 고른 선이 모두 이 구멍으로 들어가요', tool: 'dress', hl: { rings: [ring] } };
-      const xs = c.ends.map(q => q.T.x), ys = c.ends.map(q => q.T.y), x0 = Math.min(...xs), y0 = Math.min(...ys);
-      return { tx: `선 정리: ${[...new Set(c.ends.map(q => wireName(q.T.id)))].join(', ')}`, sub: '선 정리 도구(J)로 빨간 테두리의 단자들을 둘러싸게 끌어서 골라요 (단자를 눌러도 돼요). 그다음 빨간 원 구멍', tool: 'dress', hl: { box: { x: x0 - 6, y: y0 - 6, w: Math.max(...xs) - x0 + 12, h: Math.max(...ys) - y0 + 12 }, rings: [ring] } };
-    } });
+    next: () => dressNext(S.wires) || P_DONE });
   // 5. 동작 검사
   const conv = () => S.conveyor || { x: CVW.x, y: CVW.y }, sen = mm => ({ x: conv().x + mm, y: conv().y + CVW.bw / 2, r: 26 });
   L(4, '전원 케이블 꽂기', '전원 케이블을 단자대 1번(R), 2번(T) 아래에 꽂아요. 선은 왼쪽 아래 덕트 구멍으로 나가요', { keys: ['cables'], focus: P_V.conv,
@@ -5212,7 +5246,7 @@ function homeHelpHTML() {
     + sec('2', '화면', '<ul><li><b>위</b>: 6단계 진행, 작업 시간, 실수, 버튼들 (메인, 채점표, 배선 목록, 회로도, 시연 보기, 조작판 뒤집기, 가이드, 되돌리기)</li><li><b>도구 줄</b>: 손, 양면테이프, 빨간 펜, 자, 장갑, 드릴, 드라이버, 스톱퍼, 견출지, 전선, 니퍼</li><li><b>왼쪽 재료함</b>: 부품. <b>오른쪽 할 일</b>: 해야 할 것과 진행</li><li>재료함, 할 일 모서리의 <b>화살표</b>를 누르면 접혀서 판이 넓어져요</li></ul>')
     + sec('3', '들고 놓기', '<ul><li>재료함의 부품을 누르면 <b>마우스에 붙어요</b>. 맞는 자리를 누르면 끼워지고, 빈 바닥을 누르면 내려놓아요</li><li>도구도 누르면 들어요. 들고 판을 눌러서 써요. 같은 도구를 다시 누르거나 <b>손</b>을 누르면 내려놔요</li><li><b>우클릭</b>: 들고 있는 부품은 재료함으로, 도구는 내려놓기</li><li>잘못했으면 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 또는 되돌리기</li></ul>')
     + sec('4', '화면 움직이기', '<ul><li>멀리서 볼 때: 단자대·PLC·서보 단자 이름은 <b>큰 번호표</b>로, 마우스를 올린 단자는 이름이 크게 보여요. <kbd>Z</kbd>를 누르고 있으면 <b>돋보기</b> (설정에서 끄고 켜요)</li><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
-    + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트 → 손으로 덕트 이음부 8곳(가로 덕트가 붙는 세로 덕트 안쪽 벽) 부러뜨리기</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 전선은 한 가닥 80cm라(덕트로 더 멀리 가는 선만 길게) 꽂은 선은 길이 그대로 널브러져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 설정의 <b>자동 선 정리</b>를 켜면 자유 모드에서는 꽂자마자 알아서 넣고 접어요. 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 한쪽만 넣으면 나머지는 그대로 널브러져 있고, 두 끝을 다 넣으면 남는 길이가 고리로 튀어나와요. 선 정리 도구로 고리를 잡고 위나 아래로 곧게 끌면 세로 덕트 안에 지그재그로 접혀 들어가요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽). 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
+    + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트 → 손으로 덕트 이음부 8곳(가로 덕트가 붙는 세로 덕트 안쪽 벽) 부러뜨리기</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 교류 전원부, A, M, +24V, 0V는 묶음을 다 꽂을 때마다 선 정리, PLC 신호와 조작판은 같이 꽂고 나서 선 정리. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 전선은 한 가닥 80cm라(덕트로 더 멀리 가는 선만 길게) 꽂은 선은 길이 그대로 널브러져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 설정의 <b>자동 선 정리</b>를 켜면 자유 모드에서는 꽂자마자 알아서 넣고 접어요. 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 한쪽만 넣으면 나머지는 그대로 널브러져 있고, 두 끝을 다 넣으면 남는 길이가 고리로 튀어나와요. 선 정리 도구로 고리를 잡고 위나 아래로 곧게 끌면 세로 덕트 안에 지그재그로 접혀 들어가요. 고리 여러 개를 가로질러 끌면 한 번에 접혀요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽). 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
     + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
