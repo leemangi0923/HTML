@@ -668,6 +668,10 @@ const DUCT_SLOTS = [
   { id: 'dB', x: 80, y: 560, w: 600, h: 40, o: 'h', name: '맨 아래 덕트' }
 ];
 const SLOT = Object.fromEntries(DUCT_SLOTS.map(s => [s.id, s]));
+// 덕트 이음부: 가로 덕트 끝이 세로 덕트에 붙는 8곳. 세로 덕트 안쪽 벽을 그 폭만큼 부러뜨려 전선이 지나갈 공간을 만든다
+const JUNC = ['dT', 'd1', 'd2', 'dB'].flatMap(d => ['L', 'R'].map(sd => { const h = SLOT[d], v = sd === 'L' ? 'dL' : 'dR', V = SLOT[v]; return { id: d + ':' + sd, d, v, x: sd === 'L' ? V.x + V.w - 6.5 : V.x, y: h.y, w: 6.5, h: h.h }; }));
+const nBroken = () => JUNC.filter(j => S.dbreak && S.dbreak[j.id]).length;
+const allBreak = () => Object.fromEntries(JUNC.map(j => [j.id, true]));
 const ROWS = [
   { id: 'r1', rail: 'c1', y0: 40, y1: 240, cy: 140, top: 'dT', bot: 'd1', ch: 'ch500', name: '1단' },
   { id: 'r2', rail: 'c2', y0: 280, y1: 400, cy: 340, top: 'd1', bot: 'd2', ch: 'ch575', name: '2단' },
@@ -844,6 +848,10 @@ function drawDuct(r, loose) {
   let d = '';
   for (let p = 6; p < L - 5; p += 10) d += o === 'h' ? `M${F(x + p)} ${F(y)}h3.4v6.5h-3.4zM${F(x + p)} ${F(y + h - 6.5)}h3.4v6.5h-3.4z` : `M${F(x)} ${F(y + p)}v3.4h6.5v-3.4zM${F(x + w - 6.5)} ${F(y + p)}v3.4h6.5v-3.4z`;
   s += `<path d="${d}" fill="#a9ada6"/>`;
+  if (r.slot && !loose) for (const j of JUNC) if (j.v === r.slot && S.dbreak && S.dbreak[j.id]) {   // 부러뜨린 이음부: 벽이 없고 끝이 들쭉날쭉
+    const y0 = j.y + .8, y1 = j.y + j.h - .8, z = (yy, k) => `M${F(j.x)} ${F(yy)}` + [1, 2, 3, 4, 5].map(n => `L${F(j.x + n * 1.3)} ${F(yy + (n % 2 ? k : 0))}`).join('');
+    s += R(j.x - .5, y0, j.w + 1, y1 - y0, 'fill="#eeefeb"') + `<path d="${z(y0, 1.1)}${z(y1, -1.1)}" fill="none" stroke="#6c716b" stroke-width=".6"/>`;
+  }
   if (loose) s += R(x - 1.5, y - 1.5, w + 3, h + 3, 'rx="2" fill="none" stroke="#fff" stroke-width=".9" stroke-dasharray="4 3"');
   return s + '</g>';
 }
@@ -1926,7 +1934,7 @@ function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
     op: { hmi: false, dev: {}, labels: {} }, floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
-    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, plug: {}, tset: {}, dressV: 1 };
+    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, plug: {}, tset: {}, dressV: 1, dbreak: {} };
 }
 function save() { if (DEMO.on || MODE === 'prac') return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
 function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; }
@@ -1963,7 +1971,7 @@ const ducts = () => frList().filter(([, q]) => q.type === 'duct');
 const chans = () => frList().filter(([, q]) => q.type !== 'duct');
 function frRect(q) {
   if (!q.slot) return null;
-  if (q.type === 'duct') { const s = SLOT[q.slot]; return { x: s.x, y: s.y, w: s.w, h: s.h, o: s.o }; }
+  if (q.type === 'duct') { const s = SLOT[q.slot]; return { x: s.x, y: s.y, w: s.w, h: s.h, o: s.o, slot: q.slot }; }
   const row = ROW[RAIL_ROW[q.slot]]; return { x: CH_X, y: row.cy - 17.5, w: FRAME_TYPES[q.type].len, h: 35, o: 'h' };
 }
 function frPartAt(p) { for (const e of frList()) { const r = frRect(e[1]); if (r && inRect(p, r, 3)) return e; } return null; }
@@ -2347,7 +2355,7 @@ const nHoles = () => frList().reduce((a, [, q]) => a + Math.min(3, q.holes.lengt
 const nBolted = () => frList().filter(([, q]) => q.bolted).length;
 const firstDuct = () => ductStuck('dL') || ductStuck('dR');   // 여백 선 쪽 세로 덕트: 먼저 붙이고 자를 댄다
 function stage1Steps() {
-  return [!!S.marginSide, nTaped() === 9, firstDuct(), S.ruled === true, nSvMarks() === 2, nStuck() === 9, nHoles() === 29, nBolted() === 9];
+  return [!!S.marginSide, nTaped() === 9, firstDuct(), S.ruled === true, nSvMarks() === 2, nStuck() === 9, nHoles() === 29, nBolted() === 9, nBroken() === 8];
 }
 function curStep1() { const s = stage1Steps(), i = s.indexOf(false); return i < 0 ? s.length : i; }
 const STEP1_NAMES = ['(1)-2 여백 선 긋기', '(1)-3 양면테이프 부착', '(1)-4 첫 덕트 붙이기', '(1)-4 자로 간격 표시', '(1)-4 나머지 덕트·찬넬 붙이기', '(1)-5 서보 구멍 마킹', '(1)-6 장갑 끼기', '(1)-7 드릴', '(1)-8 장갑 벗기', '볼트 체결'];
@@ -2371,7 +2379,8 @@ function stepsFor(stage) {
       { no: '(1)-5', title: '자로 표시할 때 서보 드라이버 구멍 자리도 표시', n: nSvMarks(), m: 2, tip: '자로 간격을 표시한 빨간 펜으로 1단 오른쪽 빈자리의 위, 아래 두 점을 눌러요' },
       { no: '(1)-4', title: '표시에 맞춰 나머지 덕트, 찬넬 붙이기', n: nStuck(), m: 9, tip: '세로 덕트 1개, 가로 덕트 4개, 찬넬 3개. 1단은 500, 2·3단은 575' },
       { no: '(1)-7', title: '드릴로 덕트, 찬넬 각 3구멍과 서보 구멍 (장갑 끼고)', n: nHoles(), m: 29, tip: '장갑을 끼고 드릴로. 덕트, 찬넬마다 양 끝과 가운데, 서보는 표시한 두 점' },
-      { no: '추가', title: 'M4 볼트 체결 (27개)', n: nBolted(), m: 9, tip: '드라이버로 부품을 눌러요. 볼트 27개 = 덕트 6×3 + 찬넬 3×3' }
+      { no: '추가', title: 'M4 볼트 체결 (27개)', n: nBolted(), m: 9, tip: '드라이버로 부품을 눌러요. 볼트 27개 = 덕트 6×3 + 찬넬 3×3' },
+      { no: '추가', title: '덕트 이음부 부러뜨리기 (8곳)', n: nBroken(), m: 8, tip: '기구를 달기 전에, 가로 덕트가 세로 덕트에 붙는 8곳에서 세로 덕트 안쪽 벽을 손으로 눌러 부러뜨려요. 덕트끼리 전선이 지나갈 공간이 생겨요' }
     ].map((s, i) => ({ ...s, done: d[i] }));
   }
   if (stage === 2) {
@@ -2438,7 +2447,7 @@ function fillStage(k) {
     [['C1', 'c1'], ['C2', 'c2'], ['C3', 'c3']].forEach(([id, rail]) => Object.assign(S.fr[id], { taped: true, slot: rail, stuck: true }));
     S.marginSide = 'L'; S.gauge = null; S.ruled = true;
     for (const [, q] of frList()) { q.holes = drillPoints(q); q.bolted = true; }
-    S.svMarks = [true, true]; S.svHoles = [true, true]; S.gloveOnDone = true; S.gloveOffDone = true; S.gloves = false;
+    S.dbreak = allBreak(); S.svMarks = [true, true]; S.svHoles = [true, true]; S.gloveOnDone = true; S.gloveOffDone = true; S.gloves = false;
   }
   if (k === 2) {
     S.inst = []; S.stoppers = []; S.fuses = {};
@@ -2825,6 +2834,7 @@ function handleTap(p, e) {
       else { S.helical = 0; UI.carry = { kind: 'helical', key: 'helical', from: 'floor', count: 1 }; say('헬리컬 밴드를 풀었어요', 'info'); }
       return commit();
     }
+    const jn = junctionAt(p); if (jn && !S.dbreak[jn.id]) return breakJunction(jn);
     const lt = tieAt(p, false, 14); if (lt) return tieAction(lt);
     const tr = tbRect(); if (S.tbCover && tr && inRect(p, tr, 2)) { snap(); S.tbCover = false; UI.carry = { kind: 'tbcover', key: 'tbcover', from: 'floor', count: 1 }; say('단자대 커버를 벗겼어요', 'info'); return commit(); }
     const ld = lidAt(p); if (ld) return toggleLid(ld);
@@ -2877,6 +2887,11 @@ function tap0(p, e) {
     return say('뺄 것이 없어요', 'info');
   }
   return say(`${toolName(t)}은(는) 조작판 조립에서 쓰지 않아요`, 'info');
+}
+const junctionAt = p => JUNC.find(j => p.x > j.x - 5 && p.x < j.x + j.w + 5 && p.y > j.y && p.y < j.y + j.h && ductStuck(j.d) && ductStuck(j.v)) || null;
+function breakJunction(j) {
+  if (coveredSlot(j.v) || coveredSlot(j.d)) return say('덕트 커버를 열고 해요', 'info');
+  snap(); S.dbreak = { ...(S.dbreak || {}), [j.id]: true }; say(`${SLOT[j.d].name}와 ${SLOT[j.v].name}가 만나는 벽을 부러뜨렸어요. 전선이 지나갈 공간이 생겼어요 (${nBroken()}/8)`, 'ok'); commit();
 }
 function tap1(p) {
   const t = S.tool, part = frPartAt(p), onGauge = !!S.gauge && inRect(p, gaugeRect(S.gauge), 4);
@@ -3511,6 +3526,7 @@ function renderOver() {
   }
   if (S.tool === 'meter') s += meterOver(p, px1);
   if (S.tool === 'dress') s += dressOver(p, px1);
+  if (S.guide && MODE !== 'prac' && S.tool === 'hand' && nBolted() === 9 && nBroken() < 8) for (const j of JUNC) if (!S.dbreak[j.id] && ductStuck(j.d) && ductStuck(j.v)) s += R(j.x - 1.5, j.y + 1, j.w + 3, j.h - 2, 'rx="1.5" class="guide-ring" fill="none"');
   if (p && UI.overBoard && !UI.carry && S.tool !== 'hand' && SET.toolArt) s += toolCursor(p);
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
   if (MODE === 'prac' && PRAC.hl) s += PRAC.hl;   // 연습: 할 자리
@@ -3968,6 +3984,7 @@ function demoScript() {   // 정답 채우기를 동작 하나 단위로 쪼갠�
     add(1, '드릴로 서보 드라이버 구멍 2개', [['set', ['svHoles'], [true, true]]], { focus: PANEL_V, hl: { box: SERVO } });
     add(1, '장갑 벗기', [['set', ['gloves'], false], ['set', ['gloveOffDone'], true]], { focus: PANEL_V });
     for (const [id] of FRAME_INIT) { const q = S.fr[id]; add(1, `M4 볼트 ${q.holes.length}개로 고정: ${frName(q)}`, [['set', ['fr', id, 'bolted'], true]], { focus: PANEL_V, hl: { box: frRect(q) } }); }
+    for (const sd of ['L', 'R']) { const js = JUNC.filter(j => j.id.endsWith(':' + sd)); add(1, `덕트 이음부 부러뜨리기: ${SLOT[js[0].v].name} 안쪽 벽 (4곳)`, js.map(j => ['set', ['dbreak', j.id], true]), { focus: PANEL_V, sub: '가로 덕트가 붙는 자리의 벽을 손으로 꺾어 부러뜨려요. 덕트끼리 전선이 지나가는 길', hl: { boxes: js } }); }
     // 3. 기구 설치: 찬넬 단마다 기기 → 스톱퍼, 서보, 퓨즈
     fillStage(2); const nm = names(), RAILS = ['c1', 'c2', 'c3'];
     for (const i of S.inst) add(2, `${DEV[i.type].name} ${nm[i.id]} → ${ROW[RAIL_ROW[i.rail]].name} 찬넬`, [['push', ['inst'], i], ['set', ['nid'], S.nid]], { focus: rowV(i.rail), sub: DEV[i.type].spec, hl: { box: devR(i) } });
@@ -4489,6 +4506,7 @@ function fixState() {   // 예전에 저장한 상태를 지금 형식으로
   if (!S.plug) { S.plug = {}; for (const i of S.inst || []) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true; }   // 예전 저장: 소켓에 끼워져 있던 상태
   if (!S.tset) { S.tset = {}; const nm = names(); for (const i of S.inst || []) if (i.type === 'timer' && S.plug[i.id]) S.tset[i.id] = TSET[nm[i.id]]; }   // 예전 저장: 꽂힌 타이머는 정답 설정으로 돌았다
   if (S.helical === true) S.helical = 2; normTies(); if (S.opBack === undefined) S.opBack = S.stage === 3;
+  if (!S.dbreak) S.dbreak = nBolted() === 9 ? allBreak() : {};   // 이음부가 없던 때: 볼트까지 했으면 부러뜨린 것으로
   if (!S.dressV) { S.dressV = 1; buildTerms(); autoDress(); }   // 선 정리가 없던 때 꽂은 선은 덕트에 넣은 채로
 }
 function setMode(m, st) {   // 모드와 그 모드의 작업 상태로 바꾼다
@@ -4539,12 +4557,12 @@ const frMap = f => Object.fromEntries(frList().map(([id, q]) => [id, f(q)]));
 const plugOf = t => S.inst.filter(i => i.type === t && S.plug[i.id]).map(i => i.id).sort();
 const PR_KEY = {
   dev: () => [S.op.hmi, S.op.dev], labels: () => S.op.labels, margin: () => S.marginSide, taped: () => frMap(q => q.taped), stuck: () => frMap(q => q.stuck ? q.slot : null),
-  ruled: () => S.ruled, svMarks: () => S.svMarks, holes: () => [frMap(q => q.holes.length), S.svHoles], bolted: () => frMap(q => q.bolted),
+  ruled: () => S.ruled, svMarks: () => S.svMarks, holes: () => [frMap(q => q.holes.length), S.svHoles], bolted: () => frMap(q => q.bolted), dbreak: () => S.dbreak || {},
   inst: () => S.inst.map(i => `${i.type}@${i.rail}@${Math.round(i.x)}`).sort(), servo: () => S.servo, stoppers: () => S.stoppers.map(t => `${t.rail}@${Math.round(t.x)}`).sort(), fuses: () => S.fuses,
   wires: () => S.wires.map(w => pairKey(w.a, w.b)).sort(), dress: () => S.wires.filter(w => w.ha || w.hb).map(w => `${w.a}@${w.ha || ''}|${w.b}@${w.hb || ''}`).sort(), cables: () => S.cables, conveyor: () => !!S.conveyor, leads: () => S.convLeads, plugR: () => plugOf('relay'), plugT: () => plugOf('timer'), tset: () => S.tset,
   judge: () => !!S.judge, helical: () => S.helical || 0, covered: () => frMap(q => !!q.covered), tbCover: () => !!S.tbCover, ties: () => (S.ties || []).length, tieCut: () => nTieCut()
 };
-const PR_NAME = { dev: '조작판 기기 끼우기', labels: '견출지 붙이기', margin: '여백 선', taped: '양면테이프', stuck: '덕트·찬넬 붙이기', ruled: '간격 표시', svMarks: '서보 구멍 자리 표시', holes: '드릴 구멍', bolted: '볼트 조이기',
+const PR_NAME = { dev: '조작판 기기 끼우기', labels: '견출지 붙이기', margin: '여백 선', taped: '양면테이프', stuck: '덕트·찬넬 붙이기', ruled: '간격 표시', svMarks: '서보 구멍 자리 표시', holes: '드릴 구멍', bolted: '볼트 조이기', dbreak: '덕트 이음부',
   inst: '기구 끼우기', servo: '서보 드라이버', stoppers: '스톱퍼', fuses: '퓨즈', wires: '배선', dress: '선 정리', cables: '전원 케이블', conveyor: '컨베이어', leads: '컨베이어 선', plugR: '릴레이 꽂기', plugT: '타이머 꽂기', tset: '타이머 시간',
   judge: '동작 검사', helical: '헬리컬 밴드', covered: '덕트 커버', tbCover: '단자대 커버', ties: '케이블 타이', tieCut: '타이 꼬리 자르기' };
 const pracSig = () => Object.fromEntries(Object.entries(PR_KEY).map(([k, f]) => [k, JSON.stringify(f())]));
@@ -4638,6 +4656,9 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
   L(1, '볼트 조이기', '드라이버로 덕트 6개, 찬넬 3개를 눌러 M4 볼트를 조여요 (27개)', { keys: ['bolted'], focus: P_V.panel,
     fill: () => { for (const [, q] of frList()) q.bolted = true; }, prog: () => [nBolted(), 9], goal: () => nBolted() === 9,
     next: () => { const e = frList().find(([, q]) => q.stuck && !q.bolted); if (!e) return P_DONE; const q = e[1]; return { tx: `볼트 조이기: ${q.type === 'duct' ? SLOT[q.slot].name : ROW[RAIL_ROW[q.slot]].name + ' 찬넬'}`, sub: '드라이버를 들고 빨간 테두리를 눌러요', tool: 'driver', hl: { box: frRect(q) } }; } });
+  L(1, '덕트 이음부 부러뜨리기', '가로 덕트가 세로 덕트에 붙는 8곳에서 세로 덕트 안쪽 벽을 손으로 눌러 부러뜨려요. 덕트끼리 전선이 지나갈 공간이 생겨요', { keys: ['dbreak'], focus: P_V.panel,
+    fill: () => { S.dbreak = allBreak(); }, prog: () => [nBroken(), 8], goal: () => nBroken() === 8,
+    next: () => { const j = JUNC.find(x => !S.dbreak[x.id]); if (!j) return P_DONE; return { tx: `이음부 부러뜨리기: ${SLOT[j.d].name} ↔ ${SLOT[j.v].name}`, sub: '손으로 빨간 테두리를 눌러요', tool: 'hand', hl: { box: j } }; } });
   // 3. 기구 설치
   L(2, '기구 끼우기', '1단 MCB·FS1·FS2·SMPS·PLC+POS, 2단 R1~R6·T1~T3·아이오 링크 1, 3단 TB·아이오 링크 2. 서보는 1단 오른쪽에 대고 볼트로', { keys: ['inst', 'servo'], focus: P_V.panel,
     fill: () => { const r = R(); S.inst = pClone(r.inst); S.nid = r.nid; S.servo = { placed: true, bolted: true }; S.plug = {}; },
@@ -5038,7 +5059,7 @@ function homeHelpHTML() {
     + sec('2', '화면', '<ul><li><b>위</b>: 6단계 진행, 작업 시간, 실수, 버튼들 (메인, 채점표, 배선 목록, 회로도, 시연 보기, 조작판 뒤집기, 가이드, 되돌리기)</li><li><b>도구 줄</b>: 손, 양면테이프, 빨간 펜, 자, 장갑, 드릴, 드라이버, 스톱퍼, 견출지, 전선, 니퍼</li><li><b>왼쪽 재료함</b>: 부품. <b>오른쪽 할 일</b>: 해야 할 것과 진행</li><li>재료함, 할 일 모서리의 <b>화살표</b>를 누르면 접혀서 판이 넓어져요</li></ul>')
     + sec('3', '들고 놓기', '<ul><li>재료함의 부품을 누르면 <b>마우스에 붙어요</b>. 맞는 자리를 누르면 끼워지고, 빈 바닥을 누르면 내려놓아요</li><li>도구도 누르면 들어요. 들고 판을 눌러서 써요. 같은 도구를 다시 누르거나 <b>손</b>을 누르면 내려놔요</li><li><b>우클릭</b>: 들고 있는 부품은 재료함으로, 도구는 내려놓기</li><li>잘못했으면 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 또는 되돌리기</li></ul>')
     + sec('4', '화면 움직이기', '<ul><li>멀리서 볼 때: 단자대·PLC·서보 단자 이름은 <b>큰 번호표</b>로, 마우스를 올린 단자는 이름이 크게 보여요. <kbd>Z</kbd>를 누르고 있으면 <b>돋보기</b> (설정에서 끄고 켜요)</li><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
-    + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 꽂은 선은 늘어져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
+    + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트 → 손으로 덕트 이음부 8곳(가로 덕트가 붙는 세로 덕트 안쪽 벽) 부러뜨리기</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 꽂은 선은 늘어져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
     + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
