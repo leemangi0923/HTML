@@ -3308,7 +3308,6 @@ function renderOver() {
     if (UI.pending && TERM[UI.pending]) { const a = TERM[UI.pending]; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (p) s += LN(a.x, a.y, p.x, p.y, 'class="rubber"'); }
     if (UI.flash && TERM[UI.flash.a] && TERM[UI.flash.b]) { const a = TERM[UI.flash.a], b = TERM[UI.flash.b]; s += LN(a.x, a.y, b.x, b.y, 'class="bad-wire"'); }
   }
-  if (recentOn()) s += recentOver(px1);   // 방금 꽂은 선 ①, 그 전 선 ②
   if (S.tool === 'meter') s += meterOver(p, px1);
   if (p && UI.overBoard && !UI.carry && S.tool !== 'hand' && SET.toolArt) s += toolCursor(p);
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
@@ -3921,16 +3920,11 @@ function meterTap(p) {
   say(`테스터 ${v.txt} (${LIVE.inp.mcb ? '전압' : '도통, MCB OFF'}): ${wireName(M.a)} ↔ ${wireName(M.b)}`, v.k === 'off' || v.k === 'zero' ? 'info' : 'ok'); renderOver();
 }
 const wD = pts => 'M' + pts.map(q => F(q[0]) + ' ' + F(q[1])).join('L');
-const numTag = (q, n, col, px1) => `<g transform="translate(${F(q[0])} ${F(q[1])}) scale(${px1.toFixed(5)})" pointer-events="none"><circle cx="9" cy="-9" r="8" fill="${col}" stroke="#1a1a1a" stroke-width="1.5"/><text x="9" y="-5" font-size="11" font-weight="900" text-anchor="middle" fill="#1a1a1a">${n}</text></g>`;
 const recentOn = () => (MODE === 'free' || MODE === 'exam') && !DEMO.on && ['wire', 'cut', 'meter'].includes(S.tool);
 function recentWires() {   // 꽂은 순번(k)이 가장 큰 두 선 [방금, 그 전]. 설정에서 끈 쪽은 null
   if (!recentOn()) return [];
   const ws = S.wires.filter(w => w.k).sort((p, q) => q.k - p.k).slice(0, 2);
   return ws.map((w, n) => SET[n ? 'recent2' : 'recent1'] ? w : null);
-}
-function recentOver(px1) {   // 선 색은 그리기에서 바꾸고, 여기서는 양 끝 번호 ①②만
-  let s = ''; recentWires().forEach((w, n) => { if (!w) return; const pts = wirePts(w, S.wires.indexOf(w)); if (!pts) return; const col = n ? '#38bdf8' : '#ff8a00'; s += numTag(pts[0], n + 1, col, px1) + numTag(pts[pts.length - 1], n + 1, col, px1); });
-  return s;
 }
 function netOf(id) {   // 같은 줄: 전선, 단자대 위·아래, SMPS 같은 극, 컨베이어 선으로 이어진 단자와 선 (릴레이·스위치 접점은 안 건넘)
   const { f, u } = UF(); for (const [a, b] of staticLinks(S.wires)) u(a, b); for (const [k, t] of Object.entries(convLeads())) if (t) u('CV.' + k, t);
@@ -3951,8 +3945,8 @@ function meterOver(p, px1) {   // 리드봉 자리와 읽은 값 (값은 검은 
 
 /* ---------- 설정: 표시 기능 켜고 끄기 ---------- */
 const SET_ITEMS = [
-  ['recent1', '방금 꽂은 선 ①', '전선·니퍼·테스터를 들면 방금 꽂은 선을 주황으로 (자유·시험 모드)'],
-  ['recent2', '그 전 선 ②', '그 전에 꽂은 선을 하늘색으로 (자유·시험 모드)'],
+  ['recent1', '방금 꽂은 선', '전선·니퍼·테스터를 들면 방금 꽂은 선을 주황으로 (자유·시험 모드)'],
+  ['recent2', '그 전에 꽂은 선', '그 전에 꽂은 선을 하늘색으로 (자유·시험 모드)'],
   ['net', '테스터: 같은 줄 표시', '테스터를 단자에 대면 같은 줄의 선과 단자를 초록으로'],
   ['opChk', '1과제 동작 체크 창', 'MCB를 올리면 오른쪽 위에 동작 체크 목록'],
   ['hold', '팩 잡기 진행 표시', '조건 (7): 팩을 잡고 있는 시간을 고리와 초로'],
@@ -4761,7 +4755,7 @@ function homeHelpHTML() {
     + sec('4', '화면 움직이기', '<ul><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
     + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
-    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 ① 주황, 그 전 선은 ② 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(①·②, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
+    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
 }
