@@ -1911,7 +1911,7 @@ const EXAM_LIMIT = 3.5 * 3600 * 1000;   // 경기 시간 3.5시간 (ms)
 const TOOL_HELP = {
   hand: '부품을 들어서 놓아요. 판을 끌면 화면이 움직여요', tape: '재료함의 덕트·찬넬을 눌러 양면테이프를 붙여요', pen: '판 끝에 댄 덕트나 서보 구멍 자리를 눌러 빨간 선을 그어요',
   ruler: '붙인 첫 덕트에 자를 대고 덕트, 찬넬 간격을 표시해요', glove: '장갑을 끼고 벗어요', drill: '붙인 덕트·찬넬을 눌러 구멍을 뚫어요. 장갑 필수',
-  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '기기 바로 아래를 눌러 견출지를 붙여요', wire: '단자 두 개를 차례로 눌러 연결해요', cut: '전선, 부품, 견출지를 빼요', tie: '조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다 놓아요 (3cm 안). 묶은 타이는 손으로 끌어서 옮겨요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
+  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '기기 바로 아래를 눌러 견출지를 붙여요', wire: '단자 두 개를 차례로 눌러 연결해요', cut: '전선, 부품, 견출지를 빼요', tie: '조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
 };
 const toolName = id => (TOOLS.find(t => t.id === id) || { name: id }).name;
 const fmt = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
@@ -2040,35 +2040,41 @@ function tieZoneOK(x, y) {   // 덕트 안이나 헬리컬 밴드 안의 전선�
   if (S.helical) { const B = bandNow(); for (let k = 1; k < B.length; k++) if (segDist({ x, y }, B[k - 1], B[k]) < 9) return false; }
   return true;
 }
-function tieRaw(t) {   // 각 선의 묶인 자리 (off: 선이 그 자리에서 멀어짐)
+function tieRaw(t) {   // 각 선에서 타이가 걸린 자리 (밑그림 경로 위의 s, x, y). f: 선 길이에 대한 비율. off: 옛 타이에서 선이 그 자리를 떠남
   const As = [];
   for (const r of t.ws) {
     const i = tieWire(r); if (i < 0) return null; const w = S.wires[i], b = basePts(w, i); if (!b) return null;
-    const A = r.x !== undefined ? projOn(b, r) : anchorOn(b, w, r.d);
-    A.off = r.x !== undefined && A.dist > 12; As.push(A);
+    const L = pathLen(b), A = r.f !== undefined ? { ...ptAtS(b, r.f * L), s: r.f * L } : r.x !== undefined ? projOn(b, r) : anchorOn(b, w, r.d);
+    A.L = L; A.off = r.f === undefined && r.x !== undefined && A.dist > 12; As.push(A);
   }
   return As;
 }
-function tieGeo(t) {   // 묶인 선들의 자리, 다발 가운데(M), 방향(u), 머리(H)와 꼬리 끝(T)
+function tieGeo(t) {   // 타이 가운데(M), 가로 방향(u), 선마다 지나갈 자리(P), 머리(H)와 꼬리 끝(T)
   const As = tieRaw(t); if (!As) return null;
-  const live = As.filter(A => !A.off); if (live.length < 2) return null;
-  const n = live.length, f = live[0], l = live[n - 1];
-  let ux = l.x - f.x, uy = l.y - f.y; const span = Math.hypot(ux, uy);
-  if (span < .4) { ux = -Math.sin(f.ang); uy = Math.cos(f.ang); } else { ux /= span; uy /= span; }
-  const M = { x: (f.x + l.x) / 2, y: (f.y + l.y) / 2 }, rank = [];
-  As.map((A, k) => [k, (A.x - M.x) * ux + (A.y - M.y) * uy]).filter(([k]) => !As[k].off).sort((p, q) => p[1] - q[1]).forEach(([k], r) => { rank[k] = r; });
-  const gap = 2.3, half = t.state === 'loose' ? span / 2 + 2.6 : (n - 1) / 2 * gap + 1.6;
-  const H = { x: M.x + ux * (half + 1.4), y: M.y + uy * (half + 1.4) }, tl = t.state === 'cut' ? 1.1 : 12, sag = t.state === 'loose' ? 4 : 0;
-  return { As, rank, n, gap, M, ux, uy, span, half, H, T: { x: H.x + ux * tl - uy * sag, y: H.y + uy * tl + ux * sag } };
+  const live = As.map((A, k) => [A, k]).filter(([A]) => !A.off); if (live.length < 2) return null;
+  let M, ux, uy;
+  if (t.c && t.u) { M = { x: t.c.x, y: t.c.y }; ux = t.u.x; uy = t.u.y; }
+  else {   // 옛 타이: 처음과 끝 선 사이 가운데
+    const f = live[0][0], l = live[live.length - 1][0]; ux = l.x - f.x; uy = l.y - f.y; const sp = Math.hypot(ux, uy);
+    if (sp < .4) { ux = -Math.sin(f.ang); uy = Math.cos(f.ang); } else { ux /= sp; uy /= sp; }
+    M = { x: (f.x + l.x) / 2, y: (f.y + l.y) / 2 };
+  }
+  const n = live.length, rank = [], gap = 2.3, P = [], pr = live.map(([A, k]) => [k, (A.x - M.x) * ux + (A.y - M.y) * uy]);
+  [...pr].sort((p, q) => p[1] - q[1]).forEach(([k], r) => { rank[k] = r; });
+  for (const [, k] of live) { const o = (rank[k] - (n - 1) / 2) * gap; P[k] = { x: M.x + ux * o, y: M.y + uy * o }; }
+  const span = Math.max(...pr.map(q => q[1])) - Math.min(...pr.map(q => q[1]));   // 묶기 전 선 사이 거리
+  const half = (n - 1) / 2 * gap + 1.6, H = { x: M.x + ux * (half + 1.4), y: M.y + uy * (half + 1.4) }, tl = t.state === 'cut' ? 1.1 : 12, sag = t.state === 'loose' ? 4 : 0;
+  return { As, rank, n, gap, M, ux, uy, span, half, P, H, T: { x: H.x + ux * tl - uy * sag, y: H.y + uy * tl + ux * sag } };
 }
-function tieAnchors(w) {   // 조인 타이가 이 선을 다발 쪽으로 끌어당기는 양
+const TIE_PULL = 70;   // 타이가 선을 끌어올 수 있는 거리 (mm)
+function tieAnchors(w) {   // 이 선이 지나가야 하는 타이 자리: 밑그림 위 s0에서 (dx, dy)만큼 옮긴 곳
   const out = [];
   for (const t of S.ties || []) {
     if (!t.ws || t.state === 'loose') continue;
     const k = t.ws.findIndex(r => r.a === w.a && r.b === w.b); if (k < 0) continue;
-    const g = tieGeo(t); if (!g) continue;
-    const A = g.As[k]; if (A.off) continue; const off = (g.rank[k] - (g.n - 1) / 2) * g.gap, dx = g.M.x + g.ux * off - A.x, dy = g.M.y + g.uy * off - A.y;
-    out.push({ s0: A.s, dx, dy, sg: Math.max(22, Math.hypot(dx, dy) * 2.6) });   // 많이 끌려오는 선은 넓게 휘게 (뾰족하지 않게)
+    const g = tieGeo(t); if (!g || !g.P[k]) continue;
+    const A = g.As[k]; let dx = g.P[k].x - A.x, dy = g.P[k].y - A.y; const d = Math.hypot(dx, dy); if (d > TIE_PULL) { dx *= TIE_PULL / d; dy *= TIE_PULL / d; }
+    out.push({ s0: A.s, dx, dy });
   }
   return out;
 }
@@ -2093,20 +2099,24 @@ function tieBetween(P1, P2, skip, any) {   // 두 점 사이를 지나가는 조
   });
   return out;
 }
-const TIE_MAX = 30;   // 한 번에 끌어서 묶을 수 있는 길이 (mm): 이미 가까이 지나가는 선끼리만 묶는다
+const TIE_MAX = 80;   // 한 번에 끌어서 묶을 수 있는 길이 (mm)
 const TIE_END = 16;   // 단자에서 이만큼(mm) 안은 묶지 않는다 (압착단자가 휘지 않게)
 const tieEndOK = (w, x, y) => [w.a, w.b].every(id => !TERM[id] || Math.hypot(TERM[id].x - x, TERM[id].y - y) >= TIE_END);
-function deform(pts, an) {   // 선을 잘게 나눠서 타이 자리 쪽으로 부드럽게 끌어당긴다 (양 끝 단자는 그대로)
+function deform(pts, an) {   // 선이 타이 자리를 정확히 지나게: 타이 앞뒤 4mm는 다발로 나란히, 타이 사이와 단자 쪽은 부드럽게 (양 끝 압착단자 7mm는 그대로)
   const q = [{ x: pts[0][0], y: pts[0][1], s: 0 }]; let acc = 0;
   for (let k = 1; k < pts.length; k++) {
     const a = pts[k - 1], b = pts[k], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 2.5));
     for (let j = 1; j <= n; j++) q.push({ x: a[0] + (b[0] - a[0]) * j / n, y: a[1] + (b[1] - a[1]) * j / n, s: acc + l * j / n });
     acc += l;
   }
+  const E = Math.min(7, acc / 4), C = [[E, 0, 0]];   // 조정점 [s, dx, dy]: 단자 쪽 0 → 타이마다 (앞 4mm, 뒤 4mm) → 반대쪽 단자 0
+  for (const A of [...an].sort((p, r) => p.s0 - r.s0)) { const a = Math.max(clamp(A.s0 - 4, E, acc - E), C[C.length - 1][0]), b = Math.max(clamp(A.s0 + 4, E, acc - E), a); C.push([a, A.dx, A.dy], [b, A.dx, A.dy]); }
+  C.push([Math.max(acc - E, C[C.length - 1][0]), 0, 0]);
   return q.map(o => {
-    let dx = 0, dy = 0; const tp = clamp(Math.min(o.s, acc - o.s) / 12, 0, 1);
-    for (const A of an) { const ds = Math.abs(o.s - A.s0), g = ds <= 5 ? 1 : Math.exp(-(((ds - 5) / A.sg) ** 2)); dx += A.dx * g; dy += A.dy * g; }   // 타이 앞뒤 5mm는 다발로 나란히, 그 밖은 천천히 풀린다
-    return [o.x + dx * tp, o.y + dy * tp];
+    if (o.s <= E || o.s >= acc - E) return [o.x, o.y];
+    let j = 0; while (j < C.length - 2 && o.s > C[j + 1][0]) j++;
+    const [s0, x0, y0] = C[j], [s1, x1, y1] = C[j + 1], t = s1 > s0 ? clamp((o.s - s0) / (s1 - s0), 0, 1) : 1, e = t * t * (3 - 2 * t);   // smoothstep: 꺾이지 않게
+    return [o.x + x0 + (x1 - x0) * e, o.y + y0 + (y1 - y0) * e];
   });
 }
 function wireHit(p, tol, filt) {   // 가장 가까운 전선과 그 위치
@@ -2128,8 +2138,7 @@ function tieAt(p, onlyLoose, px = 11) {
   if (!S.opBack) return null; let best = null, bd = tolMM(px);
   for (const t of S.ties || []) {
     if (onlyLoose && t.state !== 'loose') continue; const g = tieOK(t) && tieGeo(t); if (!g) continue;
-    const A0 = g.As[0], An = g.As[g.n - 1];
-    const d = Math.min(Math.hypot(p.x - g.M.x, p.y - g.M.y), segDist(p, [g.H.x, g.H.y], [g.T.x, g.T.y]), segDist(p, [A0.x, A0.y], [An.x, An.y]));
+    const d = Math.min(Math.hypot(p.x - g.M.x, p.y - g.M.y), segDist(p, [g.H.x, g.H.y], [g.T.x, g.T.y]), segDist(p, [g.M.x - g.ux * g.half, g.M.y - g.uy * g.half], [g.M.x + g.ux * g.half, g.M.y + g.uy * g.half]));
     if (d < bd) { bd = d; best = t; }
   }
   return best;
@@ -2372,7 +2381,7 @@ function stepsFor(stage) {
   if (stage === 5) return [
     { no: '채점 1-3', title: '덕트 커버 모두 닫기', n: nCovered(), m: 6, done: nCovered() === 6, tip: '재료함 덕트·찬넬 목록의 덕트 커버를 들고 붙인 덕트를 눌러요. 다시 열 때는 손으로 커버를 눌러요' },
     { no: '제작 (5)', title: '단자대 커버 덮기', n: S.tbCover ? 1 : 0, m: 1, done: !!S.tbCover, tip: '마무리 재료의 단자대 커버를 들고 TB를 눌러요. 다시 배선할 땐 손으로 커버를 눌러 벗겨요' },
-    { no: '채점 3-3', title: '조작판 전선 케이블 타이 12개 이상', n: nTies(), m: 12, done: nTies() >= 12, tip: '조작판 뒷면에서 케이블 타이 도구(K)를 들고, 누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요. 지나간 전선이 전부 한 번에 묶이고 바로 조여져요 (3cm 안쪽, 단자 바로 옆은 안 돼요). 묶은 타이는 손으로 끌어서 옮겨요' },
+    { no: '채점 3-3', title: '조작판 전선 케이블 타이 12개 이상', n: nTies(), m: 12, done: nTies() >= 12, tip: '조작판 뒷면에서 케이블 타이 도구(K)를 들고, 누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요. 지나간 전선이 전부 한 번에 묶이고 바로 조여져요 (8cm 안쪽, 단자 바로 옆은 안 돼요). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요' },
     { no: '마무리', title: '튀어나온 타이 꼬리 니퍼로 자르기', n: nTieCut(), m: Math.max(12, nTies()), done: nTies() > 0 && nTieCut() === nTies(), tip: '니퍼를 들고 조인 타이를 누르면 꼬리가 잘려요. 한 번 더 누르면 타이를 잘라서 빼요' },
     { no: '제작 (8)', title: '튀어나온 조작판 전선을 헬리컬 밴드로 감기', n: S.helical ? 1 : 0, m: 1, done: !!S.helical, tip: '조작판 뒷면에서 헬리컬 밴드를 들고, 제어판 아래로 늘어진 조작판 전선을 눌러요' },
     { no: '제작 (8)', title: '감은 전선을 덕트에 넣고 빨간 원 구멍으로 밴드 빼기', n: S.helical === 2 ? 1 : 0, m: 1, done: S.helical === 2, tip: '손으로 오른쪽 세로 덕트 위 끝의 빨간 원을 눌러요. 지나가는 덕트 커버는 열려 있어야 해요. 안 하면 시간점수 0점' }
@@ -2397,7 +2406,8 @@ function effects() {
   if (S.opBack && S.ties.length) {
     buildTerms(); const n0 = S.ties.length;
     for (const t of S.ties) {
-      const As = tieRaw(t); if (!As) continue; t.ws = t.ws.filter((r, k) => !As[k].off && tieZoneOK(As[k].x, As[k].y));
+      const As = tieRaw(t); if (!As) continue; if (t.c) continue;   // 가운데를 가진 타이는 그 자리 그대로 (손으로 옮긴 타이)
+      t.ws = t.ws.filter((r, k) => !As[k].off && tieZoneOK(As[k].x, As[k].y));
       const L = As.filter((A, k) => !A.off && tieZoneOK(A.x, A.y)); if (L.some(A => L.some(B => Math.hypot(A.x - B.x, A.y - B.y) > TIE_MAX + 10))) t.ws = [];   // 너무 벌어진 타이는 풀기
     }
     S.ties = S.ties.filter(t => t.ws.length >= 2); if (S.ties.length < n0) UI.tieLost = (UI.tieLost || 0) + n0 - S.ties.length;
@@ -2672,20 +2682,30 @@ function makeTie(p0, p1) {
   const ws = tieCross(p0, p1);
   if (ws.length < 2) return say(tieBetween(p0, p1, [], true).length >= 2 ? '덕트·헬리컬 밴드 안이나 단자 바로 옆(1.6cm 안)의 전선은 묶을 수 없어요. 단자에서 조금 떨어진 곳을 가로질러요' : ws.length ? '전선 2개 이상을 가로질러 끌어요' : '조작판 전선을 가로질러 끌어요', 'info');
   if (!(UI.carry && UI.carry.kind === 'tie') && nTieUsed() >= 30) return say('케이블 타이 30개를 다 썼어요. 니퍼로 뺀 타이는 다시 쓸 수 없어요', 'info');
-  snap(); S.ties = S.ties || []; S.ties.push({ ws: tieRefs(ws), state: 'tight' }); if (UI.carry && UI.carry.kind === 'tie') consumeCarry();
+  const dl = Math.hypot(p1.x - p0.x, p1.y - p0.y) || 1, f0 = ws[0], f1 = ws[ws.length - 1], r1 = v => Math.round(v * 100) / 100;
+  snap(); S.ties = S.ties || []; S.ties.push({ ws: tieRefs(ws), c: { x: r1((f0.x + f1.x) / 2), y: r1((f0.y + f1.y) / 2) }, u: { x: r1((p1.x - p0.x) / dl * 100) / 100, y: r1((p1.y - p0.y) / dl * 100) / 100 }, state: 'tight' }); if (UI.carry && UI.carry.kind === 'tie') consumeCarry();
   say(`전선 ${ws.length}개를 묶었어요 (${nTies()}개째). 니퍼로 튀어나온 꼬리를 잘라요`, 'ok'); commit();
 }
-const tieRefs = ws => ws.map(({ a, b, d, x, y }) => ({ a, b, d, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }));
+const tieRefs = ws => ws.map(({ a, b, x, y }) => { const i = S.wires.findIndex(w => w.a === a && w.b === b), bp = i >= 0 && basePts(S.wires[i], i), A = bp && projOn(bp, { x, y }), L = bp ? pathLen(bp) : 1; return { a, b, f: A ? Math.round(clamp(A.s, TIE_END, L - TIE_END) / L * 1e4) / 1e4 : .5 }; });   // f: 선 길이에 대한 묶인 자리
 function tieTap(p) {   // 케이블 타이 도구로 그냥 눌렀을 때
   if (!S.opBack) return say('케이블 타이는 조작판 뒷면 전선에 묶어요. 위의 조작판 버튼으로 뒤집어요', 'info');
-  return say('누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요 (3cm 안). 묶은 타이를 옮기려면 손으로 끌어요', 'info');
+  return say('누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', 'info');
 }
-function moveTie(t, dx, dy) {   // 손으로 끌어 옮긴 타이: 같은 방향의 짧은 선으로 옮긴 자리에서 다시 묶는다
-  const g = tieGeo(t); if (!g) return;
-  const h = g.span / 2 + 6, P0 = { x: g.M.x - g.ux * h + dx, y: g.M.y - g.uy * h + dy }, P1 = { x: g.M.x + g.ux * h + dx, y: g.M.y + g.uy * h + dy };
-  const ws = tieCross(P0, P1);
-  if (ws.length < 2) { renderOver(); return say('거기에는 묶을 전선이 2개 이상 지나가지 않아요 (단자 바로 옆, 덕트 안은 안 돼요)', 'info'); }
-  snap(); t.ws = tieRefs(ws); say(`케이블 타이를 옮겼어요 (전선 ${ws.length}개)`, 'ok'); commit();
+function tieToNew(t) {   // 옛 타이를 가운데·방향을 가진 타이로 (옮기기 전에)
+  if (t.c && t.u) return true; const g = tieGeo(t); if (!g) return false;
+  t.ws = t.ws.map((r, k) => ({ a: r.a, b: r.b, f: Math.round(g.As[k].s / g.As[k].L * 1e4) / 1e4 })); t.c = { x: g.M.x, y: g.M.y }; t.u = { x: g.ux, y: g.uy }; return true;
+}
+function tieDrag(g, p) {   // 묶인 그대로 타이를 옮긴다: 선마다 타이 자리에서 가장 가까운 밑그림 자리로 미끄러지고, 그만큼 끌려온다
+  const t = g.t, c = { x: g.c0.x + p.x - g.p0.x, y: g.c0.y + p.y - g.p0.y }, n = t.ws.length, fs = [];
+  if (!tieZoneOK(c.x, c.y)) return 'zone';
+  for (let k = 0; k < n; k++) {
+    const r = t.ws[k], i = tieWire(r); if (i < 0) return 'gone'; const bp = basePts(S.wires[i], i); if (!bp) return 'gone';
+    const o = ((g.rank[k] ?? k) - (n - 1) / 2) * 2.3, P = { x: c.x + t.u.x * o, y: c.y + t.u.y * o }, A = projOn(bp, P);
+    if (!A || A.dist > TIE_PULL) return 'far'; const Lb = pathLen(bp); if (A.s < TIE_END || Lb - A.s < TIE_END) return 'end';   // 선을 따라서도 단자에서 떨어진 곳
+    const ends = [S.wires[i].a, S.wires[i].b].map(id => TERM[id]).filter(Boolean); if (ends.some(T => Math.hypot(T.x - P.x, T.y - P.y) < TIE_END)) return 'end';
+    fs.push(Math.round(A.s / pathLen(bp) * 1e4) / 1e4);
+  }
+  t.c = { x: Math.round(c.x * 100) / 100, y: Math.round(c.y * 100) / 100 }; fs.forEach((f, k) => { t.ws[k].f = f; }); return '';
 }
 function dropTie(p) {   // 그냥 누르기만 했을 때
   const lp = opLocal(p);
@@ -3330,12 +3350,6 @@ function renderOver() {
   const px1 = UI.cam.w / Math.max(1, svg.clientWidth);   // 화면 1px의 실제 크기
   const ti = p && UI.overBoard && !UI.carry ? instAt(p) : null;
   if (ti && ti.type === 'timer' && S.plug[ti.id]) s += `<text x="${F(ti.x + DEV.timer.w / 2)}" y="${F(devY(ti) - 5 * px1)}" font-size="${F(12 * px1)}" font-weight="800" text-anchor="middle" fill="#fff" stroke="#1a1a1a" stroke-width="${F(3 * px1)}" paint-order="stroke" pointer-events="none">Tab: 시간 맞추기</text>`;
-  const tm = UI.gesture && UI.gesture.type === 'tiemove' && UI.gesture.moved && UI.gesture.p1 ? UI.gesture : null, tg = tm && tieGeo(tm.t);
-  if (tg) {   // 타이를 옮기는 중: 옮길 자리와 같이 묶일 전선
-    const dx = tm.p1.x - tm.p0.x, dy = tm.p1.y - tm.p0.y, h = tg.span / 2 + 6, P0 = { x: tg.M.x - tg.ux * h + dx, y: tg.M.y - tg.uy * h + dy }, P1 = { x: tg.M.x + tg.ux * h + dx, y: tg.M.y + tg.uy * h + dy }, ws = tieCross(P0, P1), ok = ws.length >= 2;
-    s += LN(P0.x, P0.y, P1.x, P1.y, `stroke="${ok ? '#f3c11b' : '#ffffff'}" stroke-width="${F(2.6 * px1)}" stroke-linecap="round" stroke-dasharray="${F(6 * px1)} ${F(4 * px1)}" pointer-events="none"`);
-    for (const r of ws) s += C(r.x, r.y, 4.6 * px1, `fill="#f3c11b" stroke="#261f00" stroke-width="${F(px1)}" pointer-events="none"`);
-  }
   const td = UI.gesture && UI.gesture.type === 'tiedrag' && UI.gesture.moved && UI.tieEnd ? UI.gesture : null;
   if (td) {
     const p0 = td.p0, p1 = UI.tieEnd, long = Math.hypot(p1.x - p0.x, p1.y - p0.y) > TIE_MAX, ws = S.opBack && !long ? tieCross(p0, p1) : [], ok = ws.length >= 2;
@@ -3598,7 +3612,12 @@ svg.addEventListener('pointermove', e => {
     UI.cam = { x: wx - (m.x - r.left) / r.width * nw, y: wy - (m.y - r.top) / r.height * nh, w: nw, h: nh }; return applyCam();
   }
   if (g && g.type === 'pan') { UI.cam = { ...g.cam0, x: g.cam0.x - (e.clientX - g.sx) / r.width * g.cam0.w, y: g.cam0.y - (e.clientY - g.sy) / r.height * g.cam0.h }; return applyCam(); }
-  if (g && g.type === 'tiemove') { if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 5) g.moved = true; g.p1 = toWorld(e.clientX, e.clientY); UI.pointer = g.p1; return renderOver(); }
+  if (g && g.type === 'tiemove') {   // 묶인 타이를 끄는 중: 선이 따라온다
+    if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 5) { if (!tieToNew(g.t)) { UI.gesture = null; return; } snap(); g.moved = true; g.c0 = { ...g.t.c }; g.rank = tieGeo(g.t).rank; }
+    if (!g.moved) return; const p = toWorld(e.clientX, e.clientY), why = tieDrag(g, p); UI.pointer = p;
+    if (why && why !== g.why) say(why === 'far' ? '더 끌면 전선이 모자라요' : why === 'end' ? '단자 바로 옆(1.6cm 안)까지는 못 가요' : why === 'zone' ? '덕트나 헬리컬 밴드 안으로는 못 들어가요' : '묶인 전선이 없어요', 'info');
+    g.why = why; if (!g.raf) g.raf = requestAnimationFrame(() => { g.raf = 0; renderWorld(); renderOver(); }); return;
+  }
   if (g && g.type === 'tiedrag') { if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; UI.tieEnd = toWorld(e.clientX, e.clientY); UI.pointer = UI.tieEnd; return renderOver(); }
   if (g && g.type === 'press') {
     if (g.live) return;   // 버튼, 팩을 누르는 동안은 화면을 움직이지 않는다
@@ -3616,10 +3635,10 @@ svg.addEventListener('pointerup', e => {
   if (g && g.live) { UI.gesture = null; if (g.live === 'grab' && performance.now() - g.t0 < 250) { liveRelease(); if (S.tool !== 'hand') { S.tool = 'hand'; UI.meter = null; renderTools(); } pickPack(); } return; }   // 팩을 살짝 누르면 집기
   if (g && g.type === 'press' && !g.moved) { const p = toWorld(e.clientX, e.clientY); UI.pointer = p; handleTap(p, e); }
   if (g && g.type === 'tiedrag') { const p1 = toWorld(e.clientX, e.clientY); UI.tieEnd = null; UI.gesture = null; if (g.moved) makeTie(g.p0, p1); else handleTap(p1, e); }
-  if (g && g.type === 'tiemove') { const p1 = toWorld(e.clientX, e.clientY); UI.gesture = null; if (g.moved) moveTie(g.t, p1.x - g.p0.x, p1.y - g.p0.y); else handleTap(p1, e); }
+  if (g && g.type === 'tiemove') { const p1 = toWorld(e.clientX, e.clientY); UI.gesture = null; if (g.moved) { commit(); say('케이블 타이를 옮겼어요. 묶인 전선이 같이 따라와요', 'ok'); } else handleTap(p1, e); }
   if (!UI.ptrs.size || (g && g.type === 'pinch')) UI.gesture = null;
 });
-svg.addEventListener('pointercancel', e => { UI.ptrs.delete(e.pointerId); UI.gesture = null; document.body.classList.remove('panning'); });
+svg.addEventListener('pointercancel', e => { const g = UI.gesture; UI.ptrs.delete(e.pointerId); UI.gesture = null; document.body.classList.remove('panning'); if (g && g.type === 'tiemove' && g.moved) commit(); });
 svg.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
 // 우클릭: 브라우저 메뉴 대신, 손에 든 부품은 재료함으로, 도구는 내려놓기
 document.addEventListener('contextmenu', e => {
@@ -4585,12 +4604,12 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
   L(5, '단자대 커버 덮기', '단자대 커버를 TB 위에 덮어요 (제작 조건 (5))', { keys: ['tbCover'], focus: rowV('c3'),
     fill: () => { S.tbCover = true; }, prog: () => [S.tbCover ? 1 : 0, 1], goal: () => !!S.tbCover,
     next: () => ({ tx: '단자대 커버 → TB', sub: "재료함 '마무리 재료'의 단자대 커버를 들고 빨간 테두리를 눌러요", tray: 'tbcover', hl: { box: tbRect() } }) });
-  L(5, '케이블 타이 12개', '조작판 뒷면에서 케이블 타이 도구를 들고, 누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요 (12개 이상, 3cm 안). 묶은 타이는 손으로 끌어 옮겨요', { keys: ['ties', 'tieCut'], focus: P_V.op, prep: () => { S.opBack = true; },
+  L(5, '케이블 타이 12개', '조작판 뒷면에서 케이블 타이 도구를 들고, 누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요 (12개 이상, 8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', { keys: ['ties', 'tieCut'], focus: P_V.op, prep: () => { S.opBack = true; },
     fill: () => { S.ties = pClone(R().ties).map(t => ({ ...t, state: 'tight' })); }, prog: () => [Math.min(nTies(), 12), 12], goal: () => nTies() >= 12,
     next: () => {
       if (!S.opBack) return { tx: '조작판 뒤집기', sub: '케이블 타이는 뒷면에서 묶어요' };
       const used = (S.ties || []).map(tieGeo).filter(Boolean), t = R().ties.map(tieGeo).find(g => g && !used.some(u => Math.hypot(u.M.x - g.M.x, u.M.y - g.M.y) < 9));
-      return { tx: `케이블 타이 묶기 (${nTies()}/12)`, sub: '케이블 타이 도구를 들고, 빨간 원의 전선들을 누른 채로 가로질러 끌어요 (3cm 안)', tool: UI.carry && UI.carry.kind === 'tie' ? null : 'tie', hl: t ? { ring: { x: t.M.x, y: t.M.y, r: t.half + 5 } } : {} };
+      return { tx: `케이블 타이 묶기 (${nTies()}/12)`, sub: '케이블 타이 도구를 들고, 빨간 원의 전선들을 누른 채로 가로질러 끌어요 (8cm 안)', tool: UI.carry && UI.carry.kind === 'tie' ? null : 'tie', hl: t ? { ring: { x: t.M.x, y: t.M.y, r: t.half + 5 } } : {} };
     } });
   L(5, '타이 꼬리 자르기', '니퍼로 조인 타이를 한 번씩 눌러 튀어나온 꼬리를 잘라요. 두 번 누르면 타이가 잘려 빠져요', { keys: ['tieCut'], focus: P_V.op, prep: () => { S.opBack = true; },
     fill: () => { S.ties = pClone(R().ties).map(t => ({ ...t, state: 'cut' })); }, prog: () => [nTieCut(), nTies()], goal: () => nTies() > 0 && nTieCut() === nTies(),
