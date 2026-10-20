@@ -3328,6 +3328,8 @@ function dressPut(h, sel) {
 function dressOver(p, px1) {   // 고르는 상자, 고른 전선, 넣을 수 있는 구멍
   let s = ''; const sel = dselNow(), g = UI.gesture && UI.gesture.type === 'dbox' && UI.gesture.moved && UI.dboxEnd ? UI.gesture : null;
   const hr = (h, c, sw) => R(h.x - 2.3, Math.min(h.y, h.yi) - .4, 4.6, 7.3, `rx=".8" fill="${c}" fill-opacity=".35" stroke="${c}" stroke-width="${F(sw * px1)}" pointer-events="none"`);
+  { const ids = new Set(), r0 = Math.max(3.2, 6.5 * px1); for (const w of S.wires) if (dressable(w)) for (const e of ['a', 'b']) if (!w['h' + e]) ids.add(w[e]);   // 아직 덕트에 안 넣은 선 끝: 주황 원 (멀리서도 보이게)
+    for (const id of ids) { const T = TERM[id]; s += C(T.x, T.y, r0, `fill="#ff7a1a" fill-opacity=".28" stroke="#fff" stroke-width="${F(3.2 * px1)}" pointer-events="none"`) + C(T.x, T.y, r0, `fill="none" stroke="#ff7a1a" stroke-width="${F(1.8 * px1)}" pointer-events="none"`); } }
   if (S.guide && MODE !== 'prac' && !sel.length && !g) { const due = dressDue(); s += dressGuide(due ? due.ws : S.wires); }
   for (const q of sel) { const i = S.wires.indexOf(q.w), pts = wirePts(q.w, i), T = TERM[q.w[q.e]]; if (pts) s += `<path d="${wD(pts)}" fill="none" stroke="#f3c11b" stroke-opacity=".6" stroke-width="1.5" pointer-events="none"/>`; s += C(T.x, T.y, 3.4, 'fill="none" stroke="#f3c11b" stroke-width="1.2" pointer-events="none"'); }
   if (sel.length) {   // 고른 끝이 들어갈 수 있는 구멍: 전부 초록, 일부 노랑
@@ -3712,6 +3714,7 @@ function statusText() {
   if (UI.pending && TERM[UI.pending]) return `${TERM[UI.pending].nm}에서 시작: 연결할 단자를 눌러요 (빈 곳을 누르면 취소)`;
   if ((S.tool === 'dress' || S.tool === 'hand') && !UI.carry && !UI.gesture && UI.overBoard && UI.pointer && tuckGrab(UI.pointer).length) return S.tool === 'dress' ? '남는 선 고리: 잡고 위나 아래로 곧게 끌면 덕트 안에 접혀 들어가요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽)' : '남는 선 고리: 선 정리 도구(J)로 잡고 위나 아래로 끌면 덕트 안에 접혀 들어가요';
   if (S.guide && MODE !== 'prac' && S.tool === 'wire' && !UI.pending) { const due = dressDue(); if (due) return `${due.D === 6 ? '나머지 선' : WIRE_GROUPS[due.D].t.replace(/ · 회로도 \d/, '')}까지 다 꽂았어요. 다음 선을 꽂기 전에 선 정리(J): 단자 쪽 끝을 구멍에 넣고 남는 선 고리를 접어요 (${due.ws.length}가닥)`; }
+  if (S.tool === 'dress' && !dselNow().length && !UI.gesture) { const [n, m] = dressCount(), loops = S.wires.filter(w => dressable(w) && w.ha && w.hb && !w.tk).length; if (n < m || loops) return `선 정리: 덕트에 안 넣은 선 끝 ${m - n}개(주황 원), 접을 남는 선 고리 ${loops}개. 단자들을 둘러싸게 끌어 고르고 구멍을 눌러요. 고리는 가로질러 위나 아래로 끌어요`; }
   if (S.tool === 'dress' && dselNow().length) return `선 정리: 전선 끝 ${dselNow().length}개를 골랐어요. 넣을 덕트 구멍(초록)을 눌러요 (빈 곳이나 우클릭: 고르기 취소, Shift+끌기: 더 고르기)`;
   if (UI.carry && UI.carry.kind === 'tie') return `케이블 타이 ${UI.carry.count || 1}개: 조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요. 재료함을 누르면 다시 넣어요`;
   if (UI.carry) { const it = trayItems().find(i => i.key === UI.carry.key), n = UI.carry.count || 1; return `${it ? it.name : '부품'}${n > 1 ? ' ' + n + '개를' : '을(를)'} 들고 있어요. 누를 때마다 하나씩 내려놓아요. 재료함을 누르면 다시 넣어요`; }
