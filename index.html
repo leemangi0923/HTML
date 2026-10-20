@@ -199,6 +199,11 @@ body.demo .zoom { display: none; }
   .xp-body.role { grid-template-rows: minmax(0, 1fr); }
   .xp-side { border-left: 0; border-top: 1px solid var(--line); }
 }
+.rw1, .rw2, .netw { fill: none; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.rw1 { stroke: #ff8a00; stroke-width: 2.6; stroke-opacity: .9; }   /* 방금 꽂은 선 */
+.rw2 { stroke: #38bdf8; stroke-width: 2.2; stroke-opacity: .9; stroke-dasharray: 3 2; }   /* 그 전에 꽂은 선 */
+.netw { stroke: #22c55e; stroke-width: 2.6; stroke-opacity: .85; }   /* 테스터: 같은 줄 */
+.netw.b { stroke: #a78bfa; }
 .dd-done { fill: none; stroke: #16a34a; stroke-opacity: .6; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
 .dd-now { fill: none; stroke: #ff3b30; stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: demoDraw .7s ease-out forwards, demoPulse 1s ease-in-out .7s infinite; }
 body.demo .tray, body.demo #tools, body.demo #stages, body.demo .chip-btn:not(#btnDemo) { pointer-events: none; opacity: .55; }
@@ -1887,7 +1892,7 @@ const EXAM_LIMIT = 3.5 * 3600 * 1000;   // 경기 시간 3.5시간 (ms)
 const TOOL_HELP = {
   hand: '부품을 들어서 놓아요. 판을 끌면 화면이 움직여요', tape: '재료함의 덕트·찬넬을 눌러 양면테이프를 붙여요', pen: '판 끝에 댄 덕트나 서보 구멍 자리를 눌러 빨간 선을 그어요',
   ruler: '붙인 첫 덕트에 자를 대고 덕트, 찬넬 간격을 표시해요', glove: '장갑을 끼고 벗어요', drill: '붙인 덕트·찬넬을 눌러 구멍을 뚫어요. 장갑 필수',
-  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '기기 바로 아래를 눌러 견출지를 붙여요', wire: '단자 두 개를 차례로 눌러 연결해요', cut: '전선, 부품, 견출지를 빼요', meter: '단자 두 개에 차례로 대요. MCB를 올리면 전압, 내리면 이어졌는지(도통)를 재요'
+  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '기기 바로 아래를 눌러 견출지를 붙여요', wire: '단자 두 개를 차례로 눌러 연결해요', cut: '전선, 부품, 견출지를 빼요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
 };
 const toolName = id => (TOOLS.find(t => t.id === id) || { name: id }).name;
 const fmt = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
@@ -2178,7 +2183,7 @@ function finishReplug(p) {
   if (S.wires.filter(x => x !== w && (x.a === term.id || x.b === term.id)).length >= termMax(term.id)) return mistake(termFull(term.id));
   const all = S.wires; S.wires = all.filter(x => x !== w); const bad = mixesACDC(keep, term.id); S.wires = all;
   if (bad) return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요');
-  snap(); w[end] = term.id; UI.replug = null; say(`다시 꽂았어요: ${TERM[keep].nm} ↔ ${term.nm}`, 'ok'); commit();
+  snap(); w[end] = term.id; w.k = S.wseq = (S.wseq || 0) + 1; UI.replug = null; say(`다시 꽂았어요: ${TERM[keep].nm} ↔ ${term.nm}`, 'ok'); commit();
 }
 function tieAction(t) {
   return say(t.state === 'tight' ? '니퍼로 튀어나온 꼬리를 잘라요' : '다 된 케이블 타이예요', 'info');
@@ -2969,7 +2974,7 @@ function addWire(a, b) {
   const cnt = id => S.wires.filter(w => w.a === id || w.b === id).length;
   const full = [a, b].find(id => cnt(id) >= termMax(id)); if (full) return mistake(termFull(full));
   if (mixesACDC(a, b)) { UI.flash = { a, b }; renderOver(); setTimeout(() => { UI.flash = null; renderOver(); }, 900); return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요'); }
-  snap(); S.wires.push({ a, b, t: S.elapsed }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit();
+  snap(); S.wires.push({ a, b, t: S.elapsed, k: S.wseq = (S.wseq || 0) + 1 }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit();   // k: 꽂은 순번 (방금 꽂은 선 표시)
   if (LIVE.inp.mcb) say('전원이 켜진 채로 배선했어요. 배선할 때는 MCB를 내려요 (제작 조건 (9))', 'err');
   if (!(S.exam && S.exam.on) && tbBypass([{ a, b }]).length) say(`${TERM[a].nm} ↔ ${TERM[b].nm}: 조작판 전선은 단자대(TB)를 거쳐야 해요 (제작 조건 (11)). 이대로면 시간점수 0점`, 'err');
 }
@@ -3280,6 +3285,7 @@ function renderOver() {
     if (UI.pending && TERM[UI.pending]) { const a = TERM[UI.pending]; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (p) s += LN(a.x, a.y, p.x, p.y, 'class="rubber"'); }
     if (UI.flash && TERM[UI.flash.a] && TERM[UI.flash.b]) { const a = TERM[UI.flash.a], b = TERM[UI.flash.b]; s += LN(a.x, a.y, b.x, b.y, 'class="bad-wire"'); }
   }
+  if ((MODE === 'free' || MODE === 'exam') && !DEMO.on && ['wire', 'cut', 'meter'].includes(S.tool)) s += recentOver(px1);   // 방금 꽂은 선 ①, 그 전 선 ②
   if (S.tool === 'meter') s += meterOver(p, px1);
   if (p && UI.overBoard && !UI.carry && S.tool !== 'hand') s += toolCursor(p);
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
@@ -3462,7 +3468,7 @@ function applyCam() {
 function fitTo(b) {
   const r = svg.getBoundingClientRect(), asp = r.height / Math.max(1, r.width); let w = b.w, h = b.w * asp;
   if (h < b.h) { h = b.h; w = h / asp; }
-  UI.cam = { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h }; applyCam();
+  UI.cam = { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h }; applyCam(); renderOver();
 }
 const fit = () => fitTo({ x: -40, y: -90, w: 1300, h: 1110 });   // 아래로 늘어진 조작판 전선, 위로 나간 밴드, 컨베이어까지
 const fitConv = () => { const x0 = Math.min(-40, CVW.x - 80), x1 = Math.max(720, CVW.x + CONV.L + 160); fitAvoid({ x: x0, y: 440, w: x1 - x0, h: CVW.y + 130 - 440 }); };   // 동작 체크 창을 피해서   // 단자대, 덕트 구멍, 컨베이어까지
@@ -3470,7 +3476,7 @@ const fitPanel = () => fitTo({ x: -34, y: -30, w: 830, h: 700 });
 const fitOp = () => fitTo({ x: OPW.x - 30, y: OPW.y - 76, w: OP.w + 60, h: OP.h + 116 });   // 위의 HMI 뒤집기 버튼까지
 function zoomAt(cx, cy, k) {
   const p = toWorld(cx, cy), nw = clamp(UI.cam.w * k, 40, 3000), k2 = nw / UI.cam.w;
-  UI.cam = { x: p.x - (p.x - UI.cam.x) * k2, y: p.y - (p.y - UI.cam.y) * k2, w: nw, h: UI.cam.h * k2 }; applyCam();
+  UI.cam = { x: p.x - (p.x - UI.cam.x) * k2, y: p.y - (p.y - UI.cam.y) * k2, w: nw, h: UI.cam.h * k2 }; applyCam(); renderOver();   // 화면 크기에 맞춘 표시(번호, 테스터 값)도 다시
 }
 function zoomCenter(k) { const r = svg.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, k); }
 
@@ -3885,14 +3891,28 @@ function meterRead(a, b) {
 function meterTap(p) {
   const term = termNear(p, tolMM(16)), M = UI.meter;
   if (!term) { if (M) { UI.meter = null; renderOver(); } return say('테스터 리드봉을 단자(나사)에 대요. 두 단자를 차례로 눌러요', 'info'); }
-  if (!M || M.b) { UI.meter = { a: term.id }; say(`빨간 리드봉: ${wireName(term.id)}. 검은 리드봉을 댈 단자를 눌러요`, 'info'); return renderOver(); }
+  if (!M || M.b) { UI.meter = { a: term.id }; const N = netOf(term.id); say(`빨간 리드봉: ${wireName(term.id)}. 같은 줄(초록): 단자 ${N.n}곳, 선 ${N.wires.length}가닥. 검은 리드봉을 댈 단자를 눌러요`, 'info'); return renderOver(); }
   if (M.a === term.id) { UI.meter = null; return renderOver(); }
   M.b = term.id; const v = meterRead(M.a, M.b);
   say(`테스터 ${v.txt} (${LIVE.inp.mcb ? '전압' : '도통, MCB OFF'}): ${wireName(M.a)} ↔ ${wireName(M.b)}`, v.k === 'off' || v.k === 'zero' ? 'info' : 'ok'); renderOver();
 }
+const wD = pts => 'M' + pts.map(q => F(q[0]) + ' ' + F(q[1])).join('L');
+const numTag = (q, n, col, px1) => `<g transform="translate(${F(q[0])} ${F(q[1])}) scale(${px1.toFixed(5)})" pointer-events="none"><circle cx="9" cy="-9" r="8" fill="${col}" stroke="#1a1a1a" stroke-width="1.5"/><text x="9" y="-5" font-size="11" font-weight="900" text-anchor="middle" fill="#1a1a1a">${n}</text></g>`;
+function recentOver(px1) {   // 꽂은 순번(k)이 가장 큰 두 선: ① 주황, ② 하늘색 점선
+  const ws = S.wires.map((w, i) => ({ w, i })).filter(x => x.w.k).sort((p, q) => q.w.k - p.w.k).slice(0, 2); let s = '';
+  ws.forEach(({ w, i }, n) => { const pts = wirePts(w, i); if (!pts) return; s += `<path class="rw${n + 1}" d="${wD(pts)}"/>` + numTag(pts[0], n + 1, n ? '#38bdf8' : '#ff8a00', px1) + numTag(pts[pts.length - 1], n + 1, n ? '#38bdf8' : '#ff8a00', px1); });
+  return s;
+}
+function netOf(id) {   // 같은 줄: 전선, 단자대 위·아래, SMPS 같은 극, 컨베이어 선으로 이어진 단자와 선 (릴레이·스위치 접점은 안 건넘)
+  const { f, u } = UF(); for (const [a, b] of staticLinks(S.wires)) u(a, b); for (const [k, t] of Object.entries(convLeads())) if (t) u('CV.' + k, t);
+  const r = f(id), wires = S.wires.map((w, i) => i).filter(i => f(S.wires[i].a) === r), terms = Object.keys(TERM).filter(t => f(t) === r && !t.startsWith('CV.'));
+  return { r, wires, terms, n: new Set(terms.map(t => t.replace(/^TB\.(\d+)\.[tb]$/, 'TB.$1'))).size };   // n: 단자대 위·아래는 한 곳으로
+}
+function netOver(N, cls) { let s = ''; for (const i of N.wires) { const pts = wirePts(S.wires[i], i); if (pts) s += `<path class="netw ${cls}" d="${wD(pts)}"/>`; } for (const t of N.terms) { const q = TERM[t]; s += C(q.x, q.y, 3.4, `fill="none" stroke="${cls ? '#a78bfa' : '#22c55e'}" stroke-width="1.1" pointer-events="none"`); } return s; }
 function meterOver(p, px1) {   // 리드봉 자리와 읽은 값 (값은 검은 리드봉 오른쪽 아래: 오른쪽 위는 도구 그림)
   const M = UI.meter, A = M && TERM[M.a], B = M && M.b && TERM[M.b]; if (!A) return '';
-  let s = C(A.x, A.y, 4.4, `fill="none" stroke="#e3232f" stroke-width="${F(2.4 * px1)}" pointer-events="none"`);
+  const NA = netOf(M.a), NB = M.b && TERM[M.b] && netOf(M.b);
+  let s = netOver(NA, '') + (NB && NB.r !== NA.r ? netOver(NB, 'b') : '') + C(A.x, A.y, 4.4, `fill="none" stroke="#e3232f" stroke-width="${F(2.4 * px1)}" pointer-events="none"`);   // 같은 줄 전체 (검은 리드봉 쪽이 다른 줄이면 보라)
   if (!M.b) return s + (p ? LN(A.x, A.y, p.x, p.y, `stroke="#e3232f" stroke-width="${F(1.6 * px1)}" stroke-dasharray="${F(5 * px1)} ${F(4 * px1)}" pointer-events="none"`) : '');
   if (!B) return s;
   const v = meterRead(M.a, M.b), w = [...v.txt].reduce((n, c) => n + (c.charCodeAt(0) > 255 ? 14 : 8.6), 18);
@@ -4693,7 +4713,7 @@ function homeHelpHTML() {
     + sec('4', '화면 움직이기', '<ul><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
     + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
-    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)로 단자 두 개를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
+    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 ① 주황, 그 전 선은 ② 하늘색으로 보여요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
 }
