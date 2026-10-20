@@ -2303,7 +2303,7 @@ function buildTerms() {
   if (S.opBack && S.op.hmi) for (const [k, lx, ly, lab] of HMI_PW(hmiGeom())) { const id = 'OP.HMI.' + k, o = { id, dev: 'HMI', k, lab, x: OPW.x + lx, y: OPW.y + ly, r: 2.05, sy: 'scrS', op: true, nm: '조작판 뒷면 HMI 전원 ' + (k === '+' ? '+ (초록 1번)' : k === '-' ? '− (초록 2번)' : 'FG 접지 (초록 3번)') }; TERMS.push(o); TERM[id] = o; }
   if (S.opBack) for (const [hid, type] of Object.entries(S.op.dev)) {
     const sym = OP.answer[hid].sym, [hx, hy] = OP.holes[hid];
-    for (const [k, dx, dy, lab] of OP_TERM_DEF[OP_KIND[type]]) { const id = 'OP.' + sym + '.' + k, o = { id, dev: sym, k, lab, x: OPW.x + OP.w - hx - dx, y: OPW.y + hy + dy, r: 2.05, sy: 'scrS', op: true, nm: '조작판 뒷면 ' + opTermName(sym, type, k) }; TERMS.push(o); TERM[id] = o; }
+    for (const [k, dx, dy, lab] of OP_TERM_DEF[OP_KIND[type]]) { const id = 'OP.' + sym + '.' + k, o = { id, dev: sym, k, lab, x: OPW.x + OP.w - hx - dx, y: OPW.y + hy + dy, r: 2.05, sy: 'scrS', op: true, top: dy < 0, sd: dx > 0 ? -1 : 1, nm: '조작판 뒷면 ' + opTermName(sym, type, k) }; TERMS.push(o); TERM[id] = o; }
   }
 }
 function makeUF(wires) {
@@ -2921,10 +2921,14 @@ function bez(p0, p1, p2, p3, n = 14) {
   for (let i = 1; i <= n; i++) { const t = i / n, u = 1 - t; out.push([u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]); }
   return out;
 }
+const opHook = o => [[o.x, o.y], [o.x, o.y - 6], ...bez([o.x, o.y - 6], [o.x, o.y - 18], [o.x + o.sd * 13, o.y - 18], [o.x + o.sd * 13, o.y + 6], 10)];   // 조작판 위쪽 단자: 위에서 아래로 꽂고, 바깥으로 돌아 내려간다
 function route(a, b, lane) {
-  if (a.op && b.op) { const sag = Math.max(a.y, b.y) + 22 + Math.abs(lane); return [[a.x, a.y], ...bez([a.x, a.y], [a.x, sag], [b.x, sag], [b.x, b.y])]; }
+  if (a.op && b.op) {
+    const A = a.top ? opHook(a) : [[a.x, a.y]], B = b.top ? opHook(b).reverse() : [[b.x, b.y]], s0 = A[A.length - 1], e0 = B[0], sag = Math.max(s0[1], e0[1]) + 22 + Math.abs(lane);
+    return [...A, ...bez(s0, [s0[0], sag], [e0[0], sag], e0), ...B.slice(1)];
+  }
   if (a.op || b.op) {
-    const p = a.op ? b : a, o = a.op ? a : b, pts = [[p.x, p.y]];
+    const p = a.op ? b : a, o0 = a.op ? a : b, pts = [[p.x, p.y]], H = o0.top ? opHook(o0) : null, o = H ? { x: H[H.length - 1][0], y: H[H.length - 1][1] } : o0;   // o: 조작판 쪽 끝 (위쪽 단자는 고리 끝)
     const dn = DUCT_Y[p.duct] < p.y ? -1 : 1, s0 = [p.x, p.y + dn * 9];
     if (S.helical === 2) {        // 밴드로 감아 덕트에 넣음: 단자대 아래 덕트 → 오른쪽 세로 덕트 → 위 구멍 → 조작판
       const off = lane * .35, px = p.sx !== undefined ? p.sx : p.x, yd = (p.duct === 'dB' ? 580 : DUCT_Y[p.duct]) + off, ex = 700 + off, band = bandCurve(off), e = band[band.length - 1];
@@ -2936,6 +2940,7 @@ function route(a, b, lane) {
     } else {                      // 처음: 덕트를 거치지 않고 단자에서 아래로 빠져서 조작판으로 (튀어나온 선)
       pts.push(s0, ...bez(s0, [p.x, 820 + lane * 2.4], [o.x - 30 + lane, 800 + lane * 2], [o.x, o.y], 24));
     }
+    if (H) pts.push(...H.slice(0, -1).reverse());
     return a.op ? pts.reverse() : pts;
   }
   const ax = a.sx !== undefined ? a.sx : a.x, bx = b.sx !== undefined ? b.sx : b.x, ya = DUCT_Y[a.duct] + lane, yb = DUCT_Y[b.duct] + lane;
