@@ -2961,7 +2961,7 @@ function route(a, b, lane) {
     return a.op ? pts.reverse() : pts;
   }
   let ax = a.sx !== undefined ? a.sx : a.x, bx = b.sx !== undefined ? b.sx : b.x; const ya = DUCT_Y[a.duct] + lane, yb = DUCT_Y[b.duct] + lane;
-  const tilt = (t, yd) => t.ov && t.sx === undefined ? [t.x + (Math.sign(t.fo) || 1) * 3.2, t.y + (Math.sign(yd - t.y) || 1) * 11] : null;   // 바깥 줄 나사 위를 지나는 선은 바깥쪽으로 살짝 기울여 아래 선이 보이게
+  const tilt = (t, yd) => t.ov && t.sx === undefined ? [t.x + (Math.sign(t.fo) || 1) * 1.35, t.y + (Math.sign(yd - t.y) || 1) * 11] : null;   // 바깥 줄 나사 위를 지나는 선은 살짝 기울여 아래 줄 압착단자와 이웃 단자 사이 틈으로 (더 기울이면 이웃 선을 덮는다)
   const ta = tilt(a, ya), tb = tilt(b, yb); if (ta) ax = ta[0]; if (tb) bx = tb[0];
   const pts = [[a.x, a.y]]; if (a.sx !== undefined) pts.push([a.sx, a.y]); if (ta) pts.push(ta);
   if (a.duct === b.duct) pts.push([ax, ya], [bx, yb]);
@@ -3197,7 +3197,8 @@ function renderWorld() {
   const rk = new Map(recentWires().map((w, n) => [w, n ? ' wr2' : ' wr1']).filter(([w]) => w));   // 방금 꽂은 선은 주황, 그 전 선은 하늘색
   const one = (w, i) => { const q = pts(w, i); if (!q) return null; const ha = hd(w.a), hb = hd(w.b), c = rk.get(w) || ''; return [wireEnds(q, ha, hb, 1), scrUse(ha) + scrUse(hb), wireBody(q, ha, hb, c), wireEnds(q, ha, hb, 2, c)]; };
   const wires = f => { let e = '', sc = '', bd = '', cl = '', top = '';
-    S.wires.forEach((w, i) => { if (!f(w) || rk.has(w)) return; const r = one(w, i); if (r) { e += r[0]; sc += r[1]; bd += r[2]; cl += r[3]; } });
+    const ovW = w => !!((TERM[w.a] && TERM[w.a].ov) || (TERM[w.b] && TERM[w.b].ov));   // 바깥 줄 위를 지나는 선은 먼저(아래 층에) 그려서 바깥 줄 압착단자, 선이 가려지지 않게
+    for (const lay of [true, false]) S.wires.forEach((w, i) => { if (!f(w) || rk.has(w) || ovW(w) !== lay) return; const r = one(w, i); if (r) { e += r[0]; sc += r[1]; bd += r[2]; cl += r[3]; } });
     for (const w of [...rk.keys()].reverse()) { if (!f(w)) continue; const r = one(w, S.wires.indexOf(w)); if (r) top += r.join(''); }   // 방금 꽂은 두 선은 다른 선 위에 (방금 꽂은 선이 맨 위)
     return e + sc + bd + cl + top; };   // 핀 → 나사 머리 → 전선 → 슬리브
   const loose = w => S.helical !== 2 && isExtWire(w);   // 덕트 밖으로 빼 둔 조작판 전선은 커버 위에 보인다
