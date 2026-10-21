@@ -1997,14 +1997,15 @@ const isOPWire = w => w.a.startsWith('OP.') || w.b.startsWith('OP.');
 const isExtWire = w => w.a.startsWith('OP.') !== w.b.startsWith('OP.');   // 제어판과 조작판 사이 (외부 입출력 전선)
 const HOLE = { x: 700, y: 3 };                            // 오른쪽 세로 덕트 위 끝 구멍 (헬리컬 밴드를 빼는 곳)
 const BAND_C = [[700, 4], [700, -78], [830, 36], [830, 226]];   // 구멍에서 조작판까지 밴드 중심선
-// 조작판(HMI)으로 가는 선은 240cm. 조작판 쪽 끝 30cm(타이 자리)는 모양 그대로 두고, 남는 길이는 앞쪽에서:
-// 처음엔 길게 널브러지고, 밴드로 감으면 묶음이 길게 늘어지고(각 선의 나머지는 밴드 들어가기 전 작은 고리), 덕트에 넣으면 구멍에서 조작판까지 밴드가 길게 늘어진다(나머지는 오른쪽 세로 덕트 안에서 접힘)
-const EXT_LEN = 2400, EXT_KEEP = 300, BAND_ADD = 550, BUNDLE_ADD = 1040;
+// 조작판(HMI)으로 가는 선은 240cm. 남는 길이는:
+// 처음엔 단자대에서 조작판 단자(아래에서 들어감)까지 이음매 없이 한 줄로 길게 늘어지고, 밴드로 감으면 묶음이 길게 늘어지고(각 선의 나머지는 밴드 들어가기 전 작은 고리), 덕트에 넣으면 구멍에서 조작판까지 밴드가 길게 늘어진다(나머지는 오른쪽 세로 덕트 안에서 접힘)
+const EXT_LEN = 2400, BAND_ADD = 550, BUNDLE_ADD = 1040;
+const unitV = (P, Q) => { const l = Math.hypot(Q[0] - P[0], Q[1] - P[1]) || 1; return [(Q[0] - P[0]) / l, (Q[1] - P[1]) / l]; };   // P에서 Q 쪽 단위 벡터
 let EXT_RAW = false, EXT_C = { tv: -1, m: new Map() };   // EXT_RAW: 늘이기 전 모양 (예전 저장의 타이 자리 옮길 때)
 const _stretch = {};
-function stretch(P, add, d) {   // 3차 곡선 조절점을 d 쪽으로 밀어 길이를 add만큼 늘인다
-  const key = P.flat().map(v => v.toFixed(1)).join() + '|' + add; if (_stretch[key]) return _stretch[key];
-  const len = Q => pathLen(cubicOff(Q, 0, 60)), L0 = len(P) + add, mv = a => [P[0], [P[1][0] + d[0] * a, P[1][1] + d[1] * a], [P[2][0] + d[0] * a, P[2][1] + d[1] * a], P[3]];
+function stretch(P, add, d, d2 = d) {   // 3차 곡선 조절점을 d(두 번째는 d2) 쪽으로 밀어 길이를 add만큼 늘인다
+  const key = P.flat().map(v => v.toFixed(1)).join() + '|' + add + '|' + d + '|' + d2; if (_stretch[key]) return _stretch[key];
+  const len = Q => pathLen(cubicOff(Q, 0, 60)), L0 = len(P) + add, mv = a => [P[0], [P[1][0] + d[0] * a, P[1][1] + d[1] * a], [P[2][0] + d2[0] * a, P[2][1] + d2[1] * a], P[3]];
   let lo = 0, hi = add; while (len(mv(hi)) < L0 && hi < 1e4) hi *= 1.6;
   for (let k = 0; k < 22; k++) { const a = (lo + hi) / 2; if (len(mv(a)) < L0) lo = a; else hi = a; }
   return (_stretch[key] = mv((lo + hi) / 2));
@@ -2013,7 +2014,7 @@ function bandCurve(off = 0) { return EXT_RAW ? cubicOff(BAND_C, off) : cubicOff(
 function extXs() { const xs = []; for (const w of S.wires) if (isExtWire(w)) { const P = opStart(w) ? TERM[w.b] : TERM[w.a]; if (P) xs.push(P.x); } return xs; }
 function bundle1(off = 0) {   // 감기만 한 상태: 제어판 아래로 늘어진 묶음
   const xs = extXs(), bx = xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 220, P = [[bx, 640], [bx, 772], [905, 772], [905, 468]];
-  return EXT_RAW ? cubicOff(P, off) : cubicOff(stretch(P, BUNDLE_ADD, [.55, .85]), off, 40);
+  return EXT_RAW ? cubicOff(P, off) : cubicOff(stretch(P, BUNDLE_ADD, [.55, .85], [0, 1]), off, 40);
 }
 const bandStartX = () => { const xs = extXs(); return xs.length ? Math.min(...xs) - 8 : 200; };
 const band2Duct = (off = 0) => [[bandStartX(), 580 + off], [700 + off, 580 + off], [700 + off, 4]];   // 덕트에 넣은 상태: 단자대 아래 → 오른쪽 → 위 구멍
@@ -3022,22 +3023,19 @@ function route(a, b, lane) {
       const off = lane * .35, px = p.sx !== undefined ? p.sx : p.x, yd = (p.duct === 'dB' ? 580 : DUCT_Y[p.duct]) + off, ex = 700 + off, band = bandCurve(off), e = band[band.length - 1];
       if (p.sx !== undefined) pts.push([p.sx, p.y]);
       pts.push([px, yd], [ex, yd]); const ic = pts.length - 1;   // 남는 길이는 오른쪽 세로 덕트 아래 모서리에서 위로 접는다
-      pts.push([ex, 14], ...band.slice(1), ...bez(e, [e[0] + 4, e[1] + 30], [o.x, o.y + 60], [o.x, o.y]));
+      const te = unitV(band[band.length - 2], e);   // 밴드 끝에서 나가는 방향 그대로 조작판으로 (꺾이지 않게)
+      pts.push([ex, 14], ...band.slice(1), ...bez(e, EXT_RAW ? [e[0] + 4, e[1] + 30] : [e[0] + te[0] * 30, e[1] + te[1] * 30], [o.x, o.y + 60], [o.x, o.y]));
       if (H) pts.push(...H.slice(0, -1).reverse());
       const sl = EXT_RAW ? 0 : EXT_LEN - pathLen(pts); if (sl > 4) pts.splice(ic + 1, 0, ...zigzag(pts[ic], true, -1, ex > 700 ? -1.1 : 1.1, sl, yd - 30, true));
       return a.op ? pts.reverse() : pts;
     } else if (S.helical === 1) { // 감기만 함: 늘어진 묶음 하나로 모여서 조작판으로 (남는 길이는 묶음에 들어가기 전 작은 고리)
-      const B = bundle1(lane * .4), b0 = B[0], e = B[B.length - 1], tl = bez(e, [e[0], e[1] - 25], [o.x, o.y + 55], [o.x, o.y]), raw = bez(s0, [p.x, p.y + dn * 40], [b0[0], b0[1] - 30], b0);
+      const B = bundle1(lane * .4), b0 = B[0], e = B[B.length - 1], tb = unitV(B[1], b0), te = unitV(B[B.length - 2], e);   // 묶음 시작·끝의 방향 그대로 이어서 (꺾이지 않게)
+      const tl = bez(e, EXT_RAW ? [e[0], e[1] - 25] : [e[0] + te[0] * 25, e[1] + te[1] * 25], [o.x, o.y + 55], [o.x, o.y]), raw = bez(s0, [p.x, p.y + dn * 40], EXT_RAW ? [b0[0], b0[1] - 30] : [b0[0] + tb[0] * 30, b0[1] + tb[1] * 30], b0);
       const need = EXT_LEN - 9 - pathLen(B) - pathLen([e, ...tl]) - (H ? pathLen(H) : 0);
-      pts.push(s0, ...(!EXT_RAW && need > pathLen([s0, ...raw]) + 2 ? slackCurve(s0, [0, dn], b0, [0, -1], need, Math.round(Math.abs(lane) * 3)) : raw), ...B.slice(1), ...tl);
-    } else {                      // 처음: 덕트를 거치지 않고 단자에서 빠져서 조작판으로. 240cm가 길게 널브러진다 (조작판 쪽 끝 30cm는 그대로)
-      const raw = bez(s0, [p.x, 820 + lane * 2.4], [o.x - 30 + lane, 800 + lane * 2], [o.x, o.y], 24);
-      if (EXT_RAW) pts.push(s0, ...raw);
-      else {
-        let acc = H ? pathLen(H) : 0, m = raw.length - 1; while (m > 0 && acc < EXT_KEEP) { acc += Math.hypot(raw[m][0] - raw[m - 1][0], raw[m][1] - raw[m - 1][1]); m--; }
-        const Q = raw[m], N = raw[m + 1], tl = Math.hypot(N[0] - Q[0], N[1] - Q[1]) || 1;
-        pts.push(s0, ...slackCurve(s0, [0, dn], Q, [(Q[0] - N[0]) / tl, (Q[1] - N[1]) / tl], EXT_LEN - 9 - acc, Math.round(Math.abs(lane) * 3)), ...raw.slice(m + 1));
-      }
+      pts.push(s0, ...(!EXT_RAW && need > pathLen([s0, ...raw]) + 2 ? slackCurve(s0, [0, dn], b0, tb, need, Math.round(Math.abs(lane) * 3)) : raw), ...B.slice(1), ...tl);
+    } else {                      // 처음: 덕트를 거치지 않고 단자에서 빠져서 조작판으로. 240cm가 이음매 없이 한 줄로 길게 늘어진다 (조작판 단자에는 아래에서 들어간다)
+      if (EXT_RAW) pts.push(s0, ...bez(s0, [p.x, 820 + lane * 2.4], [o.x - 30 + lane, 800 + lane * 2], [o.x, o.y], 24));
+      else { const E = [o.x, o.y + 8]; pts.push(s0, ...slackCurve(s0, [0, dn], E, [0, 1], EXT_LEN - 9 - 8 - (H ? pathLen(H) : 0), Math.round(Math.abs(lane) * 3)), [o.x, o.y]); }
     }
     if (H) pts.push(...H.slice(0, -1).reverse());
     return a.op ? pts.reverse() : pts;
