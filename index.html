@@ -239,7 +239,23 @@ body.demo .side { pointer-events: none; }   /* 시연 중 할 일은 체크박�
 .hm-card { position: relative; display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 3px 13px; align-items: start; padding: 16px 16px 15px; border: 1px solid rgba(255, 255, 255, .1); border-radius: 15px; background: linear-gradient(180deg, rgba(255, 255, 255, .065), rgba(255, 255, 255, .02)); text-align: left; cursor: pointer; transition: transform .18s, border-color .18s, box-shadow .18s, background .18s; }
 .hm-card:hover, .hm-card:focus-visible { transform: translateY(-3px); border-color: var(--c); box-shadow: 0 14px 34px rgba(0, 0, 0, .4), inset 0 0 0 1px var(--c); outline: none; background: linear-gradient(180deg, rgba(255, 255, 255, .09), rgba(255, 255, 255, .03)); }
 .hm-card { --c: #f3c11b; }
-.hm-card.free { --c: #46d07a; } .hm-card.exam { --c: #ff6b6b; } .hm-card.help { --c: #6fb6ff; }
+.hm-card.free { --c: #46d07a; } .hm-card.exam { --c: #ff6b6b; } .hm-card.help { --c: #6fb6ff; } .hm-card.strip { --c: #ff9f43; }
+.st-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 14px; margin-bottom: 16px; }
+.st-card { padding: 18px; border: 1px solid rgba(255, 255, 255, .1); border-radius: 15px; background: rgba(255, 255, 255, .035); }
+.st-clock { font-size: 54px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: #ff9f43; }
+.st-sub { margin: 2px 0 14px; color: #a8b5bc; font-size: 13px; }
+.st-btns { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.st-ck { display: grid; gap: 7px; margin-bottom: 14px; }
+.st-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px 34px 32px; align-items: center; gap: 6px; font-size: 13px; }
+.st-row button { height: 30px; border: 1px solid rgba(255, 255, 255, .16); border-radius: 8px; background: rgba(255, 255, 255, .06); cursor: pointer; font-size: 16px; font-weight: 800; }
+.st-row b { text-align: center; font-size: 16px; font-variant-numeric: tabular-nums; }
+.st-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.st-stats small { display: block; color: #7f8d95; font-size: 11.5px; } .st-stats b { font-size: 19px; font-variant-numeric: tabular-nums; }
+.st-chart { width: 100%; height: auto; display: block; margin: 4px 0 8px; }
+.st-note { margin: 0; color: #8d9aa1; font-size: 12px; line-height: 1.5; } .st-note b { color: #c5d0d6; }
+.st-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-width: 760px; }
+.st-list li { display: grid; grid-template-columns: 60px 54px 70px 90px 70px auto; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid rgba(255, 255, 255, .08); border-radius: 10px; background: rgba(255, 255, 255, .03); font-size: 13px; font-variant-numeric: tabular-nums; }
+.st-list li .bad { color: #ff8a8a; } .st-list li button { justify-self: end; }
 .hm-ic { grid-row: span 3; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 13px; background: color-mix(in srgb, var(--c) 15%, transparent); color: var(--c); }
 .hm-ic svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .hm-card b { font-size: 17.5px; letter-spacing: -.01em; }
@@ -312,6 +328,8 @@ body.demo .side { pointer-events: none; }   /* 시연 중 할 일은 체크박�
   .hm-main { grid-template-columns: minmax(0, 1fr); }
   .hm-art { order: -1; max-width: 460px; margin: 0 auto; }
   .hm-menu { grid-template-columns: minmax(0, 1fr); }
+  .st-grid { grid-template-columns: minmax(0, 1fr); }
+  .st-list li { grid-template-columns: 52px 46px 60px minmax(0, 1fr) auto; } .st-list li span:nth-child(4) { display: none; }
   .ch-list, .hp-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { .hm-page, .hm-art, .hm-wire, .hm-lamp, .hm-belt, .hm-pack, .hm-led { animation: none !important; } .hm-wire { stroke-dashoffset: 0; } .hm-lamp { opacity: 1; } }
@@ -1428,7 +1446,7 @@ function settle(links, st, inp) {
 }
 function tickTimers(st, dt, ts = TSET) { for (const t of TIMERS) { const s = st.tim[t]; if (s.on && !s.out) { s.el += dt; if (s.el >= (ts[t] || 0) - 1e-6) s.out = true; } } }
 function errText(r) {
-  return r.acShort ? 'R상과 T상이 바로 이어져요 (단락). 실제라면 MCB가 떨어져요' : r.mix ? '교류 220V와 직류 24V가 섞였어요' :
+  return r.acShort ? 'R상과 T상이 바로 이어져요 (단락)' : r.mix ? '교류 220V와 직류 24V가 섞였어요' :
     r.dcShort ? '+24V와 0V가 바로 이어져요 (단락)' : r.osc ? '릴레이가 계속 붙었다 떨어져요 (회로가 멈추지 않아요)' :
     r.trev && r.trev.length ? `타이머 ${r.trev.join(', ')} 전원 극성이 반대예요 (7번이 +24V, 2번이 0V)` : '';
 }
@@ -1658,7 +1676,8 @@ function liveStep(dt) {
   LIVE.inp.fuses = fuseState(); LIVE.inp.cab = S.cables; LIVE.inp.plug = plugMap(); LIVE.inp.leads = convLeads(); if (!S.conveyor) LIVE.pack = null; tickTimers(LIVE.st, dt, tsetMap());
   if (LIVE.pack !== null && !LIVE.inp.grab) { LIVE.pack += convDir(LIVE.out) * CONV.v * dt; if (LIVE.pack < 0 || LIVE.pack > CONV.L) { LIVE.pack = null; if (!DEMO.ff) { say('팩이 컨베이어 끝에서 떨어졌어요. 재료함에 다시 넣었어요', 'err'); renderTray(); } } }
   Object.assign(LIVE.inp, packSense(LIVE.pack));
-  const r = settle(staticLinks(S.wires), LIVE.st, LIVE.inp);
+  const links = staticLinks(S.wires); let r = settle(links, LIVE.st, LIVE.inp);
+  if (r.acShort && LIVE.inp.mcb && !DEMO.ff && shortTrip(links)) { LIVE.inp.fuses = fuseState(); r = settle(links, LIVE.st, LIVE.inp); }   // 합선: 지나가는 퓨즈가 끊어지거나 MCB가 떨어진다
   LIVE.out = r.out; LIVE.err = errText(r); opChkStep(dt);
   const i = LIVE.inp, key = JSON.stringify([r.out, LIVE.st.rel, TIMERS.map(t => [LIVE.st.tim[t].on, LIVE.st.tim[t].out]), i.mcb, i.ss, i.pb1, i.pb0, i.s1, i.s2, i.plcOut, LIVE.err]);
   if (DEMO.ff) { LIVE.key = key; return; }   // 시연 빨리 감기: 그리지 않는다
@@ -1668,6 +1687,18 @@ function liveStep(dt) {
   if (MODE === 'prac' && (kc || ckc)) pracLive();
   drawLivePack();
   if (LIVE.pack !== null && UI.pointer && UI.overBoard && inRect(UI.pointer, beltRect(), 30)) renderOver();   // 움직이는 팩의 빨간 테두리
+}
+function shortTrip(links) {   // R상과 T상이 이어졌을 때: 합선 길에 퓨즈가 있으면 그 퓨즈가 끊어지고, 없으면 MCB가 떨어진다 (MCB 앞이면 콘센트 쪽)
+  const inp = LIVE.inp, sh = x => evalOnce(links, LIVE.st, x).acShort, nm = names();
+  if (sh({ ...inp, mcb: false })) { inp.mcb = false; say('MCB 앞(단자대 R·T 쪽)에서 합선이에요. 실제라면 콘센트 쪽 차단기가 떨어져요. MCB를 내렸어요', 'err'); return true; }
+  for (const i of S.inst.filter(x => x.type === 'fuse').sort((a, b) => a.x - b.x)) for (const k of [0, 1]) {
+    const z = inp.fuses[nm[i.id]]; if (!z || !z[k]) continue;
+    if (!sh({ ...inp, fuses: { ...inp.fuses, [nm[i.id]]: z.map((v, j) => j === k ? false : v) } })) {
+      snap(); S.fuses[i.id][k] = S.fuses[i.id][k] + 'x'; save();
+      say(`합선! ${nm[i.id]} ${k ? '오른쪽' : '왼쪽'} 퓨즈가 끊어졌어요 (유리관이 검게 탐). MCB를 내리고 원인을 고친 뒤, 새 퓨즈로 바꿔요`, 'err'); renderAll(); return true;
+    }
+  }
+  inp.mcb = false; say('합선! R상과 T상이 바로 이어져서 MCB가 떨어졌어요 (트립). 원인을 고치고 다시 올려요', 'err'); return true;
 }
 function opChkStep(dt) {   // 지금 상태와 바로 전 상태를 보고 해낸 동작을 체크한다
   const c = LIVE.ck, o = LIVE.out, i = LIVE.inp, p = c.prev || {}, d = convDir(o), x = LIVE.pack;
@@ -1913,7 +1944,7 @@ const UI = { cam: { x: 0, y: 0, w: 800, h: 600 }, ckPop: {}, carry: null, pointe
   ptrs: new Map(), flash: null, peek: false, peekKey: '', press: null, lastDone: null, chooserZone: null, onOk: null, modalClosable: true, nm: {}, trayOpen: new Set() };
 let S = null, undoStack = [];
 const STORE = 't1sim', STORE_EXAM = STORE + '.exam', STORE_PRAC = STORE + '.prac';   // 자유 모드, 시험 모드 작업, 연습 통과 기록
-const SET_DEF = { recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, bigLab: true, termName: true, lens: true, autoDress: false, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
+const SET_DEF = { recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, bigLab: true, termName: true, lens: true, autoDress: false, prepTime: true, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
 let SET = (() => { try { return { ...SET_DEF, ...(JSON.parse(localStorage.getItem(STORE + '.set') || '{}') || {}) }; } catch (e) { return { ...SET_DEF }; } })();
 const setSave = () => { try { localStorage.setItem(STORE + '.set', JSON.stringify(SET)); } catch (e) { /* 저장할 수 없는 환경 */ } };
 const applyTheme = () => { const r = document.documentElement; if (SET.theme === 'light' || SET.theme === 'dark') r.dataset.theme = SET.theme; else r.removeAttribute('data-theme'); };
@@ -1942,7 +1973,7 @@ function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'nul
 function snap() { undoStack.push(JSON.stringify(S)); if (undoStack.length > 80) undoStack.shift(); }
 function undo() {
   if (!undoStack.length) return say('되돌릴 작업이 없어요', 'info');
-  const keep = { mistakes: S.mistakes, mlog: S.mlog, violations: S.violations, hints: S.hints, guide: S.guide, elapsed: S.elapsed, stageEl: S.stageEl, exam: S.exam, usedFill: S.usedFill, selfChk: S.selfChk, finished: S.finished };
+  const keep = { mistakes: S.mistakes, mlog: S.mlog, violations: S.violations, hints: S.hints, guide: S.guide, elapsed: S.elapsed, stageEl: S.stageEl, exam: S.exam, usedFill: S.usedFill, selfChk: S.selfChk, finished: S.finished, prepN: S.prepN, prepMs: S.prepMs };
   S = JSON.parse(undoStack.pop()); Object.assign(S, keep); UI.carry = null; UI.pending = null; say('되돌렸어요', 'info'); commit();
 }
 
@@ -3443,7 +3474,7 @@ function addWire(a, b) {
   const cnt = id => S.wires.filter(w => w.a === id || w.b === id).length;
   const full = [a, b].find(id => cnt(id) >= termMax(id)); if (full) return mistake(termFull(full));
   if (mixesACDC(a, b)) { UI.flash = { a, b }; renderOver(); setTimeout(() => { UI.flash = null; renderOver(); }, 900); return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요'); }
-  snap(); S.wires.push({ a, b, t: S.elapsed, k: S.wseq = (S.wseq || 0) + 1 }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit();   // k: 꽂은 순번 (방금 꽂은 선 표시)
+  snap(); S.wires.push({ a, b, t: S.elapsed, k: S.wseq = (S.wseq || 0) + 1 }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit(); prepCharge();   // k: 꽂은 순번 (방금 꽂은 선 표시)
   if (LIVE.inp.mcb) say('전원이 켜진 채로 배선했어요. 배선할 때는 MCB를 내려요 (제작 조건 (9))', 'err');
   if (!(S.exam && S.exam.on) && tbBypass([{ a, b }]).length) say(`${TERM[a].nm} ↔ ${TERM[b].nm}: 조작판 전선은 단자대(TB)를 거쳐야 해요 (제작 조건 (11)). 이대로면 시간점수 0점`, 'err');
 }
@@ -3844,7 +3875,7 @@ function scoreSheet() {
 }
 function showScore() {
   const { rows, total } = scoreSheet(), done = S.exam && S.exam.done;
-  let h = `<h2>${done ? '시험 결과' : '채점표'}</h2><p class="muted">${done ? `걸린 시간 ${fmt(S.exam.time)} / 3:30:00, 실수 ${S.mistakes.reduce((x, y) => x + y, 0)}번` : '지금 상태를 과제지 채점 기준대로 매겨요. 동작 점수는 배선을 실제로 돌려본 결과예요.'}</p>`;
+  let h = `<h2>${done ? '시험 결과' : '채점표'}</h2><p class="muted">${done ? `걸린 시간 ${fmt(S.exam.time)} / 3:30:00${S.prepMs ? ` (선 준비 ${fmt(S.prepMs)} 포함)` : ''}, 실수 ${S.mistakes.reduce((x, y) => x + y, 0)}번` : '지금 상태를 과제지 채점 기준대로 매겨요. 동작 점수는 배선을 실제로 돌려본 결과예요.'}</p>`;
   h += `<div class="sc-total"><b>${fmtPt(total)}</b><span> / 30점</span></div><div class="score">`;
   for (const r of rows) {
     if (r.grp) { h += `<div class="sc-grp"><span>${esc(r.grp)}</span><span>${r.cond ? '' : `${fmtPt(r.sum)} / ${fmtPt(r.max)}`}</span></div>`; continue; }
@@ -4492,6 +4523,7 @@ const SET_ITEMS = [
   ['bigLab', '큰 번호표', '멀리서 봐도 단자대·PLC·서보 드라이버 단자 이름이 보이게 (겹치면 중요한 것부터)'],
   ['termName', '마우스 올린 단자 이름', '단자에 마우스를 올리면 포인터 아래에 이름을 크게'],
   ['lens', '돋보기', 'Z를 누르고 있거나 오른쪽 아래 돋보기 버튼을 켜면 포인터 주변을 3배로'],
+  ['prepTime', '시험: 선 준비 시간 더하기', '선 따기 연습 기록(최근 5세트 평균)만큼, 시험 모드에서 선을 20가닥 꽂을 때마다 시험 시간이 더해져요 (6세트, 120가닥까지). 새로 시작하는 시험부터 적용'],
   ['autoDress', '자동 선 정리', '꽂은 선을 바로 가까운 덕트 구멍에 넣고 남는 선도 접어 넣어요 (옆 단자 선이 들어간 구멍으로 모아요). 켜면 지금 널브러진 선도 정리해요. 자유 모드에서만 (시험·연습은 직접)']
 ];
 function showSettings() {
@@ -4807,9 +4839,11 @@ function goExam() {
   startExam();
 }
 function startExam() {
-  confirmBox('시험 모드를 시작할까요? 3시간 30분 타이머가 돌고, 가이드, 할 일 목록, 정답 채우기, 시연 보기가 꺼져요. 다 끝나면 위의 제출하고 채점을 눌러요. 자유 모드에서 하던 작업은 그대로 남아요.', () => {
+  const prep = SET.prepTime ? Math.round(stripAvg()) : 0;
+  confirmBox('시험 모드를 시작할까요? 3시간 30분 타이머가 돌고, 가이드, 할 일 목록, 정답 채우기, 시연 보기가 꺼져요. 다 끝나면 위의 제출하고 채점을 눌러요. 자유 모드에서 하던 작업은 그대로 남아요.'
+    + (prep ? ` 선 준비 시간: 선을 ${STRIP_N}가닥 꽂을 때마다 ${fmt(prep)}씩 더해요 (선 따기 연습 평균).` : SET.prepTime ? ' 선 따기 연습 기록이 없어서 선 준비 시간은 더하지 않아요.' : ''), () => {
     if (MODE !== 'prac') save();
-    const st = newState(false); st.exam = { on: true }; st.selfChk = {}; setMode('exam', st); save(); say('시험 시작. 남은 시간 3:30:00', 'info');
+    const st = newState(false); st.exam = { on: true, prep }; st.selfChk = {}; setMode('exam', st); save(); say('시험 시작. 남은 시간 3:30:00', 'info');
   });
 }
 
@@ -5271,10 +5305,61 @@ const HM_IC = {
   prac: '<path d="M3 20h5v-5h5v-5h5V5h3"/><path d="M17 3l4 2-4 2"/>',
   free: '<path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L3.6 17.4a1.9 1.9 0 0 0 2.7 2.7l5.9-5.9a4 4 0 0 0 5.2-5.2l-2.4 2.4-2.4-.6-.6-2.4z"/>',
   exam: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 2.2M9.5 2.5h5M12 2.5V6M18.5 6.5l1.5-1.5"/>',
+  strip: '<path d="M3 12h7"/><path d="M10 10.5h4.5v3H10z"/><path d="M14.5 12H21" stroke-dasharray="1.5 1.5"/><path d="M7 5l3 4M7 19l3-4"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.7 2.5c-.7.3-1.1.9-1.1 1.6v.7"/><circle cx="12" cy="17.3" r=".7" fill="currentColor"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>'
 };
 const LOCK_IC = '<svg class="lk" viewBox="0 0 24 24" aria-label="잠김"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+/* --- 선 따기 연습: 실제 전선으로 20가닥씩 만들고 시간과 불량을 적는다 (이 브라우저에 저장) --- */
+const STRIP_KEY = STORE + '.strip', STRIP_N = 20, STRIP_SETS = 6;
+const STRIP_CK = [['len', '벗긴 길이가 단자(8mm)와 안 맞음'], ['cut', '심선이 잘리거나 흩어짐'], ['crimp', '압착 뒤 구리선이 보이거나 피복이 물림'], ['pull', '당기면 빠짐']];
+function stripData() { try { const o = JSON.parse(localStorage.getItem(STRIP_KEY) || 'null'); if (o && Array.isArray(o.runs)) return o; } catch (e) { /* 무시 */ } return { runs: [], cur: null }; }
+function stripSave(d) { try { localStorage.setItem(STRIP_KEY, JSON.stringify(d)); } catch (e) { /* 저장할 수 없는 환경 */ } }
+const stripAvg = (d = stripData()) => { const r = d.runs.slice(-5); return r.length ? r.reduce((a, x) => a + x.t, 0) / r.length : 0; };   // 최근 5세트 평균 (ms)
+const stripBad = r => r.bad ? Object.values(r.bad).reduce((a, b) => a + b, 0) : 0;
+const perWire = t => (t / STRIP_N / 1000).toFixed(1) + '초';
+function stripChart(runs) {   // 세트 시간 꺾은선 (최근 20세트, 위가 빠름)
+  const r = runs.slice(-20); if (r.length < 2) return '';
+  const W = 520, H = 120, t = r.map(x => x.t / 1000), lo = Math.min(...t), hi = Math.max(...t), sp = Math.max(1, hi - lo), X = i => 34 + i * (W - 50) / (r.length - 1), Y = v => 12 + (v - lo) / sp * (H - 30);
+  return `<svg class="st-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="세트 시간 변화"><path d="M34 ${H - 14}H${W - 10}" stroke="rgba(255,255,255,.14)"/><text x="4" y="${F(Y(hi) + 4)}" fill="#7f8d95" font-size="10">${fmt(hi * 1000)}</text><text x="4" y="${F(Y(lo) + 4)}" fill="#7f8d95" font-size="10">${fmt(lo * 1000)}</text>`
+    + `<path d="M${t.map((v, i) => F(X(i)) + ' ' + F(Y(v))).join('L')}" fill="none" stroke="#f3c11b" stroke-width="2" stroke-linejoin="round"/>${t.map((v, i) => `<circle cx="${F(X(i))}" cy="${F(Y(v))}" r="3" fill="${stripBad(r[i]) ? '#ff6b6b' : '#f3c11b'}"><title>${fmt(v * 1000)}, 불량 ${stripBad(r[i])}</title></circle>`).join('')}</svg>`;
+}
+function homeStripHTML() {
+  const d = stripData(), avg = stripAvg(d), best = d.runs.length ? Math.min(...d.runs.map(r => r.t)) : 0, cur = d.cur, ck = UI.stripChk, rec = d.runs.slice(-5), badR = rec.length ? rec.reduce((a, r) => a + stripBad(r), 0) / (rec.length * STRIP_N) : 0;
+  let h = `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>선 따기 연습</h1><span class="hm-prog">${d.runs.length}세트 · ${d.runs.length * STRIP_N}가닥</span></div>`
+    + `<p class="hm-rule">실제 전선과 공구로 해요. 한 세트는 ${STRIP_N}가닥: 자르기 → 피복 벗기기 → 페놀 단자 압착. 시험에서는 ${STRIP_SETS}세트(${STRIP_N * STRIP_SETS}가닥)를 만들어요. <b>시작</b>을 누르고 ${STRIP_N}가닥을 다 만들면 <b>끝</b>을 눌러요. 끝나면 한 가닥씩 점검해서 불량 개수를 적어요.</p><div class="st-grid"><div class="st-card">`;
+  if (ck) {
+    h += `<div class="st-clock">${fmt(ck.t)}</div><p class="st-sub">가닥당 ${perWire(ck.t)} · 한 가닥씩 점검해서 불량 개수를 적어요</p><div class="st-ck">`
+      + STRIP_CK.map(([k, t]) => `<div class="st-row"><span>${t}</span><button data-home="s-ck" data-k="${k}" data-d="-1" aria-label="줄이기">−</button><b>${ck.bad[k] || 0}</b><button data-home="s-ck" data-k="${k}" data-d="1" aria-label="늘리기">+</button></div>`).join('')
+      + `</div><div class="st-btns"><button class="hm-go" data-home="s-save">기록 저장</button><button class="hm-chip" data-home="s-discard">버리기</button></div>`;
+  } else if (cur) h += `<div class="st-clock" id="stClock">${fmt(Date.now() - cur)}</div><p class="st-sub">${STRIP_N}가닥을 다 만들면 끝을 눌러요</p><div class="st-btns"><button class="hm-go" data-home="s-stop">끝 (${STRIP_N}가닥 다 만듦)</button><button class="hm-chip" data-home="s-cancel">취소</button></div>`;
+  else h += `<div class="st-clock">${avg ? fmt(avg) : '0:00'}</div><p class="st-sub">${avg ? `최근 ${rec.length}세트 평균 · 가닥당 ${perWire(avg)}` : '아직 기록이 없어요'}</p><div class="st-btns"><button class="hm-go" data-home="s-start">시작 (${STRIP_N}가닥)</button></div>`;
+  h += '</div><div class="st-card"><div class="st-stats">'
+    + [['최근 5세트 평균', avg ? fmt(avg) : '-'], ['가닥당', avg ? perWire(avg) : '-'], ['최고 기록', best ? fmt(best) : '-'], [`${STRIP_N * STRIP_SETS}가닥 예상`, avg ? fmt(avg * STRIP_SETS) : '-'], ['불량률 (최근 5세트)', rec.length ? Math.round(badR * 100) + '%' : '-']].map(([k, v]) => `<div><small>${k}</small><b>${v}</b></div>`).join('')
+    + `</div>${stripChart(d.runs)}<p class="st-note">설정의 <b>시험: 선 준비 시간 더하기</b>가 켜져 있으면, 시험 모드에서 선을 ${STRIP_N}가닥 꽂을 때마다 최근 5세트 평균만큼 시험 시간이 더해져요 (${STRIP_SETS}세트까지).</p></div></div>`;
+  if (d.runs.length) h += '<ol class="st-list">' + d.runs.map((r, i) => [r, i]).reverse().map(([r, i]) => `<li><span>${i + 1}세트</span><span>${new Date(r.at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}</span><b>${fmt(r.t)}</b><span>가닥당 ${perWire(r.t)}</span><span class="${stripBad(r) ? 'bad' : ''}">불량 ${stripBad(r)}</span><button class="hm-chip" data-home="s-del" data-i="${i}" aria-label="${i + 1}세트 기록 지우기">지우기</button></li>`).join('') + '</ol>';
+  return h + '</div>';
+}
+function stripAct(a, b) {
+  const d = stripData();
+  if (a === 's-start') { d.cur = Date.now(); stripSave(d); }
+  else if (a === 's-cancel') { d.cur = null; stripSave(d); }
+  else if (a === 's-stop' && d.cur) { UI.stripChk = { t: Date.now() - d.cur, bad: {} }; d.cur = null; stripSave(d); }
+  else if (a === 's-ck' && UI.stripChk) { const k = b.dataset.k, c = UI.stripChk.bad; c[k] = clamp((c[k] || 0) + +b.dataset.d, 0, STRIP_N); }
+  else if (a === 's-save' && UI.stripChk) { d.runs.push({ t: UI.stripChk.t, at: Date.now(), bad: UI.stripChk.bad }); UI.stripChk = null; stripSave(d); say(`${STRIP_N}가닥 기록을 저장했어요`, 'ok'); }
+  else if (a === 's-discard') UI.stripChk = null;
+  else if (a === 's-del') { if (!confirm(`${+b.dataset.i + 1}세트 기록을 지울까요?`)) return; d.runs.splice(+b.dataset.i, 1); stripSave(d); }
+  renderHome();
+}
+function stripTick() { clearInterval(UI.stripT); if (UI.homePage !== 'strip' || $('#home').hidden || !stripData().cur) return; UI.stripT = setInterval(() => { const el = $('#stClock'), c = stripData().cur; if (!el || !c || $('#home').hidden || UI.homePage !== 'strip') return clearInterval(UI.stripT); el.textContent = fmt(Date.now() - c); }, 250); }
+// 시험: 꽂은 선이 새로 20가닥을 넘을 때마다 내 선 준비 시간 (6세트까지, 그 뒤는 한 가닥씩)
+function prepCharge() {
+  const p = S.exam && S.exam.on && S.exam.prep; if (!p) return;
+  const f = n => Math.min(STRIP_SETS, Math.ceil(n / STRIP_N)) * p + Math.max(0, n - STRIP_N * STRIP_SETS) * p / STRIP_N, n = S.wires.length, hw = S.prepN || 0;
+  if (n <= hw) return; const add = f(n) - f(hw); S.prepN = n; if (add <= 0) return;
+  S.elapsed += add; S.prepMs = (S.prepMs || 0) + add; save();
+  if (add >= p * .99) say(`선 ${STRIP_N}가닥 준비 (내 연습 평균): 시험 시간 +${fmt(add)}`, 'info');
+}
 const hmIc = k => `<span class="hm-ic"><svg viewBox="0 0 24 24">${HM_IC[k]}</svg></span>`;
 function withState(st, fn) { const keep = S; S = st; buildTerms(); try { return fn(); } finally { S = keep; buildTerms(); } }
 function homeArt() {   // 장식 그림: 제어판, 조작판, 컨베이어 (배선이 그려지고 램프가 켜진다)
@@ -5315,6 +5400,7 @@ function homeMainHTML() {
     + `<button class="hm-card prac" data-home="prac">${hmIc('prac')}<b>연습 모드</b><p>챕터마다 한 가지씩. 할 자리를 알려주고, 다른 곳에 하면 실패</p><small>${nP} / ${LESSONS.length} 레슨 통과</small></button>`
     + `<button class="hm-card free" data-home="free">${hmIc('free')}<b>자유 모드</b><p>순서는 자유. 가이드를 켜고 끄며 처음부터 끝까지</p><small>${frTxt}</small></button>`
     + `<button class="hm-card exam" data-home="exam">${hmIc('exam')}<b>시험 모드</b><p>가이드 없이 실제 시험처럼. 제출하면 과제지 기준 채점</p><small>${exTxt}</small></button>`
+    + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
     + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
@@ -5340,7 +5426,7 @@ function homeHelpHTML() {
     + sec('2', '화면', '<ul><li><b>위</b>: 6단계 진행, 작업 시간, 실수, 버튼들 (메인, 채점표, 배선 목록, 회로도, 시연 보기, 조작판 뒤집기, 가이드, 되돌리기)</li><li><b>도구 줄</b>: 손, 양면테이프, 빨간 펜, 자, 장갑, 드릴, 드라이버, 스톱퍼, 견출지, 전선, 니퍼</li><li><b>왼쪽 재료함</b>: 부품. <b>오른쪽 할 일</b>: 해야 할 것과 진행</li><li>재료함, 할 일 모서리의 <b>화살표</b>를 누르면 접혀서 판이 넓어져요</li></ul>')
     + sec('3', '들고 놓기', '<ul><li>재료함의 부품을 누르면 <b>마우스에 붙어요</b>. 맞는 자리를 누르면 끼워지고, 빈 바닥을 누르면 내려놓아요</li><li>도구도 누르면 들어요. 들고 판을 눌러서 써요. 같은 도구를 다시 누르거나 <b>손</b>을 누르면 내려놔요</li><li><b>우클릭</b>: 들고 있는 부품은 재료함으로, 도구는 내려놓기</li><li>잘못했으면 <kbd>Ctrl</kbd>+<kbd>Z</kbd> 또는 되돌리기</li></ul>')
     + sec('4', '화면 움직이기', '<ul><li>멀리서 볼 때: 단자대·PLC·서보 단자 이름은 <b>큰 번호표</b>로, 마우스를 올린 단자는 이름이 크게 보여요. <kbd>Z</kbd>를 누르고 있으면 <b>돋보기</b> (설정에서 끄고 켜요)</li><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
-    + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트 → 손으로 덕트 이음부 8곳(가로 덕트가 붙는 세로 덕트 안쪽 벽) 부러뜨리기</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 교류 전원부, A, M, +24V, 0V는 묶음을 다 꽂을 때마다 선 정리, PLC 신호와 조작판은 같이 꽂고 나서 선 정리. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 전선은 한 가닥 80cm라(덕트로 더 멀리 가는 선만 길게) 꽂은 선은 길이 그대로 널브러져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 설정의 <b>자동 선 정리</b>를 켜면 자유 모드에서는 꽂자마자 알아서 넣고 접어요. 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 한쪽만 넣으면 나머지는 그대로 널브러져 있고, 두 끝을 다 넣으면 남는 길이가 고리로 튀어나와요. 선 정리 도구로 고리를 잡고 위나 아래로 곧게 끌면 세로 덕트 안에 지그재그로 접혀 들어가요. 고리 여러 개를 가로질러 끌면 한 번에 접혀요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽). 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>헬리컬 밴드</b>: 밴드를 들고 늘어진 조작판 선들을 가로질러 끌어 한 다발로 모은 뒤(선을 하나씩 눌러도 됨), 다발의 조작판(HMI) 쪽 끝(빨간 원)을 누른 채로 제어판 쪽으로 쭉 끌면 밴드가 다발을 감싸요. 중간에 놓으면 손으로 밴드 끝을 잡고 마저 밀어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
+    + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트 → 손으로 덕트 이음부 8곳(가로 덕트가 붙는 세로 덕트 안쪽 벽) 부러뜨리기</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 교류 전원부, A, M, +24V, 0V는 묶음을 다 꽂을 때마다 선 정리, PLC 신호와 조작판은 같이 꽂고 나서 선 정리. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 전선은 한 가닥 80cm라(덕트로 더 멀리 가는 선만 길게) 꽂은 선은 길이 그대로 널브러져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 설정의 <b>자동 선 정리</b>를 켜면 자유 모드에서는 꽂자마자 알아서 넣고 접어요. 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 한쪽만 넣으면 나머지는 그대로 널브러져 있고, 두 끝을 다 넣으면 남는 길이가 고리로 튀어나와요. 선 정리 도구로 고리를 잡고 위나 아래로 곧게 끌면 세로 덕트 안에 지그재그로 접혀 들어가요. 고리 여러 개를 가로질러 끌면 한 번에 접혀요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽). 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>선 따기 연습</b>: 메인의 선 따기 연습에서 실제 전선 20가닥을 만드는 시간을 재고, 끝나면 한 가닥씩 점검해 불량 개수를 적어요. 최근 5세트 평균이 쌓이면 시험 모드에서 선을 20가닥 꽂을 때마다 그만큼 시험 시간이 더해져요 (설정에서 끌 수 있어요)</li><li><b>합선</b>: MCB를 올렸을 때 R상과 T상이 바로 이어지면, 그 길에 퓨즈가 있으면 퓨즈가 끊어지고 없으면 MCB가 떨어져요</li><li><b>헬리컬 밴드</b>: 밴드를 들고 늘어진 조작판 선들을 가로질러 끌어 한 다발로 모은 뒤(선을 하나씩 눌러도 됨), 다발의 조작판(HMI) 쪽 끝(빨간 원)을 누른 채로 제어판 쪽으로 쭉 끌면 밴드가 다발을 감싸요. 중간에 놓으면 손으로 밴드 끝을 잡고 마저 밀어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
     + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
@@ -5348,8 +5434,8 @@ function homeHelpHTML() {
 }
 function renderHome() {
   const p = UI.homePage || 'main', el = $('#home');
-  el.innerHTML = p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : homeMainHTML();
-  el.scrollTop = 0;
+  el.innerHTML = p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : p === 'strip' ? homeStripHTML() : homeMainHTML();
+  el.scrollTop = 0; stripTick();
 }
 function showHome(page = 'main') {
   if (DEMO.on) demoClose(); if (TZ.id) tzClose();
@@ -5363,7 +5449,8 @@ $('#home').addEventListener('click', e => {
   const l = e.target.closest('[data-lesson]'); if (l) return pracStart(l.dataset.lesson);
   const b = e.target.closest('[data-home]'); if (!b) return;
   const a = b.dataset.home;
-  if (a === 'main' || a === 'prac' || a === 'help') { UI.homePage = a; renderHome(); return; }
+  if (a === 'main' || a === 'prac' || a === 'help' || a === 'strip') { UI.homePage = a; UI.stripChk = null; renderHome(); return; }
+  if (a.startsWith('s-')) return stripAct(a, b);
   if (a === 'free') return goFree();
   if (a === 'exam') return goExam();
   if (a === 'demo') { goFree(); return demoOpen(); }
