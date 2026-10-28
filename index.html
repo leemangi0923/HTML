@@ -3223,11 +3223,10 @@ function dressGuide(ws) {   // 가이드 표시: 고를 단자들과 넣을 구�
   const w = ws.find(x => dressable(x) && x.ha && x.hb && !x.tk), m = w && loopGrip(w); return m ? C(m.x, m.y, 9, 'class="guide-ring"') : '';
 }
 const foldFits = (r, sl) => r >= 25 && Math.ceil(Math.max(0, sl) / (2 * r)) <= 4;   // 지그재그 4번 안으로 접히나
-const foldRoom = (near, far, sl) => foldFits(near, sl) ? near : far;   // 끈 쪽 끝에 자리가 모자라면 반대쪽 끝에서 같은 쪽으로 (자기 줄 옆을 따라)
 function tuckRoom(w) {   // 남는 길이와 접어 넣을 자리: 세로 덕트를 지나면 위·아래, 한 덕트 안이면 왼쪽·오른쪽
   const A = TERM[w.a], B = TERM[w.b], ha = holeOf(w.ha), hb = holeOf(w.hb), sl = wireLen(w) - ductNeed(A, B, ha.x, hb.x);
-  if (A.duct !== B.duct) { const y0 = Math.min(DUCT_Y[A.duct], DUCT_Y[B.duct]), y1 = Math.max(DUCT_Y[A.duct], DUCT_Y[B.duct]); return { v: true, sl, room: { u: foldRoom(y0 - 6, y1 - 6, sl), d: foldRoom(594 - y1, 594 - y0, sl) } }; }
-  const x0 = Math.min(ha.x, hb.x), x1 = Math.max(ha.x, hb.x); return { v: false, sl, room: { l: foldRoom(x0 - 86, x1 - 86, sl), r: foldRoom(674 - x1, 674 - x0, sl) } };
+  if (A.duct !== B.duct) { const y0 = Math.min(DUCT_Y[A.duct], DUCT_Y[B.duct]), y1 = Math.max(DUCT_Y[A.duct], DUCT_Y[B.duct]); return { v: true, sl, room: { u: y1 - 6, d: 594 - y0 } }; }   // 자리: 덕트 끝까지 + 자기 줄 길이
+  const x0 = Math.min(ha.x, hb.x), x1 = Math.max(ha.x, hb.x); return { v: false, sl, room: { l: x1 - 86, r: 674 - x0 } };
 }
 function tuckDir(w, dx, dy) {   // 끈 쪽으로 접을 수 있으면 그쪽, 반대쪽만 되면 null (반대로 끌라고), 둘 다 빠듯하면 그래도 끈 쪽. 끈 방향이 없으면 자리가 넓은 쪽
   const R = tuckRoom(w), ks = R.v ? ['u', 'd'] : ['l', 'r'], m = R.v ? dy : dx, want = Math.abs(m) >= 8 ? ks[m < 0 ? 0 : 1] : null, fits = k => foldFits(R.room[k], R.sl);
@@ -3313,21 +3312,25 @@ function loosePts(I, i) {   // 덜 넣은 선: 넣은 끝은 구멍으로 조금
   const P0 = pa[pa.length - 1], P1 = pb[pb.length - 1];
   return [...pa, ...slackCurve(P0, [0, A.dir], P1, [0, B.dir], wireLen(I.w) - pathLen(pa) - pathLen(pb), i), ...pb.reverse().slice(1)];
 }
-function tuckPts(I) {   // 다 넣은 선: 덕트를 따라가고, 남는 길이는 끈 쪽으로 지그재그 접는다
+function tuckPts(I) {   // 다 넣은 선: 덕트를 따라가고, 남는 길이는 끈 쪽 끝에서 자기 줄을 따라 접는다 (덕트 끝까지 자리 + 자기 줄 길이)
   const [A, B] = I.E, sa = I.segs[0], sb = I.segs[I.segs.length - 1], pa = intoHole(A, sa.y), pb = intoHole(B, sb.y).reverse();
-  const P = [...pa, ...(I.vs ? [[I.vs.x, sa.y], [I.vs.x, sb.y]] : []), ...pb], sl = wireLen(I.w) - pathLen(P);
+  let P = [...pa, ...(I.vs ? [[I.vs.x, sa.y], [I.vs.x, sb.y]] : []), ...pb]; const sl = wireLen(I.w) - pathLen(P);
   if (sl <= 4) return P;
-  const vert = !!I.vs, j = vert ? pa.length : pa.length - 1, tk = I.w.tk;   // 접는 자리: 세로 덕트 위·아래 끝, 또는 한 덕트 안 줄의 왼쪽·오른쪽 끝
-  let ia, sg, room, off, inside;   // inside: 끈 쪽 끝에 자리가 없어 반대쪽 끝에서 자기 줄 옆을 따라 접음
-  if (vert) {
-    const top = P[j][1] <= P[j + 1][1] ? j : j + 1, bot = top === j ? j + 1 : j, up = tk === 'u' || (tk !== 'd' && P[top][1] - 6 > 594 - P[bot][1]);
-    inside = !foldFits(up ? P[top][1] - 6 : 594 - P[bot][1], sl); ia = up !== inside ? top : bot; sg = up ? -1 : 1; room = up ? P[ia][1] - 6 : 594 - P[ia][1]; off = P[ia][0] < (I.vs.d === 'dL' ? 60 : 700) ? 1.1 : -1.1;
-  } else {
-    const lf = P[j][0] <= P[j + 1][0] ? j : j + 1, rt = lf === j ? j + 1 : j, left = tk === 'l' || (tk !== 'r' && P[lf][0] - 86 > 674 - P[rt][0]);
-    inside = !foldFits(left ? P[lf][0] - 86 : 674 - P[rt][0], sl); ia = left !== inside ? lf : rt; sg = left ? -1 : 1; room = left ? P[ia][0] - 86 : 674 - P[ia][0]; off = P[ia][1] < SLOT[sa.d].y + 20 ? 1.1 : -1.1;
-  }
-  P.splice(ia + 1, 0, ...zigzag(P[ia], vert, sg, off, sl, room, inside));
-  return P;
+  const vert = !!I.vs, j = vert ? pa.length : pa.length - 1, tk = I.w.tk, ax = vert ? 1 : 0;   // 접는 자리: 세로 덕트 위·아래 끝, 또는 한 덕트 안 줄의 왼쪽·오른쪽 끝
+  const lo = P[j][ax] <= P[j + 1][ax] ? j : j + 1, hi = lo === j ? j + 1 : j, end0 = vert ? 6 : 86, end1 = vert ? 594 : 674;
+  const neg = vert ? (tk === 'u' || (tk !== 'd' && P[lo][1] - end0 > end1 - P[hi][1])) : (tk === 'l' || (tk !== 'r' && P[lo][0] - end0 > end1 - P[hi][0]));
+  let ia = neg ? lo : hi; const sg = neg ? -1 : 1, room = Math.max(0, neg ? P[ia][ax] - end0 : end1 - P[ia][ax]), span = Math.abs(P[j][ax] - P[j + 1][ax]);
+  const off = vert ? (P[ia][0] < (I.vs.d === 'dL' ? 60 : 700) ? 1 : -1) : (P[ia][1] < SLOT[sa.d].y + 20 ? 1 : -1);
+  const rev = ia === j + 1; if (rev) { P = P.reverse(); ia = P.length - 1 - ia; }   // 접은 뒤 자기 줄을 따라 이어지게 (뒤쪽 끝이면 거꾸로 놓고 접는다)
+  P.splice(ia + 1, 0, ...foldAlong(P[ia], vert, sg, off, sl, room, span));
+  return rev ? P.reverse() : P;
+}
+function foldAlong(Q, vert, sg, side, sl, room, span) {   // Q에서 sg 쪽(덕트 끝 쪽)으로 room, 반대쪽(자기 줄 위)으로 span까지 쓰며 남는 길이 sl을 접는다. 접는 줄은 옆으로 조금씩 (모두 합쳐 4mm 안)
+  let n = 1, f = sl / 2, far = f;
+  if (f > room) { for (n = 2; n < 24; n++) { f = (sl - 2 * room) / (2 * n - 2); if (f <= room + span) break; } far = room; }
+  const off = side * Math.min(1.1, 4 / Math.max(1, 2 * n - 1)), near = far - f, at = (a, c) => vert ? [Q[0] + c, Q[1] + sg * a] : [Q[0] + sg * a, Q[1] + c], Z = [];
+  for (let p = 0; p < 2 * n; p++) { const a = p % 2 ? near : far; Z.push(at(a, p * off)); if (p < 2 * n - 1) Z.push(at(a, (p + 1) * off)); }
+  return Z;
 }
 function zigzag(Q, vert, sg, off, sl, room, inside) {   // Q에서 sg 쪽으로 길이 sl을 지그재그로 접은 점들 (Q 뺌). off: 접을 때마다 옆으로 비키는 거리. inside: 자기 줄 옆을 따라 (처음부터 비켜서)
   const n = clamp(Math.ceil(sl / (2 * Math.max(room, 10))), 1, 8), f = sl / (2 * n), c0 = inside ? 1 : 0, at = (a, c) => vert ? [Q[0] + c, Q[1] + sg * a] : [Q[0] + sg * a, Q[1] + c], Z = inside ? [at(0, off)] : [];
