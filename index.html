@@ -545,6 +545,21 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
   .meta { margin-left: 0; width: 100%; }
   .brand { font-size: 14px; }
 }
+.term-search { position: absolute; z-index: 12; top: 64px; left: 28px; width: min(350px, calc(100% - 56px)); max-height: calc(100% - 100px); overflow: auto; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 12px; box-shadow: 0 4px 18px #0004; }
+.term-search[hidden] { display: none; }
+.search-head, .search-row { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+.search-head label { font-weight: 700; }
+.term-search input { width: 100%; margin-top: 8px; padding: 8px; background: var(--panel2); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; }
+.term-search button, .score-locate { cursor: pointer; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel2); color: var(--ink); }
+.term-search p { font-size: 12px; margin: 8px 0; }
+.search-results { max-height: 220px; overflow: auto; margin-bottom: 8px; }
+.search-row { padding: 6px 0; border-top: 1px solid var(--line); }
+.search-row > span { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.search-row small { display: block; color: var(--muted); }
+.search-row button { flex: none; }
+.inspect-wire { fill: none; stroke: #06b6d4; stroke-width: 5; stroke-opacity: .85; vector-effect: non-scaling-stroke; }
+.inspect-mark { fill: none; stroke: #ef4444; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.score-locate { display: block; margin-top: 5px; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -559,6 +574,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
       <button class="chip-btn" id="btnExam" hidden>제출하고 채점</button>
       <button class="chip-btn" id="btnScore">채점표</button>
       <button class="chip-btn" id="btnWires">배선 목록</button>
+      <button class="chip-btn" id="btnFind" aria-expanded="false" aria-controls="termSearch">단자 검색</button>
       <button class="chip-btn" id="btnCirc">회로도</button>
       <button class="chip-btn" id="btnDemo">시연 보기</button>
       <button class="chip-btn" id="btnFlip"></button>
@@ -572,6 +588,13 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
     <aside class="tray"><div class="pane-in"><h2 class="ph">재료함</h2><div class="tray-list" id="tray"></div></div></aside>
     <section class="stage-area">
       <div class="board-wrap" id="boardWrap">
+        <section id="termSearch" class="term-search" aria-label="단자 검색 및 연결 추적" hidden>
+          <div class="search-head"><label for="termQuery">단자 검색</label><button id="termClose" type="button">닫기</button></div>
+          <input id="termQuery" type="search" placeholder="예: R3, PLC P20, TB 1번, 부저" autocomplete="off">
+          <p class="muted">설치된 단자를 검색해요. 연결 추적은 꽂은 전선과 고정 공통선만 따라가요. 접점 상태·전압은 테스터로 확인해요.</p>
+          <p id="termCount" role="status" aria-live="polite"></p><div id="termResults" class="search-results"></div>
+          <button id="termClear" type="button">강조 지우기</button>
+        </section>
         <svg id="board" preserveAspectRatio="none" role="img" aria-label="작업 판">
           <defs>
             <pattern id="pGrid" width="50" height="50" patternUnits="userSpaceOnUse">
@@ -1973,6 +1996,7 @@ function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'nul
 function snap() { undoStack.push(JSON.stringify(S)); if (undoStack.length > 80) undoStack.shift(); }
 function undo() {
   if (!undoStack.length) return say('되돌릴 작업이 없어요', 'info');
+  clearInspection();
   const keep = { mistakes: S.mistakes, mlog: S.mlog, violations: S.violations, hints: S.hints, guide: S.guide, elapsed: S.elapsed, stageEl: S.stageEl, exam: S.exam, usedFill: S.usedFill, selfChk: S.selfChk, finished: S.finished, prepN: S.prepN, prepMs: S.prepMs };
   S = JSON.parse(undoStack.pop()); Object.assign(S, keep); UI.carry = null; UI.pending = null; say('되돌렸어요', 'info'); commit();
 }
@@ -2527,7 +2551,7 @@ function effects() {
   if (S.gloves) S.gloveOnDone = true;
   if (S.gloveOnDone && !S.gloveOffDone && nHoles() === 29 && !S.gloves) S.gloveOffDone = true;
 }
-function commit() { effects(); buildTerms(); if (MODE === 'free' && SET.autoDress) autoDressNew(); if (MODE === 'prac') pracAfter(); renderAll(); save(); if (MODE !== 'prac') stepToasts(); if (UI.tieLost) { say(`전선 길이 바뀌어서 케이블 타이 ${UI.tieLost}개가 풀렸어요. 다시 묶어요`, 'info'); UI.tieLost = 0; } if (MODE !== 'prac') maybeComplete(); }
+function commit() { clearInspection(); effects(); buildTerms(); if (MODE === 'free' && SET.autoDress) autoDressNew(); if (MODE === 'prac') pracAfter(); renderAll(); save(); if (MODE !== 'prac') stepToasts(); if (UI.tieLost) { say(`전선 길이 바뀌어서 케이블 타이 ${UI.tieLost}개가 풀렸어요. 다시 묶어요`, 'info'); UI.tieLost = 0; } if (MODE !== 'prac') maybeComplete(); }
 function stepToasts() {
   const st = STAGES.flatMap(k => stepsFor(k)), d = st.map(s => s.done);
   if (S.exam && S.exam.on) { UI.lastDone = d; return; }
@@ -2595,6 +2619,7 @@ function askFill(k) {
   confirmBox(`'${GROUP_TITLE[k]}' 작업을 정답대로 채울까요? 그 작업은 건너뛰고 다른 작업만 연습할 때 써요. 정답 채우기를 쓰면 시간점수는 없어요.`, () => { snap(); fillGroup(k); S.usedFill = true; UI.carry = null; UI.pending = null; commit(); });
 }
 function jumpTo(n) {
+  clearInspection(); closeTermSearch();
   liveReset();
   const g = S.guide; S = newState(g);
   for (let k = 0; k < n; k++) fillStage(k);
@@ -3804,6 +3829,7 @@ function renderOver() {
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
   if (MODE === 'prac' && PRAC.hl) s += PRAC.hl;   // 연습: 할 자리
   if (MODE === 'prac' && PRAC.L && PRAC.L.wg !== undefined) pracDia();   // 단자 하나를 누르면 그 선이 빨강
+  s += inspectionOverlay();
   s += bigLabels(px1);   // 멀리서도 단자 이름
   if (SET.termName && p && UI.overBoard && !(UI.gesture && UI.gesture.moved)) { const t = termNear(p, tolMM(12)); if (t) s += hoverTag(p, wireName(t.id), px1); }
   gOver.innerHTML = s; lensUpdate();
@@ -3824,6 +3850,109 @@ function statusText() {
   if (UI.carry) { const it = trayItems().find(i => i.key === UI.carry.key), n = UI.carry.count || 1; return `${it ? it.name : '부품'}${n > 1 ? ' ' + n + '개를' : '을(를)'} 들고 있어요. 누를 때마다 하나씩 내려놓아요. 재료함을 누르면 다시 넣어요`; }
   return `${toolName(S.tool)}: ${TOOL_HELP[S.tool]}${S.gloves ? ' (장갑 끼는 중)' : ''}`;
 }
+
+
+/* ---------- 채점 위치 찾기 · 설치된 단자 검색 · 실제 배선 추적 ---------- */
+function clearInspection() { UI.inspection = null; }
+function closeTermSearch() { $('#termSearch').hidden = true; $('#btnFind').setAttribute('aria-expanded', 'false'); }
+function termCatalog() {
+  return withAllTerms(() => TERMS.map(t => {
+    const op = t.op && Object.values(OP.answer).find(a => a.sym === t.dev);
+    const inst = S.inst.find(i => UI.nm[i.id] === t.dev);
+    const name = op ? OP_TYPES[op.type].name : inst ? DEV[inst.type].name : t.dev === 'SV' ? '서보 드라이버' : '';
+    return { ...t, nm: `${t.nm}${name ? ' · ' + name : ''}` };
+  }));
+}
+function searchTerms(query) {
+  const norm = v => String(v).toUpperCase().replace(/[.\s_()번·−-]/g, '');
+  const q = norm(query);
+  return q ? termCatalog().filter(t => norm(t.id + ' ' + t.nm).includes(q)).sort((a, b) => (norm(a.id) !== q) - (norm(b.id) !== q) || a.id.localeCompare(b.id, 'ko', { numeric: true })) : [];
+}
+function renderTermResults() {
+  const q = $('#termQuery').value, rows = searchTerms(q), shown = rows.slice(0, 60);
+  $('#termCount').textContent = !q.trim() ? '단자 기호나 이름을 입력하세요.' : !rows.length ? '검색 결과가 없어요. 기구가 설치되어 있는지 확인하세요.' : `${rows.length}개 단자${rows.length > 60 ? ' · 처음 60개 표시, 검색어를 더 입력하세요' : ''}`;
+  $('#termResults').innerHTML = shown.map(t => `<div class="search-row"><span><b>${esc(t.id)}</b><small>${esc(t.nm)}</small></span><button data-term="${esc(t.id)}" data-trace="0">위치</button><button data-term="${esc(t.id)}" data-trace="1">연결 추적</button></div>`).join('');
+}
+// 고정 공통선과 사용자가 꽂은 선만 추적한다. 릴레이·스위치 접점의 통전 여부를 뜻하지 않는다.
+function tracedTermIds(id) {
+  const edges = [...staticLinks(S.wires)];
+  for (const [k, dest] of Object.entries(convLeads())) if (dest) edges.push(['CV.' + k, dest]);
+  const graph = new Map();
+  for (const [a, b] of edges) { if (!graph.has(a)) graph.set(a, []); if (!graph.has(b)) graph.set(b, []); graph.get(a).push(b); graph.get(b).push(a); }
+  const seen = new Set([id]), queue = [id];
+  for (let n = 0; n < queue.length; n++) for (const next of graph.get(queue[n]) || []) if (!seen.has(next)) { seen.add(next); queue.push(next); }
+  return seen;
+}
+function inspectTerms(id, trace) {
+  const all = termCatalog(); if (!all.some(t => t.id === id)) return say('이 단자는 지금 설치되어 있지 않아요. 다시 검색하세요', 'info');
+  const ids = trace ? tracedTermIds(id) : new Set([id]);
+  if ([...ids].some(k => k.startsWith('OP.'))) S.opBack = true;
+  buildTerms();
+  UI.inspection = { id, trace, boxes: [], rings: [], terms: [id] };
+  closeTermSearch(); closeModal(); renderAll();
+  const t = TERM[id], visible = trace ? all.filter(t => ids.has(t.id)) : [t], points = [...visible];
+  if (trace) S.wires.forEach((w, i) => { if (ids.has(w.a) && ids.has(w.b)) for (const [x, y] of wirePts(w, i) || []) points.push({ x, y }); });
+  const x = Math.min(...points.map(t => t.x)), y = Math.min(...points.map(t => t.y));
+  fitTo({ x: x - 60, y: y - 60, w: Math.max(200, Math.max(...points.map(t => t.x)) - x + 120), h: Math.max(160, Math.max(...points.map(t => t.y)) - y + 120) });
+  say(trace ? `${id}: 연결된 단자 ${visible.length}개와 전선을 강조했어요` : `${id}: ${wireName(id)}`, 'info');
+}
+function inspectionOverlay() {
+  const v = UI.inspection; if (!v) return '';
+  const ids = v.id ? (v.trace ? tracedTermIds(v.id) : new Set([v.id])) : new Set(v.terms || []);
+  let out = '';
+  if (v.trace) S.wires.forEach((w, i) => { if (!ids.has(w.a) || !ids.has(w.b)) return; const pts = wirePts(w, i); if (pts) out += `<path class="inspect-wire" d="${roundPath(pts, 3)}"/>`; });
+  if (v.trace) for (const [k, dest] of Object.entries(convLeads())) { const a = TERM['CV.' + k], b = TERM[dest]; if (a && b && ids.has(a.id) && ids.has(dest)) out += LN(a.x, a.y, b.x, b.y, 'class="inspect-wire"'); }
+  for (const id of ids) if (TERM[id]) out += C(TERM[id].x, TERM[id].y, id === v.id ? 6 : 4, 'class="inspect-mark"');
+  for (const b of v.boxes || []) out += R(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 'class="inspect-mark" rx="3"');
+  for (const r of v.rings || []) out += C(r.x, r.y, r.r || 12, 'class="inspect-mark"');
+  return `<g id="inspectionMarks" pointer-events="none">${out}</g>`;
+}
+function scoreLocation(no) {
+  const boxes = [], rings = [], terms = []; let view = P_V.panel, back = S.opBack;
+  const devices = types => { for (const i of S.inst) if (types.includes(i.type)) boxes.push(devBox(i)); };
+  if (no === '1-1') {
+    const ref = pracRef();
+    const counts = {};
+    for (const i of ref.inst) { counts[i.type] = (counts[i.type] || 0) + 1; if (devCount(i.type) < counts[i.type]) boxes.push(devBox(i)); }
+    for (const rail of ['c1', 'c2', 'c3']) if (JSON.stringify(groupsT(rail).map(g => g.types)) !== JSON.stringify(GROUPS[rail])) for (const i of S.inst.filter(i => i.rail === rail)) boxes.push(devBox(i));
+    if (!S.servo.placed || !S.servo.bolted) boxes.push(SERVO);
+  } else if (no === '1-2' || no === '3-4') {
+    back = false; view = P_V.op;
+    if (no === '1-2') { if (!S.op.hmi) boxes.push({ x: OPW.x + OP.cut.x, y: OPW.y + OP.cut.y, w: OP.cut.w, h: OP.cut.h }); for (const h of Object.keys(OP.holes)) if (!S.op.dev[h]) rings.push(opHole(h)); }
+    else for (const z of OP_ZONES) if (!S.op.labels[z.id]) boxes.push({ x: OPW.x + z.x, y: OPW.y + z.y, w: z.w, h: z.h });
+  } else if (no === '1-3') {
+    for (const [id, q] of frList()) if (!q.slot || !q.stuck || !q.bolted || (q.type === 'duct' && !q.covered)) boxes.push(q.slot ? frRect(q) : frRect(pracRef().fr[id]));
+  } else if (no === '2-1') {
+    for (const i of S.inst.filter(i => i.type === 'fuse')) for (let k = 0; k < 2; k++) if (!(S.fuses[i.id] || [])[k]) boxes.push(fuseRect(i, k));
+  } else if (no.startsWith('2-')) {
+    view = P_V.live; back = true;
+    const types = { '2-2': ['mcb', 'fuse', 'smps'], '2-3': ['relay', 'plc'], '2-4': ['relay', 'plc'], '2-5': ['relay'], '2-6': ['relay', 'timer'], '2-7': ['relay', 'timer'], '2-8': ['relay', 'timer'], '2-9': ['relay', 'timer'], '2-10': ['relay'] };
+    devices(types[no] || []);
+    const prefixes = { '2-2': ['OP.WL1'], '2-3': ['OP.PB1', 'OP.WL2'], '2-4': ['OP.PB1', 'OP.WL2'], '2-5': ['OP.SS', 'OP.RL'], '2-6': ['CV.S1', 'CV.FR', 'OP.GL'], '2-7': ['CV.S2', 'CV.FR', 'OP.GL'], '2-8': ['CV.S2', 'CV.BR', 'OP.YL'], '2-9': ['CV.S1', 'CV.BR', 'OP.YL'], '2-10': ['OP.PB0', 'CV.FR', 'CV.BR'] };
+    terms.push(...termCatalog().filter(t => (prefixes[no] || []).some(p => t.id === p || t.id.startsWith(p + '.'))).map(t => t.id));
+  } else if (no === '3-1') {
+    for (const e of groupEnds()) if (!e.ok) boxes.push({ x: e.x, y: ROW[RAIL_ROW[e.rail]].cy - 23, w: STOPPER_W, h: 46 });
+  } else if (no === '3-3' || no === '(8)') { back = true; view = P_V.op; boxes.push({ x: OPW.x, y: OPW.y, w: OP.w, h: OP.h }); }
+  else if (no === '(5)') { const b = tbRect(); if (b) boxes.push(b); }
+  else if (no === '(11)') { back = true; view = P_V.live; for (const w of tbBypass()) terms.push(w.a, w.b); }
+  if (!boxes.length && !rings.length && !terms.length) boxes.push(view);
+  return { boxes, rings, terms, view, back };
+}
+function locateScore(no) {
+  if (S.exam && S.exam.on) return;
+  const row = scoreSheet().rows.find(r => r.no === no); if (!row || row.self || no === '4-1') return;
+  const v = scoreLocation(no); S.opBack = v.back; buildTerms(); UI.inspection = v;
+  closeModal(); renderAll();
+  const points = [...v.boxes.flatMap(b => [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y + b.h }]), ...v.rings.flatMap(r => [{ x: r.x - r.r, y: r.y - r.r }, { x: r.x + r.r, y: r.y + r.r }]), ...v.terms.map(id => TERM[id]).filter(Boolean)];
+  const x = Math.min(...points.map(p => p.x)), y = Math.min(...points.map(p => p.y));
+  fitTo(points.length ? { x: x - 30, y: y - 30, w: Math.max(120, Math.max(...points.map(p => p.x)) - x + 60), h: Math.max(100, Math.max(...points.map(p => p.y)) - y + 60) } : v.view);
+  say(`${row.t}: ${row.why || '관련 부품과 단자를 확인하세요'}. 관련 위치를 빨간색으로 표시했어요`, 'info');
+}
+$('#btnFind').addEventListener('click', () => { const open = $('#termSearch').hidden; $('#termSearch').hidden = !open; $('#btnFind').setAttribute('aria-expanded', String(open)); if (open) { renderTermResults(); $('#termQuery').focus(); } });
+$('#termClose').addEventListener('click', () => { closeTermSearch(); $('#btnFind').focus(); });
+$('#termClear').addEventListener('click', () => { clearInspection(); renderOver(); });
+$('#termQuery').addEventListener('input', renderTermResults);
+$('#termResults').addEventListener('click', e => { const b = e.target.closest('[data-term]'); if (b) inspectTerms(b.dataset.term, b.dataset.trace === '1'); });
 
 /* ---------- 채점표 (과제지 채점 기준 1-1 ~ 4-1) ---------- */
 const fmtPt = v => String(Math.round(v * 100) / 100);
@@ -3882,9 +4011,9 @@ function showScore() {
   h += `<div class="sc-total"><b>${fmtPt(total)}</b><span> / 30점</span></div><div class="score">`;
   for (const r of rows) {
     if (r.grp) { h += `<div class="sc-grp"><span>${esc(r.grp)}</span><span>${r.cond ? '' : `${fmtPt(r.sum)} / ${fmtPt(r.max)}`}</span></div>`; continue; }
-    if (r.cond !== undefined) { h += `<div class="sc-row ${r.cond ? 'ok' : 'zero'}"><span class="sc-no">${r.no}</span><span class="sc-t">${esc(r.t)}${r.why ? `<small>${esc(r.why)}</small>` : ''}</span><span class="sc-pt">${r.cond ? '지킴' : '안 함'}</span></div>`; continue; }
+    if (r.cond !== undefined) { h += `<div class="sc-row ${r.cond ? 'ok' : 'zero'}"><span class="sc-no">${r.no}</span><span class="sc-t">${esc(r.t)}${r.why ? `<small>${esc(r.why)}</small>` : ''}${!r.cond && r.no !== '(9)' && !(S.exam && S.exam.on) ? `<button class="score-locate" data-act="score-locate" data-no="${esc(r.no)}">관련 위치 보기</button>` : ''}</span><span class="sc-pt">${r.cond ? '지킴' : '안 함'}</span></div>`; continue; }
     const cls = r.got >= r.max - 1e-9 ? 'ok' : r.got > 0 ? 'part' : 'zero';
-    h += `<div class="sc-row ${cls}"><span class="sc-no">${r.no}</span><span class="sc-t">${esc(r.t)}${r.why && cls !== 'ok' || r.self || r.no === '3-2' || r.no === '4-1' ? `<small>${esc(r.why || '')}</small>` : ''}${r.self ? `<label class="sc-self"><input type="checkbox" data-self="${r.self}"${S.selfChk && S.selfChk[r.self] ? ' checked' : ''}> 했어요</label>` : ''}</span><span class="sc-pt">${fmtPt(r.got)}<small>/${fmtPt(r.max)}</small></span></div>`;
+    h += `<div class="sc-row ${cls}"><span class="sc-no">${r.no}</span><span class="sc-t">${esc(r.t)}${r.why && cls !== 'ok' || r.self || r.no === '3-2' || r.no === '4-1' ? `<small>${esc(r.why || '')}</small>` : ''}${!(S.exam && S.exam.on) && !r.self && r.no !== '4-1' && (r.cond === false || (r.max !== undefined && r.got < r.max)) ? `<button class="score-locate" data-act="score-locate" data-no="${esc(r.no)}">관련 위치 보기</button>` : ''}${r.self ? `<label class="sc-self"><input type="checkbox" data-self="${r.self}"${S.selfChk && S.selfChk[r.self] ? ' checked' : ''}> 했어요</label>` : ''}</span><span class="sc-pt">${fmtPt(r.got)}<small>/${fmtPt(r.max)}</small></span></div>`;
   }
   h += `</div><div class="actions"><button class="primary" data-act="close">닫기</button>${done ? '<button data-act="exam">시험 다시</button>' : ''}</div>`;
   openModal(h);
@@ -4218,6 +4347,7 @@ $('#modal').addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) { if (e.target === $('#modal') && UI.modalClosable) closeModal(); return; }
   const a = b.dataset.act;
+  if (a === 'score-locate') return locateScore(b.dataset.no);
   if (a === 'close') closeModal();
   else if (a === 'next') nextStage();
   else if (a === 'ok') { const f = UI.onOk; UI.onOk = null; closeModal(); if (f) f(); }
@@ -4742,6 +4872,8 @@ function tzFromPt(q) {   // 다이얼 가운데(20, 36.6)에서 본 각도 → �
 }
 document.addEventListener('keydown', e => {
   if (!$('#modal').hidden) { if (e.key === 'Escape' && UI.modalClosable) closeModal(); return; }
+  if (e.key === 'Escape' && !$('#termSearch').hidden) { closeTermSearch(); $('#btnFind').focus(); return; }
+  if (e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
   if (e.code === 'KeyZ' && !e.ctrlKey && !e.metaKey && !e.altKey && SET.lens && $('#home').hidden && !TZ.id) { e.preventDefault(); if (!UI.lens) { UI.lens = true; lensUpdate(); } return; }   // 돋보기: Z를 누르고 있는 동안
   if (!$('#xp').hidden) { const k = e.key; if (k === 'Escape') xpClose(); else if (k === 'ArrowRight' || k === 'ArrowLeft') { e.preventDefault(); xpGo(k === 'ArrowRight' ? 1 : -1); } return; }   // 회로 해설
   if (!$('#home').hidden) { if (e.key === 'Escape' && UI.homePage !== 'main') { UI.homePage = 'main'; renderHome(); } return; }   // 메인 화면
@@ -4764,7 +4896,7 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return undo(); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Escape') { if (UI.replug) return cancelReplug(); UI.carry = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
+  if (e.key === 'Escape') { clearInspection(); if (UI.replug) return cancelReplug(); UI.carry = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
   if (e.key === '+' || e.key === '=') return zoomCenter(1 / 1.3);
   if (e.key === '-') return zoomCenter(1.3);
   if (e.key === '0') return fit();
@@ -4794,7 +4926,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.1', date: '2026.10.20', notes: ['고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.2', date: '2026.10.29', notes: ['채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function fixState() {   // 예전에 저장한 상태를 지금 형식으로
   if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false };
@@ -4825,6 +4957,7 @@ function fixState() {   // 예전에 저장한 상태를 지금 형식으로
 }
 function setMode(m, st) {   // 모드와 그 모드의 작업 상태로 바꾼다
   if (DEMO.on) demoClose(); if (TZ.id) tzClose();
+  clearInspection(); closeTermSearch();
   MODE = m; S = st; fixState(); document.body.dataset.mode = m; if (m !== 'prac') PRAC.L = null;
   undoStack = []; UI.carry = null; UI.pending = null; UI.replug = null; UI.peek = false; UI.pickKey = null; UI.meter = null; liveReset(); closeModal();
   buildTerms(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(x => x.done); renderAll(); hideHome();
@@ -5431,6 +5564,7 @@ function homeHelpHTML() {
     + sec('4', '화면 움직이기', '<ul><li>멀리서 볼 때: 단자대·PLC·서보 단자 이름은 <b>큰 번호표</b>로, 마우스를 올린 단자는 이름이 크게 보여요. <kbd>Z</kbd>를 누르고 있으면 <b>돋보기</b> (설정에서 끄고 켜요)</li><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
     + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트 → 손으로 덕트 이음부 8곳(가로 덕트가 붙는 세로 덕트 안쪽 벽) 부러뜨리기</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 교류 전원부, A, M, +24V, 0V는 묶음을 다 꽂을 때마다 선 정리, PLC 신호와 조작판은 같이 꽂고 나서 선 정리. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 전선은 한 가닥 80cm라(덕트로 더 멀리 가는 선만 길게) 꽂은 선은 길이 그대로 널브러져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 설정의 <b>자동 선 정리</b>를 켜면 자유 모드에서는 꽂자마자 알아서 넣고 접어요. 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 한쪽만 넣으면 나머지는 그대로 널브러져 있고, 두 끝을 다 넣으면 남는 길이가 고리로 튀어나와요. 선 정리 도구로 고리를 잡고 위나 아래로 곧게 끌면 세로 덕트 안에 지그재그로 접혀 들어가요. 고리 여러 개를 가로질러 끌면 한 번에 접혀요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽). 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>선 따기 연습</b>: 메인의 선 따기 연습에서 실제 전선 20가닥을 만드는 시간을 재고, 끝나면 한 가닥씩 점검해 불량 개수를 적어요. 최근 5세트 평균이 쌓이면 시험 모드에서 선을 20가닥 꽂을 때마다 그만큼 시험 시간이 더해져요 (설정에서 끌 수 있어요)</li><li><b>합선</b>: MCB를 올렸을 때 R상과 T상이 바로 이어지면, 그 길에 퓨즈가 있으면 퓨즈가 끊어지고 없으면 MCB가 떨어져요</li><li><b>헬리컬 밴드</b>: 밴드를 들고 늘어진 조작판 선들을 가로질러 끌어 한 다발로 모은 뒤(선을 하나씩 눌러도 됨), 다발의 조작판(HMI) 쪽 끝(빨간 원)을 누른 채로 제어판 쪽으로 쭉 끌면 밴드가 다발을 감싸요. 중간에 놓으면 손으로 밴드 끝을 잡고 마저 밀어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
+    + sec('찾기', '단자 검색과 채점 복습', '<ul><li>위의 <b>단자 검색</b>에서 R3, PLC P20, TB 1번 또는 부저 같은 이름을 찾아요. 설치한 기구의 단자만 나와요.</li><li><b>위치</b>를 누르면 그 단자를 확대해요. <b>연결 추적</b>은 꽂은 전선과 고정 공통선으로 이어진 단자들을 표시해요. 접점 상태와 전압은 테스터로 확인해요.</li><li>자유 모드나 시험 제출 뒤 <b>채점표 → 관련 위치 보기</b>로 감점된 항목의 부품·단자를 확인해요. 강조는 Esc 또는 단자 검색의 <b>강조 지우기</b>로 지워요.</li></ul>')
     + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
@@ -5441,6 +5575,7 @@ function renderHome() {
   el.scrollTop = 0; stripTick();
 }
 function showHome(page = 'main') {
+  clearInspection(); closeTermSearch();
   if (DEMO.on) demoClose(); if (TZ.id) tzClose();
   UI.carry = null; UI.pending = null; UI.replug = null; if (S.tool !== 'hand') S.tool = 'hand';   // 들고 있던 도구, 부품은 내려놓는다
   if (MODE !== 'prac') save();
