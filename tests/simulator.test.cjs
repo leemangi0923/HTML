@@ -169,3 +169,134 @@ test('every available score location on an empty board has finite visible marks'
     assert.ok(await page.evaluate(() => Object.values(UI.cam).every(Number.isFinite)), no);
   }
 });
+
+async function clickWorld(x, y) {
+  const p = await page.evaluate(({x,y}) => { const r = svg.getBoundingClientRect(); return { x:r.left+(x-UI.cam.x)/UI.cam.w*r.width, y:r.top+(y-UI.cam.y)/UI.cam.h*r.height }; }, {x,y});
+  await page.mouse.click(p.x,p.y);
+}
+
+test('relay live diagram follows actual coil and all four contact poles through PB1 toggle', async () => {
+  await fullState();
+  await page.evaluate(() => { const d = deviceCatalog().find(d=>d.name==='R3'); openDevicePanel(d.key); LIVE.inp.mcb=true; liveStep(0); });
+  let state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='R3')));
+  assert.equal(state.coil,false); assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['9','1'],['10','2'],['11','3'],['12','4']]);
+  await page.evaluate(() => { liveDown('pb1'); liveRelease(); });
+  state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='R3')));
+  assert.equal(state.coil,true); assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['9','5'],['10','6'],['11','7'],['12','8']]);
+  assert.match(await page.locator('#deviceLive').textContent(), /코일 ON/);
+  assert.match(await page.locator('#deviceLive').textContent(), /9–5 닫힘/);
+  await page.evaluate(() => { liveDown('pb1'); liveRelease(); });
+  assert.match(await page.locator('#deviceLive').textContent(), /코일 OFF/);
+  assert.match(await page.locator('#deviceLive').textContent(), /9–1 닫힘/);
+});
+
+test('timer separates instantaneous contacts, delayed contacts, countdown, and power-off reset', async () => {
+  await fullState();
+  await page.evaluate(() => { openDevicePanel(deviceCatalog().find(d=>d.name==='T1').key); LIVE.inp.mcb=true; LIVE.inp.ss='M'; LIVE.pack=CONV.s1; liveStep(0); });
+  let state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='T1')));
+  assert.equal(state.coil,true); assert.equal(state.waiting,true);
+  assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['1','3'],['8','5']]);
+  await page.evaluate(() => liveStep(.5));
+  state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='T1')));
+  assert.equal(state.remaining,1.5); assert.match(await page.locator('[data-timer-status]').textContent(), /남은 1.5초/);
+  await page.evaluate(() => liveStep(1.5));
+  state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='T1')));
+  assert.equal(state.out,true); assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['1','3'],['8','6']]);
+  assert.match(await page.locator('[data-timer-status]').textContent(), /시간 완료/);
+  await page.evaluate(() => { LIVE.inp.mcb=false; liveStep(0); });
+  state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='T1')));
+  assert.equal(state.coil,false); assert.equal(state.out,false); assert.equal(state.elapsed,0);
+  assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['1',null],['8','5']]);
+  assert.match(await page.locator('[data-timer-status]').textContent(), /대기/);
+});
+
+test('displayed contact pairs agree with the circuit solver for every fitted and socket state', async () => {
+  await fullState();
+  const mismatches = await page.evaluate(() => {
+    const bad=[];
+    for (const name of [...RELAYS,...TIMERS]) for (const fitted of [false,true]) for (const on of [false,true]) for (const out of [false,true]) {
+      const d=deviceCatalog().find(d=>d.name===name); S.plug[d.id]=fitted;
+      LIVE.st.rel[name]=on;
+      if(d.type==='timer') LIVE.st.tim[name]={on, out, el:out?2:0};
+      const v=deviceContactState(d);
+      const r=evalOnce([],LIVE.st,{...LIVE.inp,plug:plugMap(),leads:{},fuses:{},cab:{power:false}});
+      for(const c of v.contacts) for(const target of [c.a,c.b].filter(Boolean)) {
+        const joined=r.f(name+'.'+c.com)===r.f(name+'.'+target);
+        if(joined !== (c.closed===target)) bad.push({name,fitted,on,out,com:c.com,target});
+      }
+    }
+    return bad;
+  });
+  assert.deepEqual(mismatches,[]);
+});
+
+test('unplugged relay and timer show no closed socket contacts', async () => {
+  await fullState();
+  for (const name of ['R1','T1']) {
+    await page.evaluate(name => { const d=deviceCatalog().find(d=>d.name===name); S.plug[d.id]=false; liveStep(0); openDevicePanel(d.key); renderOver(); },name);
+    assert.match(await page.locator('#deviceLive').textContent(),/미장착/);
+    assert.equal(await page.locator('#deviceLive .contact-closed').count(),0);
+    const state=await page.evaluate(name=>deviceContactState(deviceCatalog().find(d=>d.name===name)),name);
+    assert.equal(state.coil,false); assert.ok(state.contacts.every(c=>c.closed===null));
+  }
+});
+
+test('inspect tool opens a device by clicking its body and does not toggle MCB or remove hardware', async () => {
+  await fullState(); await page.evaluate(()=>fitPanel());
+  await page.locator('[data-tool="inspect"]').click();
+  const before=await page.evaluate(()=>JSON.stringify({inst:S.inst,plug:S.plug,wires:S.wires}));
+  const pos=await page.evaluate(()=>{const i=S.inst.find(i=>i.type==='mcb');return{x:i.x+17,y:devY(i)+41}});
+  await clickWorld(pos.x,pos.y);
+  assert.equal(await page.locator('#devicePanel').isVisible(),true);
+  assert.match(await page.locator('#deviceTitle').textContent(),/MCB/);
+  assert.equal(await page.evaluate(()=>LIVE.inp.mcb),false);
+  const relay=await page.evaluate(()=>{const d=deviceCatalog().find(d=>d.name==='R1');return{x:d.box.x+15,y:d.box.y+37}});
+  // Close the panel so the second click reaches the work board.
+  await page.locator('#deviceClose').click(); await clickWorld(relay.x,relay.y);
+  assert.match(await page.locator('#deviceTitle').textContent(),/R1/);
+  assert.equal(await page.evaluate(()=>JSON.stringify({inst:S.inst,plug:S.plug,wires:S.wires})),before);
+  assert.equal(await page.evaluate(()=>UI.carry),null);
+});
+
+test('all installed devices expose their terminal map and supported live state', async () => {
+  await fullState();
+  const items=await page.evaluate(()=>deviceCatalog().map(d=>({key:d.key,name:d.name,rows:deviceTerminalRows(d).length})));
+  assert.ok(items.length>25);
+  for (const d of items) {
+    await page.evaluate(key=>openDevicePanel(key),d.key);
+    assert.equal(await page.locator('#devicePins tbody tr').count(),d.rows,d.name);
+    assert.ok((await page.locator('#deviceTitle').textContent()).startsWith(d.name),d.name);
+    assert.equal(await page.locator('#deviceLive').isVisible(),true,d.name);
+  }
+  await page.evaluate(()=>openDevicePanel(deviceCatalog().find(d=>d.type==='fuse').key));
+  assert.match(await page.locator('#deviceLive').textContent(),/퓨즈 정상/);
+  await page.evaluate(()=>{const d=deviceCatalog().find(d=>d.type==='fuse');S.fuses[d.id][0]='f5x';liveStep(0)});
+  assert.match(await page.locator('#deviceLive').textContent(),/퓨즈 끊어짐/);
+});
+
+test('contact preference persists, exam hides helpers, and submission restores access', async () => {
+  await fullState(); assert.ok(await page.locator('#contactMarks').count()>0);
+  await page.locator('#btnContacts').click(); assert.equal(await page.locator('#contactMarks').count(),0);
+  await page.evaluate(()=>save());
+  await page.reload(); await page.waitForFunction(()=>window.SIM);
+  assert.equal(await page.evaluate(()=>SET.contacts),false);
+  await page.locator('[data-home="free"]').click(); await page.locator('#btnContacts').click();
+  await page.evaluate(()=>{const st=pClone(S);st.exam={on:true};setMode('exam',st);openDevicePanel('inst:i7');});
+  assert.equal(await page.locator('#btnContacts').isHidden(),true);
+  assert.equal(await page.locator('[data-tool="inspect"]').count(),0);
+  assert.equal(await page.locator('#contactMarks').count(),0);
+  assert.equal(await page.locator('#devicePanel').isHidden(),true);
+  await page.evaluate(()=>{S.exam.on=false;S.exam.done=true;renderAll();openDevicePanel(deviceCatalog().find(d=>d.name==='R1').key);});
+  assert.equal(await page.locator('#devicePanel').isVisible(),true);
+  assert.ok(await page.locator('#contactMarks').count()>0);
+});
+
+test('device panel fits mobile screen and closes with Escape and mode changes', async () => {
+  await page.setViewportSize({width:390,height:844});await fullState();
+  await page.evaluate(()=>openDevicePanel(deviceCatalog().find(d=>d.name==='T1').key));
+  const b=await page.locator('#devicePanel').boundingBox();assert.ok(b.x>=0 && b.x+b.width<=390);
+  await page.locator('#deviceSelect').selectOption('op:hmi');assert.match(await page.locator('#deviceTitle').textContent(),/HMI/);
+  await page.locator('#deviceSelect').press('Escape');assert.equal(await page.locator('#devicePanel').isHidden(),true);
+  await page.evaluate(()=>{openDevicePanel(deviceCatalog().find(d=>d.name==='R1').key);showHome();});
+  assert.equal(await page.locator('#devicePanel').isHidden(),true);
+});
