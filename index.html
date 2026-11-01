@@ -2250,18 +2250,18 @@ function tieBetween(P1, P2, skip, any) {   // 두 점 사이를 지나가는 조
 const TIE_MAX = 80;   // 한 번에 끌어서 묶을 수 있는 길이 (mm)
 const TIE_END = 16;   // 단자에서 이만큼(mm) 안은 묶지 않는다 (압착단자가 휘지 않게)
 const tieEndOK = (w, x, y) => [w.a, w.b].every(id => !TERM[id] || Math.hypot(TERM[id].x - x, TERM[id].y - y) >= TIE_END);
-function deform(pts, an) {   // 선이 타이 자리를 정확히 지나게: 타이 앞뒤 4mm는 다발로 나란히, 타이 사이와 단자 쪽은 부드럽게 (양 끝 압착단자 7mm는 그대로)
+function deform(pts, an, keepStart = 7, keepEnd = 7) {   // 선이 타이 자리를 정확히 지나게: 타이 앞뒤 4mm는 다발로 나란히, 타이 사이와 단자 쪽은 부드럽게 (압착단자와 표시등 옆 직선 구간은 그대로)
   const q = [{ x: pts[0][0], y: pts[0][1], s: 0 }]; let acc = 0;
   for (let k = 1; k < pts.length; k++) {
     const a = pts[k - 1], b = pts[k], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 2.5));
     for (let j = 1; j <= n; j++) q.push({ x: a[0] + (b[0] - a[0]) * j / n, y: a[1] + (b[1] - a[1]) * j / n, s: acc + l * j / n });
     acc += l;
   }
-  const E = Math.min(7, acc / 4), C = [[E, 0, 0]];   // 조정점 [s, dx, dy]: 단자 쪽 0 → 타이마다 (앞 4mm, 뒤 4mm) → 반대쪽 단자 0
-  for (const A of [...an].sort((p, r) => p.s0 - r.s0)) { const a = Math.max(clamp(A.s0 - 4, E, acc - E), C[C.length - 1][0]), b = Math.max(clamp(A.s0 + 4, E, acc - E), a); C.push([a, A.dx, A.dy], [b, A.dx, A.dy]); }
-  C.push([Math.max(acc - E, C[C.length - 1][0]), 0, 0]);
+  const E0 = Math.min(keepStart, acc / 2), E1 = Math.min(keepEnd, acc - E0), C = [[E0, 0, 0]];   // 조정점 [s, dx, dy]: 단자 쪽 0 → 타이마다 (앞 4mm, 뒤 4mm) → 반대쪽 단자 0
+  for (const A of [...an].sort((p, r) => p.s0 - r.s0)) { const a = Math.max(clamp(A.s0 - 4, E0, acc - E1), C[C.length - 1][0]), b = Math.max(clamp(A.s0 + 4, E0, acc - E1), a); C.push([a, A.dx, A.dy], [b, A.dx, A.dy]); }
+  C.push([Math.max(acc - E1, C[C.length - 1][0]), 0, 0]);
   return q.map(o => {
-    if (o.s <= E || o.s >= acc - E) return [o.x, o.y];
+    if (o.s <= E0 || o.s >= acc - E1) return [o.x, o.y];
     let j = 0; while (j < C.length - 2 && o.s > C[j + 1][0]) j++;
     const [s0, x0, y0] = C[j], [s1, x1, y1] = C[j + 1], t = s1 > s0 ? clamp((o.s - s0) / (s1 - s0), 0, 1) : 1, e = t * t * (3 - 2 * t);   // smoothstep: 꺾이지 않게
     return [o.x + x0 + (x1 - x0) * e, o.y + y0 + (y1 - y0) * e];
@@ -2526,7 +2526,7 @@ function buildTerms() {
   if (S.opBack && S.op.hmi) for (const [k, lx, ly, lab] of HMI_PW(hmiGeom())) { const id = 'OP.HMI.' + k, o = { id, dev: 'HMI', k, lab, x: OPW.x + lx, y: OPW.y + ly, r: 2.05, sy: 'scrS', op: true, nm: '조작판 뒷면 HMI 전원 ' + (k === '+' ? '+ (초록 1번)' : k === '-' ? '− (초록 2번)' : 'FG 접지 (초록 3번)') }; TERMS.push(o); TERM[id] = o; }
   if (S.opBack) for (const [hid, type] of Object.entries(S.op.dev)) {
     const sym = OP.answer[hid].sym, [hx, hy] = OP.holes[hid];
-    for (const [k, dx, dy, lab] of OP_TERM_DEF[OP_KIND[type]]) { const id = 'OP.' + sym + '.' + k, o = { id, dev: sym, k, lab, x: OPW.x + OP.w - hx - dx, y: OPW.y + hy + dy, r: 2.05, sy: 'scrS', op: true, top: dy < 0, sd: dx > 0 ? -1 : 1, nm: '조작판 뒷면 ' + opTermName(sym, type, k) }; TERMS.push(o); TERM[id] = o; }
+    for (const [k, dx, dy, lab] of OP_TERM_DEF[OP_KIND[type]]) { const id = 'OP.' + sym + '.' + k, o = { id, dev: sym, k, lab, x: OPW.x + OP.w - hx - dx, y: OPW.y + hy + dy, r: 2.05, sy: 'scrS', op: true, top: dy < 0, sd: dx > 0 ? -1 : 1, entrySide: OP_KIND[type] === 'lamp' ? -1 : 0, nm: '조작판 뒷면 ' + opTermName(sym, type, k) }; TERMS.push(o); TERM[id] = o; }
   }
 }
 function makeUF(wires) {
@@ -3194,8 +3194,14 @@ function bez(p0, p1, p2, p3, n = 14) {
   for (let i = 1; i <= n; i++) { const t = i / n, u = 1 - t; out.push([u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0], u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1]]); }
   return out;
 }
+const OP_LAMP_LEAD = 14;   // 표시등 단자 옆: 왼쪽으로 뺀 뒤 90도로 꺾는 직선 구간 (mm)
 const opHook = o => [[o.x, o.y], [o.x, o.y - 6], ...bez([o.x, o.y - 6], [o.x, o.y - 18], [o.x + o.sd * 13, o.y - 18], [o.x + o.sd * 13, o.y + 6], 10)];   // 조작판 위쪽 단자: 위에서 아래로 꽂고, 바깥으로 돌아 내려간다
 function route(a, b, lane, gath) {   // gath: 한 다발로 모은 조작판 선 (밴드를 다 밀기 전에도 다발 모양)
+  if (a.entrySide || b.entrySide) {
+    const exit = t => t.entrySide ? { ...t, x: t.x + t.entrySide * OP_LAMP_LEAD, entrySide: 0 } : t;
+    const middle = route(exit(a), exit(b), lane, gath);
+    return [...(a.entrySide ? [[a.x,a.y]] : []), ...middle, ...(b.entrySide ? [[b.x,b.y]] : [])];
+  }
   if (a.op && b.op) {
     const da = a.top ? -1 : 1, db = b.top ? -1 : 1, A1 = [a.x, a.y + da * 6], B1 = [b.x, b.y + db * 6];   // 위쪽 단자는 위로, 아래쪽 단자는 아래로 나간다
     if ((b.y - a.y) * da > 0 && (a.y - b.y) * db > 0) {   // 서로 마주 보는 단자: 거의 일자로, 사이에 있는 다른 단자는 옆으로 비켜서
@@ -3243,14 +3249,14 @@ function route(a, b, lane, gath) {   // gath: 한 다발로 모은 조작판 선
   if (tb) pts.push(tb); if (b.sx !== undefined) pts.push([b.sx, b.y]); pts.push([b.x, b.y]);
   return pts;
 }
-// 한 나사에 처음 꽂은 압착단자는 나사 왼쪽, 두 번째는 오른쪽
-function ferOff(w, id) {   // 압착단자는 나사 옆에 끼운다: 첫 선은 왼쪽, 둘째 선은 오른쪽 (서보 커넥터 구멍은 가운데)
+// 한 나사의 두 압착단자: 표시등은 위·아래, 나머지는 왼쪽·오른쪽
+function ferOff(w, id) {   // 압착단자는 진입 방향에 수직으로 나란히 끼운다 (표시등: 위·아래, 나머지: 왼쪽·오른쪽) (서보 커넥터 구멍은 가운데)
   const T = TERM[id]; if (!T || !T.r) return 0;
   const ws = S.wires.filter(x => x.a === id || x.b === id); let k = ws.indexOf(w);
-  if (ws.length === 2 && !T.ov) { const ox = x => { const o = TERM[x.a === id ? x.b : x.a]; return o ? o.x : T.x; }, a0 = ox(ws[0]), a1 = ox(ws[1]); if (Math.abs(a0 - a1) > .5) k = ox(w) === Math.min(a0, a1) ? 0 : 1; }   // 두 선이면 왼쪽으로 가는 선을 왼쪽에 (단자 바로 아래에서 꼬이지 않게)
+  if (ws.length === 2 && !T.ov) { const ox = x => { const o = TERM[x.a === id ? x.b : x.a]; return o ? (T.entrySide ? o.y : o.x) : (T.entrySide ? T.y : T.x); }, a0 = ox(ws[0]), a1 = ox(ws[1]); if (Math.abs(a0 - a1) > .5) k = ox(w) === Math.min(a0, a1) ? 0 : 1; }   // 연결되는 쪽 순서에 맞춰 배치해 단자 바로 옆에서 꼬이지 않게
   const o = (k === 0 ? -1 : 1) * (T.r + .25); return T.ov ? -o : o; }   // 바깥 줄 위로 지나가는 선은 반대쪽부터   // 바깥 줄 위로 지나가는 선은 반대쪽부터 (바깥 줄 선과 겹치지 않게)
-function wirePts(w, i) { const pts = basePts(w, i); if (!pts || !(S.ties && S.ties.length)) return pts; const an = tieAnchors(w); return an.length ? deform(pts, an) : pts; }
-function basePts(w, i, ex = {}) { const a = TERM[w.a] || ex[w.a], b = TERM[w.b] || ex[w.b]; if (!a || !b) return null; const fa = ferOff(w, w.a), fb = ferOff(w, w.b), A = { ...a, x: a.x + fa, fo: fa }, B = { ...b, x: b.x + fb, fo: fb };
+function wirePts(w, i) { const pts = basePts(w, i); if (!pts || !(S.ties && S.ties.length)) return pts; const an = tieAnchors(w); return an.length ? deform(pts, an, TERM[w.a]?.entrySide ? OP_LAMP_LEAD : 7, TERM[w.b]?.entrySide ? OP_LAMP_LEAD : 7) : pts; }
+function basePts(w, i, ex = {}) { const a = TERM[w.a] || ex[w.a], b = TERM[w.b] || ex[w.b]; if (!a || !b) return null; const fa = ferOff(w, w.a), fb = ferOff(w, w.b), A = { ...a, x: a.x + (a.entrySide ? 0 : fa), y: a.y + (a.entrySide ? fa : 0), fo: fa }, B = { ...b, x: b.x + (b.entrySide ? 0 : fb), y: b.y + (b.entrySide ? fb : 0), fo: fb };
   if (!a.op && !b.op && a.duct && b.duct) return dressPts(w, i, A, B);
   if (!a.op === !b.op || EXT_RAW) return route(A, B, (((i * 7) % 13) - 6) * 1.7);
   if (EXT_C.tv !== UI.tv) EXT_C = { tv: UI.tv, m: new Map() };   // 조작판으로 가는 선 (190cm): 계산이 무거워 기억해 둔다
@@ -3757,7 +3763,7 @@ function world123() {
   return s;
 }
 function opFrontTerms() {   // 앞면일 때: 뒷면 단자 자리를 좌우로 되돌려 앞에서 본 자리 (조작판에 가려진다)
-  return withAllTerms(() => Object.fromEntries(TERMS.filter(t => t.op).map(t => [t.id, { ...t, x: 2 * OPW.x + OP.w - t.x }])));
+  return withAllTerms(() => Object.fromEntries(TERMS.filter(t => t.op).map(t => [t.id, { ...t, x: 2 * OPW.x + OP.w - t.x, entrySide: -(t.entrySide || 0) }])));
 }
 function renderWorld() {
   let s = drawConveyor() + world123();
@@ -4423,7 +4429,7 @@ function tbLabelAt(p) {
 function editTBLabels(n = 1) {
   if (!tbInst()) return say('단자대를 먼저 설치해요', 'info');
   openModal(`<h2>단자대 견출지</h2><p>견출지는 이름표예요. 글씨를 바꾸어도 전선은 옮겨지지 않아요. 단자 번호와 관계없이 실제 연결로 작동해요.</p><div class="tb-label-editor">${Array.from({length:TB_N},(_,i)=>`<label>${i+1}번<input data-tb-label="${i+1}" aria-label="단자대 ${i+1}번 견출지" maxlength="12" value="${esc(tbLabel(i+1))}"></label>`).join('')}</div><div class="actions"><button class="primary" data-act="tb-label-save">적용</button><button data-act="close">취소</button></div>`);
-  setTimeout(()=>{ const input = $(`[data-tb-label="${n}"]`); if(input){input.focus(); input.select();} },40);
+  const input = $(`[data-tb-label="${n}"]`); if(input){input.focus(); input.select();}
 }
 function saveTBLabels() {
   const labels = [...document.querySelectorAll('[data-tb-label]')].map(i=>i.value.trim());
@@ -4437,7 +4443,7 @@ function applyLabel(z, text) {
   if (text !== z.expect) return mistake(S.guide ? `틀렸어요. 여기는 '${z.expect}'예요` : '견출지 글자가 틀렸어요');
   snap(); S.op.labels[z.id] = text; say(`'${text}' 견출지를 붙였어요`, 'ok'); commit();
 }
-function openModal(html, closable = true) { $('#modalCard').innerHTML = html; $('#modal').hidden = false; UI.modalClosable = closable; const b = $('#modalCard').querySelector('.primary') || $('#modalCard').querySelector('button'); if (b) setTimeout(() => b.focus({ preventScroll: true }), 30); }
+function openModal(html, closable = true) { $('#modalCard').innerHTML = html; $('#modal').hidden = false; UI.modalClosable = closable; const b = $('#modalCard').querySelector('.primary') || $('#modalCard').querySelector('button'); if (b) setTimeout(() => { if (b.isConnected && !$('#modal').hidden && !$('#modalCard').contains(document.activeElement)) b.focus({ preventScroll: true }); }, 30); }
 function closeModal() { $('#modal').hidden = true; }
 function confirmBox(msg, ok) { UI.onOk = ok; openModal(`<h2>확인</h2><p>${esc(msg)}</p><div class="actions"><button class="primary" data-act="ok">네</button><button data-act="close">아니요</button></div>`); }
 function showStageDone(st) {
@@ -5223,7 +5229,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.5', date: '2026.11.01', notes: ['단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.5.1', date: '2026.11.01', notes: ['HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function fixState() {   // 예전에 저장한 상태를 지금 형식으로
   if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false };
@@ -5878,7 +5884,7 @@ function showHome(page = 'main') {
   UI.carry = null; UI.pending = null; UI.replug = null; if (S.tool !== 'hand') S.tool = 'hand';   // 들고 있던 도구, 부품은 내려놓는다
   if (MODE !== 'prac') save();
   UI.homePage = page; closeModal(); renderHome(); $('#home').hidden = false; renderTools(); renderTray(); renderOver();
-  const b = $('#home').querySelector(page === 'prac' ? '.hm-go, .ls' : '.hm-card, .hm-back'); if (b) setTimeout(() => b.focus({ preventScroll: true }), 30);
+  const b = $('#home').querySelector(page === 'prac' ? '.hm-go, .ls' : '.hm-card, .hm-back'); if (b) setTimeout(() => { if (b.isConnected && !$('#modal').hidden && !$('#modalCard').contains(document.activeElement)) b.focus({ preventScroll: true }); }, 30);
 }
 function hideHome() { $('#home').hidden = true; }
 $('#home').addEventListener('click', e => {

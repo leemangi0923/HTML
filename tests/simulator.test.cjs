@@ -458,7 +458,10 @@ test('legacy saves without custom labels or source endpoints retain the original
 });
 
 test('custom labels support undo and actual AC short detection follows the moved source', async () => {
-  await fullState();await page.locator('#btnTBLabels').click();await page.locator('[data-tb-label="18"]').fill('사용자 이름');await page.locator('[data-act="tb-label-save"]').click();
+  await fullState();await page.locator('#btnTBLabels').click();await page.locator('[data-tb-label="18"]').fill('사용자 이름');
+  await page.waitForTimeout(60); // Delayed modal autofocus must not steal the edited field.
+  assert.equal(await page.locator('[data-tb-label="18"]').evaluate(el=>el===document.activeElement),true);
+  await page.locator('[data-act="tb-label-save"]').click();
   assert.equal(await page.evaluate(()=>tbLabel(18)),'사용자 이름');
   await page.evaluate(()=>{closeModal();undo()});assert.equal(await page.evaluate(()=>tbLabel(18)),'');
   await remapTB({'1':39,'39':1,'2':40,'40':2});
@@ -476,4 +479,45 @@ test('power selection rejects the same terminal twice and escape cancels a parti
   assert.equal(await page.evaluate(()=>S.cables.power),false);
   await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>!!UI.powerStart),false);
   assert.equal(await page.evaluate(()=>UI.carry),null);
+});
+
+test('lamp wires enter from the left with parallel ferrules, including tied and bundled layouts', async () => {
+  await fullState();
+  const result = await page.evaluate(() => {
+    const failures=[];let checked=0;
+    for(const helical of [0,1,2]) for(const tied of [false,true]) {
+      const ties=S.ties;S.helical=helical;if(!tied)S.ties=[];buildTerms();
+      for(const [i,w] of S.wires.entries()) for(const end of ['a','b']) {
+        const t=TERM[w[end]];if(!t?.entrySide)continue;
+        const points=wirePts(w,i), p=end==='a'?points:[...points].reverse(), first=p[0];
+        const next=p.find(q=>Math.hypot(q[0]-first[0],q[1]-first[1])>.5);
+        if(!next || next[0]>=first[0] || Math.abs(next[1]-first[1])>1e-6 || Math.abs(first[0]-t.x)>1e-6 || !p.every(q=>q.every(Number.isFinite))) failures.push({helical,tied,id:t.id});
+        let length=0;
+        for(let k=1;k<p.length;k++) {length+=Math.hypot(p[k][0]-p[k-1][0],p[k][1]-p[k-1][1]);if(length<OP_LAMP_LEAD-1e-6 && Math.abs(p[k][1]-first[1])>1e-6)failures.push({helical,tied,id:t.id,bentAtPin:true});}
+        checked++;
+      }
+      S.ties=ties;
+    }
+    const offsets=TERMS.filter(t=>t.entrySide&&S.wires.filter(w=>w.a===t.id||w.b===t.id).length===2).map(t=>S.wires.filter(w=>w.a===t.id||w.b===t.id).map(w=>{const p=basePts(w,S.wires.indexOf(w));return(w.a===t.id?p[0]:p.at(-1))[1]-t.y}));
+    return{failures,checked,offsets};
+  });
+  assert.deepEqual(result.failures,[]);assert.ok(result.checked>=60);
+  assert.ok(result.offsets.length>0);for(const ys of result.offsets)assert.ok(Math.min(...ys)<0&&Math.max(...ys)>0,'two wires stack vertically beside the same screw');
+});
+
+test('new lamp entry geometry preserves wiring, grading, and front/rear terminal mirroring', async () => {
+  await fullState();
+  const before=await page.evaluate(()=>JSON.stringify(S.wires));
+  const rear=await functionalResults();assert.deepEqual(rear,{checks:[],judge:[],operationPoints:18});
+  await page.evaluate(()=>{S.opBack=false;buildTerms();renderAll()});
+  const flipped=await page.evaluate(()=>{
+    const front=opFrontTerms(),id='OP.GL.+',w=S.wires.find(w=>w.a===id||w.b===id),points=basePts(w,S.wires.indexOf(w),front),p=w.a===id?points:[...points].reverse();
+    return{side:front[id].entrySide,dx:p[1][0]-p[0][0],dy:p[1][1]-p[0][1]};
+  });
+  assert.equal(flipped.side,1);assert.ok(flipped.dx>0);assert.equal(flipped.dy,0);
+  await page.reload();await page.waitForFunction(()=>window.SIM);
+  // Persist through the ordinary save flow, without any geometry stored in wire data.
+  await fullState();await page.evaluate(()=>save());await page.reload();await page.waitForFunction(()=>window.SIM);
+  assert.equal(await page.evaluate(()=>JSON.stringify(S.wires)),before);
+  assert.deepEqual(await functionalResults(),rear);
 });
