@@ -521,3 +521,74 @@ test('new lamp entry geometry preserves wiring, grading, and front/rear terminal
   assert.equal(await page.evaluate(()=>JSON.stringify(S.wires)),before);
   assert.deepEqual(await functionalResults(),rear);
 });
+
+test('pointer bursts draw once per animation frame and keep the final pointer position', async () => {
+  await fullState();
+  const r=await page.evaluate(async()=>{
+    const original=renderOver;let calls=0;renderOver=(...args)=>{calls++;return original(...args)};
+    const box=svg.getBoundingClientRect();
+    for(let i=0;i<80;i++)svg.dispatchEvent(new PointerEvent('pointermove',{clientX:box.left+40+i,clientY:box.top+50,pointerId:1,pointerType:'mouse',bubbles:true}));
+    const before=calls;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    const pointer={...UI.pointer};renderOver=original;
+    return{before,calls,pointer,expected:toWorld(box.left+119,box.top+50)};
+  });
+  assert.equal(r.before,0);assert.equal(r.calls,1);assert.deepEqual(r.pointer,r.expected);
+});
+
+test('unchanged pointer overlays retain SVG nodes and reuse wire geometry', async () => {
+  await fullState();
+  const result=await page.evaluate(async()=>{
+    UI.overBoard=true;UI.pointer={x:2000,y:2000};renderOver();
+    const node=gOver.firstChild,original=calculateBasePts;let calculations=0,mutations=0;
+    calculateBasePts=(...args)=>{calculations++;return original(...args)};
+    const observer=new MutationObserver(records=>mutations+=records.length);observer.observe(gOver,{childList:true});
+    for(let i=0;i<30;i++)renderOver();
+    await new Promise(resolve=>setTimeout(resolve,0));observer.disconnect();calculateBasePts=original;
+    return{calculations,mutations,same:node===gOver.firstChild};
+  });
+  assert.deepEqual(result,{calculations:0,mutations:0,same:true});
+});
+
+test('cached wire paths refresh after rewiring, undo, and tie movement', async () => {
+  await fullState();
+  const r=await page.evaluate(()=>{
+    const before=JSON.stringify(S.wires),w=S.wires.find(w=>w.a==='TB.14.b'&&w.b==='OP.GL.+'),i=S.wires.indexOf(w),old=wirePts(w,i);
+    snap();w.a='TB.18.b';commit();const moved=wirePts(w,i);
+    const changed=JSON.stringify(old)!==JSON.stringify(moved),nearNew=Math.abs(moved[0][0]-TERM['TB.18.b'].x)<4;
+    undo();const restored=JSON.stringify(S.wires)===before;
+    const t=S.ties[0];tieToNew(t);const g0=tieGeo(t),linked=S.wires.find(w=>w.a===t.ws[0].a&&w.b===t.ws[0].b),j=S.wires.indexOf(linked),p0=JSON.stringify(wirePts(linked,j));
+    let reason='';for(const delta of [[3,0],[-3,0],[0,3],[0,-3]]) {
+      reason=tieDrag({t,c0:{...t.c},p0:{x:0,y:0},rank:g0.rank},{x:delta[0],y:delta[1]});if(!reason)break;
+    }
+    renderWorld();const tieMoved=p0!==JSON.stringify(wirePts(linked,j));
+    return{changed,nearNew,restored,reason,tieMoved};
+  });
+  assert.deepEqual(r,{changed:true,nearNew:true,restored:true,reason:'',tieMoved:true});
+});
+
+test('optimized polyline projection matches exhaustive segment search', async () => {
+  await fullState();
+  const diff=await page.evaluate(()=>{
+    const reference=(pts,p)=>{let best=null,bd=Infinity,acc=0;for(let k=1;k<pts.length;k++){const a=pts[k-1],b=pts[k],dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy),t=l?clamp(((p.x-a[0])*dx+(p.y-a[1])*dy)/(l*l),0,1):0,x=a[0]+t*dx,y=a[1]+t*dy,d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best={x,y,dist:d,s:acc+t*l}}acc+=l;}return best};
+    const failures=[];let count=0;
+    const paths=[[[0,0],[0,0],[10,0],[10,10]],...S.wires.filter((_,i)=>i%4===0).map(w=>wirePts(w,S.wires.indexOf(w)))];
+    for(const pts of paths)for(let i=0;i<20;i++) {
+      const p={x:(i*173.43+19)%1250,y:(i*97.37+53)%1050},a=reference(pts,p),b=projOn(pts,p);count++;
+      if(['x','y','s','dist'].some(k=>Math.abs(a[k]-b[k])>1e-6))failures.push({p,a,b});
+    }
+    return{count,failures};
+  });
+  assert.ok(diff.count>500);assert.deepEqual(diff.failures,[]);
+});
+
+test('pointer cancel clears a pending selection rectangle without a stale next-frame draw', async () => {
+  await fullState();
+  const r=await page.evaluate(async()=>{
+    const b=svg.getBoundingClientRect();S.tool='dress';UI.overBoard=true;UI.gesture={type:'dbox',moved:true,p0:toWorld(b.left+20,b.top+20)};
+    svg.dispatchEvent(new PointerEvent('pointermove',{clientX:b.left+80,clientY:b.top+80,pointerId:1,pointerType:'mouse',bubbles:true}));
+    svg.dispatchEvent(new PointerEvent('pointercancel',{pointerId:1,pointerType:'mouse',bubbles:true}));
+    const html=gOver.innerHTML;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    return{gesture:UI.gesture,pending:overlayFrame,stable:html===gOver.innerHTML};
+  });
+  assert.deepEqual(r,{gesture:null,pending:0,stable:true});
+});
