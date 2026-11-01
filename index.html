@@ -572,9 +572,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
 .contact-closed { stroke: #16804a; stroke-width: 3; fill: none; }
 .contact-open { stroke: #7c8790; stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
 .contact-pin { fill: var(--panel); stroke: currentColor; stroke-width: 1.5; }
-.contact-board { stroke: #29b86b; stroke-width: 2.5; fill: none; vector-effect: non-scaling-stroke; }
 .contact-summary { padding: 8px; background: var(--panel2); border-radius: 5px; line-height: 1.7; }
-#btnContacts.on { background: var(--accent); color: var(--accent-ink); }
 </style>
 </head>
 <body>
@@ -589,7 +587,6 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
       <button class="chip-btn" id="btnExam" hidden>제출하고 채점</button>
       <button class="chip-btn" id="btnScore">채점표</button>
       <button class="chip-btn" id="btnWires">배선 목록</button>
-      <button class="chip-btn" id="btnContacts" aria-pressed="true">접점 표시</button>
       <button class="chip-btn" id="btnFind" aria-expanded="false" aria-controls="termSearch">단자 검색</button>
       <button class="chip-btn" id="btnCirc">회로도</button>
       <button class="chip-btn" id="btnDemo">시연 보기</button>
@@ -1733,7 +1730,6 @@ function liveStep(dt) {
   if (LIVE.ck.ch || opChkOn() !== UI.ckOn) opChkUI();
   if (MODE === 'prac' && (kc || ckc)) pracLive();
   updateDeviceLive();
-  if (contactDisplayOn() && (kc || TIMERS.some(t => LIVE.st.tim[t].on && !LIVE.st.tim[t].out))) renderOver();
   drawLivePack();
   if (LIVE.pack !== null && UI.pointer && UI.overBoard && inRect(UI.pointer, beltRect(), 30)) renderOver();   // 움직이는 팩의 빨간 테두리
 }
@@ -1993,7 +1989,7 @@ const UI = { cam: { x: 0, y: 0, w: 800, h: 600 }, ckPop: {}, carry: null, pointe
   ptrs: new Map(), flash: null, peek: false, peekKey: '', press: null, lastDone: null, chooserZone: null, onOk: null, modalClosable: true, nm: {}, trayOpen: new Set() };
 let S = null, undoStack = [];
 const STORE = 't1sim', STORE_EXAM = STORE + '.exam', STORE_PRAC = STORE + '.prac';   // 자유 모드, 시험 모드 작업, 연습 통과 기록
-const SET_DEF = { contacts: true, recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, bigLab: true, termName: true, lens: true, autoDress: false, prepTime: true, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
+const SET_DEF = { recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, bigLab: true, termName: true, lens: true, autoDress: false, prepTime: true, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
 let SET = (() => { try { return { ...SET_DEF, ...(JSON.parse(localStorage.getItem(STORE + '.set') || '{}') || {}) }; } catch (e) { return { ...SET_DEF }; } })();
 const setSave = () => { try { localStorage.setItem(STORE + '.set', JSON.stringify(SET)); } catch (e) { /* 저장할 수 없는 환경 */ } };
 const applyTheme = () => { const r = document.documentElement; if (SET.theme === 'light' || SET.theme === 'dark') r.dataset.theme = SET.theme; else r.removeAttribute('data-theme'); };
@@ -3557,7 +3553,6 @@ function renderClock() {
   el.title = exOn ? '시험 모드 남은 시간 (끝나기 30분 전까지 끝내면 시간점수 0.1점)' : MODE === 'prac' ? '이번 연습 시간' : '작업 시간';
 }
 function renderTools() {
-  updateContactControls();
   const rec = S.guide ? recommendedTool() : '';
   $('#tools').innerHTML = TOOLS.filter(t => t.id !== 'inspect' || !(S.exam && S.exam.on)).map(t => {
     const on = t.id === 'glove' ? (S.gloves || S.tool === 'glove') : S.tool === t.id;
@@ -3861,7 +3856,7 @@ function renderOver() {
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
   if (MODE === 'prac' && PRAC.hl) s += PRAC.hl;   // 연습: 할 자리
   if (MODE === 'prac' && PRAC.L && PRAC.L.wg !== undefined) pracDia();   // 단자 하나를 누르면 그 선이 빨강
-  s += inspectionOverlay() + contactBoardOverlay();
+  s += inspectionOverlay();
   s += bigLabels(px1);   // 멀리서도 단자 이름
   if (SET.termName && p && UI.overBoard && !(UI.gesture && UI.gesture.moved)) { const t = termNear(p, tolMM(12)); if (t) s += hoverTag(p, wireName(t.id), px1); }
   gOver.innerHTML = s; lensUpdate();
@@ -3988,11 +3983,6 @@ $('#termResults').addEventListener('click', e => { const b = e.target.closest('[
 
 
 /* ---------- 기구 해설: 실제 시뮬레이션 상태와 같은 접점 정의를 사용 ---------- */
-function contactDisplayOn() { return SET.contacts && !(S.exam && S.exam.on); }
-function updateContactControls() {
-  const b = $('#btnContacts'), on = !!contactDisplayOn(); b.hidden = !!(S.exam && S.exam.on);
-  b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); b.textContent = `접점 표시 ${on ? '켬' : '끔'}`;
-}
 function closeDevicePanel() { UI.device = null; UI.deviceKey = ''; $('#devicePanel').hidden = true; }
 function deviceCatalog() {
   const nm = names(), list = S.inst.map(i => ({ key: 'inst:' + i.id, id: i.id, name: nm[i.id], type: i.type, title: DEV[i.type].name,
@@ -4013,20 +4003,6 @@ function deviceContactState(d) {
   ] : RELAY_POLES.map((p, i) => ({ ...p, label: `${i + 1}극 전환접점`, on: coil }));
   for (const c of contacts) { c.closed = fitted ? (c.on ? c.a : c.b) : null; }
   return { fitted, coil, setting, elapsed: fitted && st.on ? Math.min(st.el, setting) : 0, remaining: fitted && st.on && !st.out ? Math.max(0, setting - st.el) : 0, waiting: fitted && st.on && !st.out, out: fitted && st.out, contacts };
-}
-function contactBoardOverlay() {
-  if (!contactDisplayOn()) return '';
-  let out = '';
-  for (const d of deviceCatalog().filter(d => d.type === 'relay' || d.type === 'timer')) {
-    const v = deviceContactState(d), b = d.box;
-    for (const c of v.contacts) if (c.closed) {
-      const a = TERM[d.name + '.' + c.com], z = TERM[d.name + '.' + c.closed];
-      if (a && z) out += LN(a.x, a.y, z.x, z.y, 'class="contact-board"') + C(z.x, z.y, 3, 'class="contact-board"');
-    }
-    const text = !v.fitted ? `${d.name} 미장착` : d.type === 'timer' && v.waiting ? `${d.name} ${v.remaining.toFixed(1)}s` : `${d.name} ${v.coil ? 'ON' : 'OFF'}`;
-    out += R(b.x - 2, b.y + b.h / 2 - 5, b.w + 4, 10, 'rx="2" fill="#13251e" fill-opacity=".94"') + T(b.x + b.w / 2, b.y + b.h / 2 + 1.6, text, TX(4, v.coil ? '#8ff0ad' : '#ffffff', 'font-weight="700"'));
-  }
-  return `<g id="contactMarks" pointer-events="none">${out}</g>`;
 }
 function contactSymbol(c, y, fitted) {
   const nc = c.b !== null, target = c.closed, x0 = 42, x1 = 240;
@@ -4103,7 +4079,6 @@ function inspectDeviceAt(p) {
   if (S.conveyor && inRect(p, { x:CVW.x-15,y:CVW.y-80,w:CONV.L+30,h:CVW.bw+100 })) return openDevicePanel('conveyor');
   say('설치한 기구를 누르면 결선도와 현재 상태가 나와요', 'info');
 }
-$('#btnContacts').addEventListener('click', () => { SET.contacts = !SET.contacts; setSave(); updateContactControls(); renderOver(); });
 $('#deviceClose').addEventListener('click', closeDevicePanel);
 $('#deviceSelect').addEventListener('change', e => openDevicePanel(e.target.value));
 
@@ -4800,7 +4775,6 @@ window.addEventListener('blur', () => { if (UI.lens) { UI.lens = false; lensUpda
 
 /* ---------- 설정: 표시 기능 켜고 끄기 ---------- */
 const SET_ITEMS = [
-  ['contacts', '릴레이·타이머 접점 표시', '코일 ON/OFF, 닫힌 접점과 타이머 남은 시간 (시험 중에는 숨김)'],
   ['recent1', '방금 꽂은 선', '전선·니퍼·테스터를 들면 방금 꽂은 선을 주황으로 (자유·시험 모드)'],
   ['recent2', '그 전에 꽂은 선', '그 전에 꽂은 선을 하늘색으로 (자유·시험 모드)'],
   ['net', '테스터: 같은 줄 표시', '테스터를 단자에 대면 같은 줄의 선과 단자를 초록으로'],
@@ -4819,7 +4793,7 @@ function showSettings() {
     + `<label class="set-row"><span><b>화면 테마</b><small>자동은 기기의 밝게·어둡게 설정을 따라요</small></span><select data-set="theme">${[['auto', '자동'], ['light', '밝게'], ['dark', '어둡게']].map(([v, n]) => `<option value="${v}"${SET.theme === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label></div>`
     + '<div class="actions"><button data-act="set-reset">기본값으로</button><button class="primary" data-act="close">닫기</button></div>');
 }
-function setApply() { updateContactControls(); applyTheme(); opChkUI(); drawLivePack(); $('#zLens').hidden = !SET.lens; if (!SET.lens) UI.lensPin = false; renderWorld(); renderOver(); }
+function setApply() { applyTheme(); opChkUI(); drawLivePack(); $('#zLens').hidden = !SET.lens; if (!SET.lens) UI.lensPin = false; renderWorld(); renderOver(); }
 $('#modal').addEventListener('change', e => {
   const c = e.target.closest && e.target.closest('[data-set]'); if (!c) return; SET[c.dataset.set] = c.type === 'checkbox' ? c.checked : c.value; setSave(); setApply();
   if (c.dataset.set === 'autoDress' && SET.autoDress && MODE === 'free' && S.wires.some(w => dressable(w) && !tucked(w))) { snap(); commit(); say('자동 선 정리를 켰어요. 널브러진 선을 덕트에 넣었어요', 'ok'); }
@@ -5081,7 +5055,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.3', date: '2026.10.29', notes: ['릴레이·타이머 코일, 닫힌 접점, 남은 시간 실시간 표시', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.3.1', date: '2026.11.01', notes: ['작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function fixState() {   // 예전에 저장한 상태를 지금 형식으로
   if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false };
@@ -5719,7 +5693,7 @@ function homeHelpHTML() {
     + sec('4', '화면 움직이기', '<ul><li>멀리서 볼 때: 단자대·PLC·서보 단자 이름은 <b>큰 번호표</b>로, 마우스를 올린 단자는 이름이 크게 보여요. <kbd>Z</kbd>를 누르고 있으면 <b>돋보기</b> (설정에서 끄고 켜요)</li><li>판을 <b>끌면</b> 이동, <b>휠</b>을 굴리면 확대 (휠을 누른 채 끌어도 이동)</li><li>휴대폰, 태블릿은 두 손가락으로 확대</li><li>오른쪽 아래 <b>제어판, 조작판, 컨베이어, 전체</b> 버튼으로 바로 가요. 배선은 확대하면 쉬워요</li></ul>')
     + sec('5', '작업 요령', '<ul><li><b>조작판</b>: 앞면에서 기기와 견출지, <b>조작판 버튼</b>으로 뒤집어서 뒷면에서 배선</li><li><b>덕트·찬넬</b>: 바닥에 놓고 테이프 → 왼쪽 세로 덕트 먼저 붙이기 → 자로 간격 표시와 서보 자리 표시 → 나머지 붙이기 → <span class="r">장갑 끼고</span> 드릴 → 볼트 → 손으로 덕트 이음부 8곳(가로 덕트가 붙는 세로 덕트 안쪽 벽) 부러뜨리기</li><li><b>기구</b>: 같은 묶음끼리 붙이고 양옆에 스톱퍼</li><li><b>배선</b>: 전선 도구로 단자 두 개를 차례로. 교류 전원부, A, M, +24V, 0V는 묶음을 다 꽂을 때마다 선 정리, PLC 신호와 조작판은 같이 꽂고 나서 선 정리. 한 단자에 2개까지. 위의 <b>회로도</b>를 띄워 보며 해요. 회로도의 <b>해설</b>은 회로가 어떻게 움직이는지 장면별로 보여줘요</li><li><b>선 정리</b> <kbd>J</kbd>: 전선은 한 가닥 80cm라(덕트로 더 멀리 가는 선만 길게) 꽂은 선은 길이 그대로 널브러져 있어요. 단자 쪽 끝을 둘러싸게 끌어서(단자를 눌러도 됨) 고르고, 단자와 마주 보는 덕트 벽의 회색 구멍(3cm 안)을 누르면 그 구멍으로 들어가요. 비슷한 선은 한 구멍에 모아요 (예: R, T, E는 가운데 T 아래). 설정의 <b>자동 선 정리</b>를 켜면 자유 모드에서는 꽂자마자 알아서 넣고 접어요. 덕트 안에서는 멀리 가는 선일수록 깊이 들어가요. 한쪽만 넣으면 나머지는 그대로 널브러져 있고, 두 끝을 다 넣으면 남는 길이가 고리로 튀어나와요. 선 정리 도구로 고리를 잡고 위나 아래로 곧게 끌면 세로 덕트 안에 지그재그로 접혀 들어가요. 고리 여러 개를 가로질러 끌면 한 번에 접혀요 (한 덕트 안에서 끝나는 선은 왼쪽이나 오른쪽). 다 넣어야 배선 단계가 끝나고 덕트 커버를 닫을 수 있어요</li><li><b>선 따기 연습</b>: 메인의 선 따기 연습에서 실제 전선 20가닥을 만드는 시간을 재고, 끝나면 한 가닥씩 점검해 불량 개수를 적어요. 최근 5세트 평균이 쌓이면 시험 모드에서 선을 20가닥 꽂을 때마다 그만큼 시험 시간이 더해져요 (설정에서 끌 수 있어요)</li><li><b>합선</b>: MCB를 올렸을 때 R상과 T상이 바로 이어지면, 그 길에 퓨즈가 있으면 퓨즈가 끊어지고 없으면 MCB가 떨어져요</li><li><b>헬리컬 밴드</b>: 밴드를 들고 늘어진 조작판 선들을 가로질러 끌어 한 다발로 모은 뒤(선을 하나씩 눌러도 됨), 다발의 조작판(HMI) 쪽 끝(빨간 원)을 누른 채로 제어판 쪽으로 쭉 끌면 밴드가 다발을 감싸요. 중간에 놓으면 손으로 밴드 끝을 잡고 마저 밀어요</li><li><b>타이머</b>: 마우스를 올리고 <kbd>Tab</kbd>으로 다이얼을 크게, 초 단위로 맞춰요</li></ul>')
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
-    + sec('접점', '접점 표시와 기구 해설', '<ul><li>위의 <b>접점 표시</b>로 릴레이·타이머의 코일 ON/OFF와 닫힌 접점을 볼 수 있어요. 타이머가 세는 동안은 남은 초가 나와요.</li><li><b>기구 해설(I)</b> 도구를 들고 기구를 누르면 결선도와 현재 상태가 떠요. 창을 연 채 손 도구로 버튼·센서를 조작하면 상태가 바뀌어요.</li><li>릴레이는 COM–a/b, 타이머는 순시 a와 한시 a/b를 구분해요. <b>전체 단자 배치와 역할</b>을 펴면 모든 단자를 볼 수 있어요. 초록 선은 닫힌 접점이에요.</li><li>시험 중에는 접점 표시와 기구 해설을 숨겨요. 제출 후 다시 볼 수 있어요.</li></ul>')
+    + sec('접점', '기구 해설', '<ul><li><b>기구 해설(I)</b> 도구를 들고 기구를 누르면 결선도와 현재 상태가 떠요. 창을 연 채 손 도구로 버튼·센서를 조작하면 상태가 바뀌어요.</li><li>릴레이는 COM–a/b, 타이머는 순시 a와 한시 a/b를 구분해요. <b>전체 단자 배치와 역할</b>을 펴면 모든 단자를 볼 수 있어요. 초록 선은 닫힌 접점이에요.</li><li>시험 중에는 기구 해설을 숨겨요. 제출 후 다시 볼 수 있어요.</li></ul>')
     + sec('찾기', '단자 검색과 채점 복습', '<ul><li>위의 <b>단자 검색</b>에서 R3, PLC P20, TB 1번 또는 부저 같은 이름을 찾아요. 설치한 기구의 단자만 나와요.</li><li><b>위치</b>를 누르면 그 단자를 확대해요. <b>연결 추적</b>은 꽂은 전선과 고정 공통선으로 이어진 단자들을 표시해요. 접점 상태와 전압은 테스터로 확인해요.</li><li>자유 모드나 시험 제출 뒤 <b>채점표 → 관련 위치 보기</b>로 감점된 항목의 부품·단자를 확인해요. 강조는 Esc 또는 단자 검색의 <b>강조 지우기</b>로 지워요.</li></ul>')
     + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')

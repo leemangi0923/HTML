@@ -274,21 +274,24 @@ test('all installed devices expose their terminal map and supported live state',
   assert.match(await page.locator('#deviceLive').textContent(),/퓨즈 끊어짐/);
 });
 
-test('contact preference persists, exam hides helpers, and submission restores access', async () => {
-  await fullState(); assert.ok(await page.locator('#contactMarks').count()>0);
-  await page.locator('#btnContacts').click(); assert.equal(await page.locator('#contactMarks').count(),0);
-  await page.evaluate(()=>save());
+test('board contact overlay is removed and device inspector remains available after exam submission', async () => {
+  await fullState();
+  // A legacy saved preference must not bring the deleted overlay back.
+  await page.evaluate(()=>{SET.contacts=true;setSave();save();});
   await page.reload(); await page.waitForFunction(()=>window.SIM);
-  assert.equal(await page.evaluate(()=>SET.contacts),false);
-  await page.locator('[data-home="free"]').click(); await page.locator('#btnContacts').click();
-  await page.evaluate(()=>{const st=pClone(S);st.exam={on:true};setMode('exam',st);openDevicePanel('inst:i7');});
-  assert.equal(await page.locator('#btnContacts').isHidden(),true);
-  assert.equal(await page.locator('[data-tool="inspect"]').count(),0);
+  await page.locator('[data-home="free"]').click();
+  assert.equal(await page.locator('#btnContacts, #contactMarks').count(),0);
+  await page.locator('#btnSet').click();
+  assert.equal(await page.locator('[data-set="contacts"]').count(),0);
+  await page.keyboard.press('Escape');
+  await page.evaluate(()=>{liveDown('mcb');liveDown('pb1');liveRelease();});
   assert.equal(await page.locator('#contactMarks').count(),0);
+  await page.evaluate(()=>{const st=pClone(S);st.exam={on:true};setMode('exam',st);openDevicePanel('inst:i7');});
+  assert.equal(await page.locator('[data-tool="inspect"]').count(),0);
   assert.equal(await page.locator('#devicePanel').isHidden(),true);
   await page.evaluate(()=>{S.exam.on=false;S.exam.done=true;renderAll();openDevicePanel(deviceCatalog().find(d=>d.name==='R1').key);});
   assert.equal(await page.locator('#devicePanel').isVisible(),true);
-  assert.ok(await page.locator('#contactMarks').count()>0);
+  assert.equal(await page.locator('#btnContacts, #contactMarks').count(),0);
 });
 
 test('device panel fits mobile screen and closes with Escape and mode changes', async () => {
