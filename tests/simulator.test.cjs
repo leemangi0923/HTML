@@ -592,3 +592,36 @@ test('pointer cancel clears a pending selection rectangle without a stale next-f
   });
   assert.deepEqual(r,{gesture:null,pending:0,stable:true});
 });
+
+test('side-entry lamp connections approach directly without a vertical reversal near the pin', async () => {
+  await fullState();
+  const result=await page.evaluate(()=>{
+    const failed=[];let checked=0;
+    for(const helical of [1,2]) {
+      S.helical=helical;buildTerms();
+      for(const [i,w] of S.wires.entries())for(const end of ['a','b']) {
+        const t=TERM[w[end]],other=TERM[w[end==='a'?'b':'a']];
+        if(!t?.entrySide || t.k!=='+' || other.entrySide)continue;
+        const pts=calculateBasePts(w,i),p=(end==='a'?pts:[...pts].reverse()).slice(0,16),direction=Math.sign(p.at(-1)[1]-p[0][1]);
+        let reversed=false;for(let k=1;k<p.length;k++)if((p[k][1]-p[k-1][1])*direction < -1e-6)reversed=true;
+        if(reversed)failed.push({helical,id:t.id,wire:[w.a,w.b]});checked++;
+      }
+    }
+    return{failed,checked};
+  });
+  assert.ok(result.checked>=10);assert.deepEqual(result.failed,[]);
+});
+
+test('older lamp ties migrate onto the new route once, including a save viewed from the front', async () => {
+  const fixture=require('./fixtures/lamp-ties-2.5.2.json');
+  for(const back of [true,false]) {
+    await fullState();
+    const result=await page.evaluate(({fixture,back})=>{
+      const st=pClone(S);st.ties=pClone(fixture.ties);delete st.lampRouteV;st.opBack=back;
+      const wires=JSON.stringify(st.wires);setMode('free',st);effects();buildTerms();
+      const first=JSON.stringify(S.ties),score=scoreSheet().total;fixState();
+      return{ties:nTies(),cut:nTieCut(),score,view:S.opBack,unchangedWires:wires===JSON.stringify(S.wires),stable:first===JSON.stringify(S.ties),version:S.lampRouteV};
+    },{fixture,back});
+    assert.deepEqual(result,{ties:12,cut:12,score:30,view:back,unchangedWires:true,stable:true,version:1});
+  }
+});
