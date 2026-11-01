@@ -608,6 +608,9 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
 .contact-open { stroke:#7c8790; stroke-width:1.5; stroke-dasharray:4 3; fill:none; }
 .contact-pin { fill:var(--panel); stroke:currentColor; stroke-width:1.5; }
 .contact-summary { font-size:13px; line-height:1.7; }
+.tb-label-editor { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px; margin:12px 0; }
+.tb-label-editor label { font-size:12px; }
+.tb-label-editor input { display:block; box-sizing:border-box; width:100%; padding:8px; margin-top:4px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:5px; font:inherit; }
 </style>
 </head>
 <body>
@@ -622,6 +625,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
       <button class="chip-btn" id="btnExam" hidden>제출하고 채점</button>
       <button class="chip-btn" id="btnScore">채점표</button>
       <button class="chip-btn" id="btnWires">배선 목록</button>
+      <button class="chip-btn" id="btnTBLabels">단자대 견출지</button>
       <button class="chip-btn" id="btnFind" aria-expanded="false" aria-controls="termSearch">단자 검색</button>
       <button class="chip-btn" id="btnCirc">회로도</button>
       <button class="chip-btn" id="btnDemo">시연 보기</button>
@@ -818,7 +822,7 @@ const STOPPER_W = 8;
 /* --- 단자 정의 (x,y: 기구 왼쪽 위 기준) d: 전선이 나가는 방향 --- */
 const _tc = {};
 function devTerms(type) {
-  if (_tc[type]) return _tc[type];
+  if (_tc[type] && type !== 'tb') return _tc[type];
   const t = [], add = (k, x, y, lab, d, nm, so, ov) => t.push({ k, x, y, lab, d, nm, so, ov });   // so: 옆으로 비켜 빠짐, ov: 바깥 줄 나사 위로 세로로 지나감
   if (type === 'mcb') { add('T1', 8.8, 6, '1', 'up', '위 왼쪽'); add('T2', 26.4, 6, '3', 'up', '위 오른쪽'); add('B1', 8.8, 76, '2', 'down', '아래 왼쪽'); add('B2', 26.4, 76, '4', 'down', '아래 오른쪽'); }
   else if (type === 'fuse') { add('T1', 9, 6, '', 'up', '위 왼쪽'); add('T2', 27, 6, '', 'up', '위 오른쪽'); add('B1', 9, 74, '', 'down', '아래 왼쪽'); add('B2', 27, 74, '', 'down', '아래 오른쪽'); }
@@ -847,7 +851,7 @@ function devTerms(type) {
     [7,8,1,2].forEach((n, i) => add(String(n), 6 + i * 9.4, 66, String(n), 'down', TN[n]));   // 아래 줄: 7 8 1 2
   }
   else if (type === 'tb') {
-    for (let i = 0; i < TB_N; i++) { const n = i + 1, l = TB_LABELS[i] || '', x = 6.3 + i * 8.6, nm = `${n}번(${l || '빈칸'})`;
+    for (let i = 0; i < TB_N; i++) { const n = i + 1, l = tbLabel(i + 1), x = 6.3 + i * 8.6, nm = `${n}번(${l || '빈칸'})`;
       add(n + '.t', x, 8, l, 'up', nm + ' 위(안쪽)'); add(n + '.b', x, 34, l, 'down', nm + ' 아래(바깥쪽)'); }
   }
   else if (type === 'xtb40' || type === 'xtb50') {
@@ -1269,10 +1273,12 @@ function dXTB(x, y, type, name, closed = false) {
 function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
   const h = DEV.tb.h; let s = shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#2a2d30"');
   for (let i = 0; i < TB_N; i++) {
-    const x0 = x + 2 + i * 8.6, lab = TB_LABELS[i] || '';
+    const x0 = x + 2 + i * 8.6, lab = tbLabel(i + 1);
     s += R(x0, y, 8.6, h, 'fill="#1d1f21" stroke="#3b3f43" stroke-width=".35"');
     s += R(x0 + .9, y + 3.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"') + R(x0 + .9, y + 29.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"');   // 나사 홈
-    s += R(x0 + .9, y + 15, 6.8, 12, 'rx=".4" fill="#fbfbf7"') + T(x0 + 4.3, y + 22.4, lab, TX(lab.length > 2 ? 2.4 : lab.length > 1 ? 3 : 3.6, i < 3 ? '#b3262e' : '#1a1a1a', 'font-weight="700"'));
+    s += R(x0 + .9, y + 15, 6.8, 12, 'rx=".4" fill="#fbfbf7"');
+    const chars = [...lab], lines = chars.length > 3 ? Array.from({length:Math.ceil(chars.length/3)},(_,k)=>chars.slice(k*3,k*3+3).join('')) : [lab];
+    lines.forEach((line,k)=>{ s += T(x0+4.3, y+21.8+(k-(lines.length-1)/2)*2.7, line, TX(lines.length>1 ? 2.1 : lab.length>2 ? 2.4 : lab.length>1 ? 3 : 3.6,'#1a1a1a','font-weight="700"')); });
   }
   s += R(x + 2 + TB_N * 8.6, y, 2, h, 'fill="#2a2d30"');
   for (const t of devTerms('tb')) s += SCRS(x + t.x, y + t.y);
@@ -1447,7 +1453,7 @@ const CIRC_DIA = [   // 배선 묶음 0~2의 도면 (src가 없으면 회로도 
 const CHECKS = [
   { id: 'p1', grp: '전원부', no: '(2)-1~3', title: 'MCB를 거쳐 퓨즈, SMPS에 전원' },
   { id: 'p2', grp: '전원부', no: '(2)-4', title: '서보 드라이버 전원 (L1, L3, C1, C2)' },
-  { id: 'p3', grp: '전원부', no: '(2)-5', title: 'PLC 전원이 R3 a접점으로 켜지고 꺼짐' },
+  { id: 'p3', grp: '전원부', no: '(2)-5', title: 'PLC 전원이 자동 버튼으로 켜지고 꺼짐' },
   { id: 'hmi', grp: '전원부', no: 'HMI', title: '전원 24V (초록 단자 1번 +, 2번 −)' },
   { id: 'c1', grp: 'SS 자동 (A)', no: '채점 2-2', title: 'MCB ON: SMPS 전원, WL1 켜짐, PLC는 꺼짐' },
   { id: 'c2', grp: 'SS 자동 (A)', no: '채점 2-3', title: 'PB1을 누르면 PLC 전원, WL2 켜짐' },
@@ -1476,10 +1482,14 @@ function staticLinks(wires) {
 }
 function newSim() { const st = { rel: {}, tim: {}, force: null }; for (const r of RELAYS) st.rel[r] = false; for (const t of TIMERS) st.tim[t] = { on: false, el: 0, out: false }; return st; }
 const CAB_ALL = { power: true };
+function powerTerms(cab) {
+  const ends = cab && cab.powerTerms;
+  return Array.isArray(ends) && ends.length === 2 && ends[0] !== ends[1] && ends.every(t => /^TB\.(?:[1-9]|[1-3][0-9]|40)\.b$/.test(t)) ? ends : ['TB.1.b', 'TB.2.b'];
+}
 /* 컨베이어 선 6가닥: [이름, 설명, 색, 정답 단자대 단자]. 바닥에 내려놓은 컨베이어에서 하나씩 단자대에 결선한다 */
 const CV_LEADS = [['S+', '센서 +24V (갈색)', '#8b5a2b', 'TB.19.b'], ['S1', 'S1 센서 출력 (검정)', '#222222', 'TB.20.b'], ['S2', 'S2 센서 출력 (검정)', '#555555', 'TB.21.b'],
   ['S-', '센서 0V (파랑)', '#2d6cdf', 'TB.22.b'], ['FR', '모터 정회전 (빨강)', '#c0392b', 'TB.24.b'], ['BR', '모터 역회전 (검정)', '#1d1f21', 'TB.25.b']];
-const CV_REF = Object.fromEntries(CV_LEADS.map(l => [l[0], l[3]]));   // 배선 단계 검사는 정답대로 꽂혔다고 본다   // 배선 단계 검사는 케이블이 꽂혔다고 보고 회로만 본다
+const CV_REF = Object.fromEntries(CV_LEADS.map(l => [l[0], l[3]]));   // 배선 단계 검사는 예시대로 꽂혔다고 본다   // 배선 단계 검사는 케이블이 꽂혔다고 보고 회로만 본다
 function evalOnce(links, st, inp) {
   const { f, u } = UF(), cab = inp.cab || CAB_ALL, isIn = n => !inp.plug || !!inp.plug[n];   // 배선 단계 검사는 모두 꽂혔다고 본다
   for (const [a, b] of links) u(a, b);
@@ -1491,12 +1501,12 @@ function evalOnce(links, st, inp) {
   for (const t of TIMERS) if (isIn(t)) { const s = st.tim[t]; tc(t, TPIN.inst, s.on); tc(t, TPIN.timed, s.out); }
   const sw = (d, a) => a ? u(`OP.${d}.3`, `OP.${d}.4`) : u(`OP.${d}.1`, `OP.${d}.2`);
   sw('PB1', inp.pb1); sw('PB0', inp.pb0); sw('SS', inp.ss === 'A'); sw('EMS', false);
-  const acShort = f('TB.1.b') === f('TB.2.b');
-  const ac = (a, b) => { if (acShort || !cab.power) return false; const R = f('TB.1.b'), T = f('TB.2.b'), x = f(a), y = f(b); return (x === R && y === T) || (x === T && y === R); };
+  const [rTerm, tTerm] = powerTerms(cab), acShort = !!cab.power && f(rTerm) === f(tTerm);
+  const ac = (a, b) => { if (acShort || !cab.power) return false; const R = f(rTerm), T = f(tTerm), x = f(a), y = f(b); return (x === R && y === T) || (x === T && y === R); };
   const smps = ac('SMPS.L', 'SMPS.N'), plc = ac('PLC.L', 'PLC.N'), sv = ac('SV.L1', 'SV.L3') && ac('SV.C1', 'SV.C2');
   if (plc && inp.plcOut) for (const [o, c] of PLC_OUT_COM) u(o, c);
   if (smps && f('CV.S-') === f('SMPS.G1')) { if (inp.s1) u('CV.S+', 'CV.S1'); if (inp.s2) u('CV.S+', 'CV.S2'); }   // PNP 센서: 감지하면 출력선이 +에 붙는다
-  const P = f('SMPS.V1'), N = f('SMPS.G1'), R = f('TB.1.b'), T = f('TB.2.b');
+  const P = f('SMPS.V1'), N = f('SMPS.G1'), R = f(rTerm), T = f(tTerm);
   const mix = [P, N].some(x => x === R || x === T), dcShort = smps && P === N, ok = smps && !dcShort && !mix;
   const dc = (a, b) => { if (!ok) return false; const x = f(a), y = f(b); return (x === P && y === N) || (x === N && y === P); };
   const coil = {};
@@ -1506,7 +1516,7 @@ function evalOnce(links, st, inp) {
   const out = { smps, plc, sv, BZ: dc('OP.BZ.1', 'OP.BZ.2') };
   out.HMI = ok && f('OP.HMI.+') === P && f('OP.HMI.-') === N; out.HMIrev = ok && f('OP.HMI.+') === N && f('OP.HMI.-') === P;
   for (const l of ['WL1', 'WL2', 'RL', 'GL', 'YL']) out[l] = dc(`OP.${l}.+`, `OP.${l}.-`);
-  // 컨베이어 모터: 케이블이 TB 24(FR), 25(BR) 바깥쪽에 물려 있고, 센서와 같은 0V(S−)를 쓴다. FR(정회전), BR(역회전)에 +24V가 오면 돈다
+  // 컨베이어 모터: 사용자가 연결한 FR·BR 신호와 센서 공통 0V(S−)를 사용한다. FR(정회전), BR(역회전)에 +24V가 오면 돈다
   const convGnd = ok && f('CV.S-') === N;   // 모터는 센서 0V(S−)를 같이 쓴다
   out.FR = convGnd && f('CV.FR') === P; out.BR = convGnd && f('CV.BR') === P;
   return { out, coil, acShort, dcShort, mix, trev, f, P, N, R, T, ok, acOn: !acShort && !!cab.power };   // f, P, N, R, T: 테스터가 잰다
@@ -1530,13 +1540,13 @@ function errText(r) {
     r.dcShort ? '+24V와 0V가 바로 이어져요 (단락)' : r.osc ? '릴레이가 계속 붙었다 떨어져요 (회로가 멈추지 않아요)' :
     r.trev && r.trev.length ? `타이머 ${r.trev.join(', ')} 전원 극성이 반대예요 (7번이 +24V, 2번이 0V)` : '';
 }
-function runChecks(wires, fuses) {
+function runChecks(wires, fuses, { cab = CAB_ALL, leads = CV_REF, ts = TSET } = {}) {
   const links = staticLinks(wires), st = newSim();
-  const inp = { mcb: false, ss: 'A', pb1: false, pb0: false, s1: false, s2: false, plcOut: false, fuses };
+  const inp = { mcb: false, ss: 'A', pb1: false, pb0: false, s1: false, s2: false, plcOut: false, fuses, cab, leads };
   const res = {}; for (const c of CHECKS) res[c.id] = { ok: true, why: [], bad: new Set() };
   let last, err = '';
   const go = () => { last = settle(links, st, inp); if (!err) err = errText(last); };
-  const wait = sec => { for (let k = Math.round(sec / 0.05); k > 0; k--) { tickTimers(st, 0.05); go(); } };
+  const wait = sec => { for (let k = Math.round(sec / 0.05); k > 0; k--) { tickTimers(st, 0.05, ts); go(); } };
   const chk = (id, exp, when) => {
     for (const [k, v] of Object.entries(exp)) if (!!last.out[k] !== v) { res[id].ok = false; res[id].bad.add(k); res[id].why.push(k === 'HMI' && v && last.out.HMIrev ? `${when}: HMI 전원 +, −가 반대로 연결됐어요 (초록 단자 1번이 +, 2번이 −)` : `${when}: ${OUT_NAME[k]} ${v ? '켜져야' : '꺼져야'} 하는데 ${v ? '꺼져' : '켜져'} 있어요`); }
     const e = errText(last); if (e) { res[id].ok = false; res[id].bad.add('*'); res[id].why.push(`${when}: ${e}`); }
@@ -1546,13 +1556,9 @@ function runChecks(wires, fuses) {
   inp.mcb = true; go();
   chk('p1', { smps: true }, 'MCB 올림'); chk('p2', { sv: true }, 'MCB 올림'); chk('hmi', { HMI: true }, 'MCB 올림');
   chk('c1', { smps: true, WL1: true, plc: false, WL2: false, RL: false, GL: false, YL: false, FR: false, BR: false }, 'MCB 올림 (SS 자동)');
-  const snapSt = JSON.stringify(st);
-  st.force = { R3: true }; go(); chk('p3', { plc: true }, 'R3이 붙었을 때');
-  st.force = { R3: false }; go(); chk('p3', { plc: false }, 'R3이 떨어졌을 때');
-  { const o = JSON.parse(snapSt); st.rel = o.rel; st.tim = o.tim; st.force = null; go(); }
-  press('pb1'); chk('c2', { plc: true, WL2: true }, 'PB1 누름');
+  press('pb1'); chk('c2', { plc: true, WL2: true }, 'PB1 누름'); chk('p3', { plc: true }, 'PB1 누름');
   inp.plcOut = true; go(); chk('bz', { BZ: true }, 'PLC 출력 켬'); inp.plcOut = false; go(); chk('bz', { BZ: false }, 'PLC 출력 끔');
-  press('pb1'); chk('c3', { plc: false, WL2: false }, 'PB1 두 번째');
+  press('pb1'); chk('c3', { plc: false, WL2: false }, 'PB1 두 번째'); chk('p3', { plc: false }, 'PB1 두 번째');
   press('pb1'); chk('c2', { plc: true, WL2: true }, 'PB1 세 번째');
   inp.ss = 'M'; go(); chk('c5', { RL: true, plc: false, WL2: false, GL: false, YL: false, FR: false, BR: false }, 'SS 수동'); chk('hmi', { HMI: true }, 'SS 수동');
   inp.s1 = true; wait(0.5); chk('c6', { GL: false, FR: false }, 'S1 감지 0.5초');
@@ -1575,9 +1581,9 @@ function runChecks(wires, fuses) {
 function fuseState() { const f = {}, nm = names(); for (const i of S.inst) if (i.type === 'fuse') f[nm[i.id]] = (S.fuses[i.id] || [null, null]).map(v => !!v && !v.endsWith('x')); return f; }   // 끊어진 퓨즈(f5x)는 끼워져 있어도 안 통한다
 let _chk = { key: '', val: null };
 const FUSE_IN = { FS1: [true, true], FS2: [true, true] };   // 배선 단계 검사는 퓨즈가 끼워져 있다고 본다 (퓨즈는 동작 검사 단계에서)
-function getChecks() { const key = JSON.stringify(S.wires); if (_chk.key !== key) _chk = { key, val: runChecks(S.wires, FUSE_IN) }; return _chk.val; }
+function getChecks() { const setup = { cab: S.cables, leads: convLeads(), ts: tsetMap() }, key = JSON.stringify([S.wires, setup]); if (_chk.key !== key) _chk = { key, val: runChecks(S.wires, FUSE_IN, setup) }; return _chk.val; }
 const checksAllOk = () => { const R = getChecks(); return !R.err && CHECKS.every(c => R.res[c.id].ok); };
-function checkSteps() { const R = getChecks(); return [...CHECKS.map(c => ({ no: c.no, title: c.title, n: R.res[c.id].ok ? 1 : 0, m: 1, done: R.res[c.id].ok, tip: '', why: R.res[c.id].ok ? '' : (R.res[c.id].why[0] || '') })), tbStep(), dressStep(), tuckStep()]; }
+function checkSteps() { const R = getChecks(); return [...(!cablesIn() ? [{ no: '외부 연결', title: '실제 전원 케이블과 컨베이어 선 6가닥을 연결한 뒤 동작을 검사해요', n: 0, m: 1, done: false, tip: '단자 번호는 자유예요. 실제 연결된 회로로 검사해요.' }] : []), ...CHECKS.map(c => ({ no: c.no, title: c.title, n: R.res[c.id].ok ? 1 : 0, m: 1, done: R.res[c.id].ok, tip: '', why: R.res[c.id].ok ? '' : (R.res[c.id].why[0] || '') })), tbStep(), dressStep(), tuckStep()]; }
 
 /* 제작 조건 (11): 조작판 기기 전선은 반드시 단자대(TB)를 거친다. 조작판 안끼리 잇는 선은 괜찮다 */
 const tbBypass = (wires = S.wires) => wires.filter(w => w.a.startsWith('OP.') !== w.b.startsWith('OP.') && !(w.a.startsWith('OP.') ? w.b : w.a).startsWith('TB.'));
@@ -1690,9 +1696,9 @@ const fusesIn = () => nFuses() === 4;   // 퓨즈는 동작 검사 단계에서 
 function getJudge() { const fz = fuseState(), key = judgeKey(); if (_jdg.key !== key) _jdg = { key, val: runJudge(S.wires, fz, S.cables, plugMap(), convLeads(), tsetMap()) }; return _jdg.val; }
 function judgeSteps() {
   const nLead = S.conveyor ? CV_LEADS.filter(l => S.convLeads[l[0]]).length : 0;
-  const cs = [{ no: '케이블', title: `전원 케이블 꽂기 (${CABLES.power.where})`, n: S.cables.power ? 1 : 0, m: 1, done: !!S.cables.power, tip: `재료함 동작 검사 재료의 전원 케이블을 들고 단자대 ${CABLES.power.where}를 눌러요` },
+  const cs = [{ no: '케이블', title: '전원 케이블 R선·T선 연결', n: S.cables.power ? 1 : 0, m: 1, done: !!S.cables.power, tip: '전원 케이블을 들고 R선과 T선을 꽂을 서로 다른 단자를 차례로 눌러요. 예시는 1·2번이지만 번호는 자유예요.' },
     { no: '컨베이어', title: '컨베이어를 바닥(제어판 아래)에 내려놓기', n: S.conveyor ? 1 : 0, m: 1, done: !!S.conveyor, tip: '재료함 동작 검사 재료의 컨베이어를 들고 제어판 아래 바닥을 눌러요' },
-    { no: '컨베이어', title: '컨베이어 선 결선 (S+, S1, S2, S−, FR, BR)', n: nLead, m: 6, done: nLead === 6, tip: '컨베이어 선 끝을 누르고 단자대(TB) 아래쪽 단자를 눌러요. S+ 19, S1 20, S2 21, S− 22, FR 24, BR 25번' }];
+    { no: '컨베이어', title: '컨베이어 선 결선 (S+, S1, S2, S−, FR, BR)', n: nLead, m: 6, done: nLead === 6, tip: '컨베이어 선 끝을 누르고 단자대(TB) 아래쪽 단자를 눌러요. 번호는 자유예요. 센서 전원·출력·모터 신호가 실제 회로에 맞게 연결되어야 해요' }];
   cs.push({ no: '채점 2-1', title: '퓨즈 끼우기 (FS1 5A, FS2 3A)', n: nFuses(), m: 4, done: fusesIn(), tip: '과제지 동작 조건 (1). 재료함 동작 검사 재료의 퓨즈를 퓨즈 홀더에 놓아요. FS1은 5A, FS2는 3A' });
   cs.push(...Object.values(PLUGS).map(g => ({ no: '소켓', title: `${g.name} 꽂기 (${g.sock === 'relay' ? 'R1~R6, 14P' : 'T1~T3, 8P'})`, n: nPlugged(g.sock), m: DEV[g.sock].qty, done: nPlugged(g.sock) === DEV[g.sock].qty, tip: `재료함 동작 검사 재료의 ${g.name}를 들고 찬넬의 ${DEV[g.sock].name}을 눌러요. 꽂힌 걸 손으로 누르면 빠져요` })));
   const nSet = S.inst.filter(i => i.type === 'timer' && S.plug[i.id] && S.tset[i.id] !== undefined).length;
@@ -1711,17 +1717,18 @@ function takeJudge() {   // 실제 대회처럼 1~5 작업을 끝낸 뒤에 심�
 }
 
 /* 교류(220V)와 직류(24V)가 섞이는 전선은 바로 막는다 (접점은 붙거나 떨어지므로 한 덩어리로 본다) */
-const isAC = id => /^(MCB|FS\d|SV)\./.test(id) || /^(SMPS|PLC)\.(L|N)$/.test(id) || /^TB\.[12]\./.test(id);   // 접지(E, FG)는 어느 쪽도 아님
-const isDC = id => (/^(OP|T\d|XTB\d)\./.test(id) && !/\.FG$/.test(id)) || /^SMPS\.[VG]\d$/.test(id) || /^R\d\.1[34]$/.test(id) || /^PLC\.(P[0-2][0-9A-F]|P|I?COM\d|24[GV])$/.test(id) || (/^TB\.\d+\./.test(id) && +id.split('.')[1] > 3);
+const isAC = id => /^(MCB|FS\d)\./.test(id) || /^SV\.(L[123]|C[12])$/.test(id) || /^(SMPS|PLC)\.(L|N)$/.test(id);   // 접지(E, FG)는 어느 쪽도 아님
+const isDC = id => (/^(OP|CV|XTB\d)\./.test(id) && !/\.FG$/.test(id)) || /^SMPS\.[VG]\d$/.test(id) || /^R\d\.1[34]$/.test(id) || /^PLC\.(P[0-2][0-9A-F]|P|I?COM\d|24[GV])$/.test(id) || /^T\d\.[27]$/.test(id);
 function mixesACDC(a, b) {
   const ws = [...S.wires, { a, b }], { f, u } = UF();
   for (const [x, y] of staticLinks(ws)) u(x, y);
+  for (const [k, t] of Object.entries(convLeads())) u('CV.' + k, t);
   u('MCB.T1', 'MCB.B1'); u('MCB.T2', 'MCB.B2');
   for (const fs of ['FS1', 'FS2']) { u(fs + '.T1', fs + '.B1'); u(fs + '.T2', fs + '.B2'); }
   for (const r of RELAYS) for (let p = 1; p <= 4; p++) { u(`${r}.${8 + p}`, `${r}.${4 + p}`); u(`${r}.${8 + p}`, `${r}.${p}`); }
   for (const t of TIMERS) for (const g of [TPIN.inst, TPIN.timed]) { u(`${t}.${g[0]}`, `${t}.${g[1]}`); if (g[2]) u(`${t}.${g[0]}`, `${t}.${g[2]}`); }
-  const root = f(a); let ac = false, dc = false;
-  for (const w of ws) for (const id of [w.a, w.b]) if (f(id) === root) { if (isAC(id)) ac = true; if (isDC(id)) dc = true; }
+  const root = f(a); let ac = !!S.cables.power && powerTerms(S.cables).some(t=>f(t)===root), dc = false;
+  for (const w of ws) for (const id of [w.a, w.b]) if (f(id) === root) { if (isAC(id) || (S.cables.power && powerTerms(S.cables).includes(id))) ac = true; if (isDC(id)) dc = true; }
   return ac && dc;
 }
 function nextPair() {
@@ -2036,7 +2043,7 @@ const TOOL_HELP = {
   inspect: '기구를 눌러 단자 결선도, 코일과 접점의 현재 상태를 확인해요',
   hand: '부품을 들어서 놓아요. 판을 끌면 화면이 움직여요', tape: '재료함의 덕트·찬넬을 눌러 양면테이프를 붙여요', pen: '판 끝에 댄 덕트나 서보 구멍 자리를 눌러 빨간 선을 그어요',
   ruler: '붙인 첫 덕트에 자를 대고 덕트, 찬넬 간격을 표시해요', glove: '장갑을 끼고 벗어요', drill: '붙인 덕트·찬넬을 눌러 구멍을 뚫어요. 장갑 필수',
-  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '기기 바로 아래를 눌러 견출지를 붙여요', wire: '단자 두 개를 차례로 눌러 연결해요. 꽂은 선은 늘어져 있다가 선 정리(J)로 덕트에 넣어요', dress: '단자 쪽 전선 끝을 둘러싸게 끌어서 고르고(단자를 눌러도 돼요) 가까운 덕트의 회색 구멍을 누르면 그 구멍으로 들어가요. 두 끝을 넣으면 남는 선 고리를 잡고(여러 개는 가로질러) 위나 아래로 끌어 덕트 안에 접어 넣어요', cut: '전선, 부품, 견출지를 빼요', tie: '조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
+  driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '조작판 기기 아래에 견출지를 붙이거나 단자대의 흰 견출지를 눌러 편집해요', wire: '단자 두 개를 차례로 눌러 연결해요. 꽂은 선은 늘어져 있다가 선 정리(J)로 덕트에 넣어요', dress: '단자 쪽 전선 끝을 둘러싸게 끌어서 고르고(단자를 눌러도 돼요) 가까운 덕트의 회색 구멍을 누르면 그 구멍으로 들어가요. 두 끝을 넣으면 남는 선 고리를 잡고(여러 개는 가로질러) 위나 아래로 끌어 덕트 안에 접어 넣어요', cut: '전선, 부품, 견출지를 빼요', tie: '조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
 };
 const toolName = id => (TOOLS.find(t => t.id === id) || { name: id }).name;
 const fmt = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0'); };
@@ -2047,7 +2054,7 @@ function newFrame() { const fr = {}; for (const [id, type] of FRAME_INIT) fr[id]
 function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
-    op: { hmi: false, dev: {}, labels: {} }, floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
+    op: { hmi: false, dev: {}, labels: {} }, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
     inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, plug: {}, tset: {}, dressV: 2, dbreak: {}, extV: 2, hgath: [], hcov: 0 };
 }
 function save() { if (DEMO.on || MODE === 'prac') return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
@@ -2675,10 +2682,11 @@ function fillGroup(k) {
   if (k === 5) { if (!stageDone(4)) fillGroup(4); fillStage(5); }
 }
 function askFill(k) {
-  if (S.exam && S.exam.on) return say('시험 모드에서는 정답 채우기를 쓸 수 없어요', 'info');
-  confirmBox(`'${GROUP_TITLE[k]}' 작업을 정답대로 채울까요? 그 작업은 건너뛰고 다른 작업만 연습할 때 써요. 정답 채우기를 쓰면 시간점수는 없어요.`, () => { snap(); fillGroup(k); S.usedFill = true; UI.carry = null; UI.pending = null; commit(); });
+  if (S.exam && S.exam.on) return say('시험 모드에서는 예시 채우기를 쓸 수 없어요', 'info');
+  confirmBox(`'${GROUP_TITLE[k]}' 작업을 예시대로 채울까요? 그 작업은 건너뛰고 다른 작업만 연습할 때 써요. 예시 채우기를 쓰면 시간점수는 없어요.`, () => { snap(); fillGroup(k); S.usedFill = true; UI.carry = null; UI.pending = null; commit(); });
 }
 function jumpTo(n) {
+  UI.powerStart = null;
   closeDevicePanel(); clearInspection(); closeTermSearch();
   liveReset();
   const g = S.guide; S = newState(g);
@@ -2686,7 +2694,7 @@ function jumpTo(n) {
   if (n >= 3) S.opBack = true;
   if (n) S.usedFill = true;
   undoStack = []; UI.carry = null; UI.pending = null; UI.lastDone = null;
-  closeModal(); commit(); fit(); say(n ? '앞 작업을 정답대로 채워 두었어요' : '처음부터 시작해요', 'info');
+  closeModal(); commit(); fit(); say(n ? '앞 작업을 예시대로 채워 두었어요' : '처음부터 시작해요', 'info');
 }
 function toggleFlip() {
   S.opBack = !S.opBack; UI.pending = null; save(); buildTerms(); renderAll();
@@ -2699,7 +2707,7 @@ function setTool(id) {
   if (id === 'inspect' && S.exam && S.exam.on) return say('기구 해설은 시험 제출 뒤 볼 수 있어요', 'info');
   if (id === 'glove') return toggleGloves();                   // 장갑은 누르면 바로 끼고 벗음
   if (S.tool === id && id !== 'hand') id = 'hand';            // 같은 도구를 다시 누르면 내려놓기
-  S.tool = id; UI.pending = null; UI.meter = null; UI.dsel = []; if (id !== 'hand') UI.carry = null;
+  S.tool = id; UI.powerStart = null; UI.pending = null; UI.meter = null; UI.dsel = []; if (id !== 'hand') UI.carry = null;
   save(); renderTools(); renderTray(); renderWorld(); renderOver();
 }
 function toggleGloves() { snap(); S.gloves = !S.gloves; say(S.gloves ? '장갑을 꼈어요' : '장갑을 벗었어요', 'ok'); commit(); }
@@ -2708,10 +2716,12 @@ const carried = key => UI.carry && UI.carry.key === key ? (UI.carry.count || 1) 
 const outCount = key => S.floor.filter(f => f.key === key).length + carried(key);
 // 여러 개짜리 재료는 남은 것을 한꺼번에 들고, 한 번 누를 때마다 하나씩 내려놓는다
 function takeFromTray(it) {
+  UI.powerStart = null;
   const ids = it.kind === 'fr' ? frList().filter(([id, q]) => q.type === it.key && !q.slot && !onFloor(id)).map(([id]) => id).slice(0, it.left) : undefined;
   return { kind: it.kind, key: it.key, from: 'tray', count: it.left, ids };
 }
 function returnCarry() {
+  UI.powerStart = null;
   const c = UI.carry; if (!c) return; const n = c.count || 1, it = trayItems().find(i => i.key === c.key);
   UI.carry = null; say(`${it ? it.name : '부품'}${n > 1 ? ' ' + n + '개를' : '을(를)'} 재료함에 다시 넣었어요`, 'info'); renderTray(); renderWorld(); renderOver();
 }
@@ -2727,7 +2737,7 @@ function trayGroups() {
       left: Math.max(0, (t === 'servo' ? (S.servo.placed ? 0 : 1) : DEV[t].qty - devCount(t)) - outCount(t)) })) },
     { id: 'fuse', name: '퓨즈', items: ['f5', 'f3'].map(t => ({ key: t, kind: 'fuse', name: FUSE_TYPES[t].name, spec: FUSE_TYPES[t].spec, total: FUSE_TYPES[t].qty, left: Math.max(0, FUSE_TYPES[t].qty - fuseUsed(t) - outCount(t)) })) },
     { id: 'cable', name: '동작 검사 재료', items: [
-      { key: 'power', kind: 'cable', name: '전원 케이블', spec: 'AC220V 3P, 플러그 포함. TB 1번(R), 2번(T)에 꽂아요', total: 1, left: Math.max(0, (S.cables.power ? 0 : 1) - outCount('power')) },
+      { key: 'power', kind: 'cable', name: '전원 케이블', spec: '전원 R선과 T선을 꽂을 단자 두 곳을 차례로 눌러요', total: 1, left: Math.max(0, (S.cables.power ? 0 : 1) - outCount('power')) },
       ...Object.entries(PLUGS).map(([k, g]) => ({ key: k, kind: 'plug', name: g.name, spec: g.spec, total: DEV[g.sock].qty, left: Math.max(0, DEV[g.sock].qty - nPlugged(g.sock) - outCount(k)) })),
       { key: 'pack', kind: 'pack', name: '빨간 사각팩', spec: '소형 □40. 컨베이어 벨트에 올려요. 누르고 있으면 잡혀요', total: 1, left: Math.max(0, (LIVE.pack === null ? 1 : 0) - outCount('pack')) },
       { key: 'conveyor', kind: 'conveyor', name: '컨베이어', spec: '모터, 센서 S1·S2 (180mm), 선 6가닥. 제어판 아래 바닥에 내려놓고 선을 단자대에 결선해요', total: 1, left: Math.max(0, (S.conveyor ? 0 : 1) - outCount('conveyor')) }] },
@@ -2830,7 +2840,7 @@ function dropPlug(p) {
 }
 /* 외부 케이블: 동작 검사 전에 단자대(TB) 바깥쪽 단자에 꽂는다 */
 const CABLES = {
-  power: { name: '전원 케이블', item: 'power', ns: [1, 2], where: 'TB 1번(R), 2번(T)' }
+  power: { name: '전원 케이블', item: 'power' }
 };
 const tbTermX = (tb, n) => tb.x + 6.3 + (n - 1) * 8.6;
 function tbTermAt(p) { const tb = tbInst(); if (!tb) return null; const y = devY(tb); if (p.y < y + 16 || p.y > y + 76) return null; const n = Math.round((p.x - tb.x - 6.3) / 8.6) + 1; return n >= 1 && n <= TB_N ? n : null; }
@@ -2858,15 +2868,21 @@ function xtbCoverAt(p) {   // 연 뚜껑은 기기 위로 젖혀져 있고, 닫�
 }
 function cableAt(p) {   // 손으로 누르면 빠지는, 꽂혀 있는 케이블
   const tb = tbInst(); if (!tb) return null; const by = devY(tb) + 34; if (p.y < by + 6 || p.y > by + 34) return null;
-  return Object.keys(CABLES).find(k => S.cables[k] && p.x >= tbTermX(tb, CABLES[k].ns[0]) - 5 && p.x <= tbTermX(tb, CABLES[k].ns[CABLES[k].ns.length - 1]) + 5) || null;
+  return S.cables.power && powerTerms(S.cables).some(t=>Math.abs(p.x-tbTermX(tb,+t.split('.')[1]))<=5) ? 'power' : null;
 }
 function dropCable(p) {
   if (!tbInst()) return say('단자대(TB)를 먼저 설치해요', 'info');
   if (S.tbCover) return say('단자대 커버를 벗기고 꽂아요', 'info');
-  const n = tbTermAt(p); if (!n) return say(S.guide ? '단자대(TB) 아래쪽 단자에 꽂아요' : '꽂을 자리가 아니에요', 'info');
-  const want = Object.keys(CABLES).filter(k => CABLES[k].item === UI.carry.key && !S.cables[k]), k = want.find(x => CABLES[x].ns.includes(n));
-  if (!k) return mistake(S.guide ? want.map(x => `${CABLES[x].name}은 ${CABLES[x].where}`).join(', ') + '에 꽂아요' : '꽂는 자리가 틀렸어요');
-  snap(); S.cables[k] = true; consumeCarry(); say(`${CABLES[k].name}을 ${CABLES[k].where}에 꽂았어요`, 'ok'); commit();
+  const n = tbTermAt(p); if (!n) return say('단자대 아래쪽에서 전원 R선, T선을 꽂을 곳을 차례로 눌러요','info');
+  const term = `TB.${n}.b`;
+  if (terminalLoad(term) >= 2) return mistake('한 단자에는 압착단자를 2개까지만 꽂아요');
+  if (!UI.powerStart) { UI.powerStart = term; renderAll(); return say(`R선: ${n}번을 골랐어요. 이제 T선을 꽂을 다른 단자를 눌러요`,'info'); }
+  if (term === UI.powerStart) return say('R선과 T선은 서로 다른 단자에 꽂아요','info');
+  snap(); S.cables = { ...S.cables, power: true, powerTerms: [UI.powerStart,term] }; UI.powerStart = null;
+  consumeCarry(); commit(); say(`전원 R선 ${powerTerms(S.cables)[0]}, T선 ${term}에 꽂았어요`,'ok');
+}
+function terminalLoad(id) {
+  return S.wires.filter(w=>w.a===id || w.b===id).length + Object.values(S.convLeads).filter(t=>t===id).length + (S.cables.power ? powerTerms(S.cables).filter(t=>t===id).length : 0);
 }
 function dropTBCover(p) {
   const r = tbRect(); if (!r || !inRect(p, r, 12)) return dropOnFloor(p);
@@ -3006,6 +3022,7 @@ function handleTap(p, e) {
   closeChooser();
   const t = S.tool;
   if (t === 'inspect' && !UI.carry) return inspectDeviceAt(p);
+  if (t === 'label' && !UI.carry) { const n = tbLabelAt(p); if (n) return editTBLabels(n); }
   if (UI.replug) return finishReplug(p);
   if (!UI.carry && inRect(p, FLIP_BTN)) return toggleFlip();
   if (t === 'meter') return meterTap(p);
@@ -3552,8 +3569,9 @@ function connectLead(a, b) {   // 컨베이어 선 하나를 단자대 단자에
   if (other.startsWith('CV.')) return say('컨베이어 선끼리는 이을 수 없어요. 단자대 단자를 눌러요', 'info');
   if (!/^TB\.\d+\.b$/.test(other)) return mistake('컨베이어 선은 단자대(TB) 아래쪽(바깥쪽) 단자에 꽂아요 (제작 조건 (11))');
   if (S.tbCover) return say('단자대 커버를 벗겨야 꽂을 수 있어요', 'info');
-  const cnt = S.wires.filter(w => w.a === other || w.b === other).length + Object.values(S.convLeads).filter(t => t === other).length;
+  const cnt = terminalLoad(other);
   if (cnt >= 2) return mistake('한 단자에는 압착단자를 2개까지만 꽂아요');
+  if (mixesACDC(cv, other)) return mistake('교류 전원과 직류 회로가 연결돼요. 연결을 확인하세요');
   snap(); S.convLeads[k] = other; say(`컨베이어 ${k === 'S-' ? 'S−' : k}선을 ${TERM[other].nm}에 꽂았어요`, 'ok'); commit();
   if (LIVE.inp.mcb) say('전원이 켜진 채로 결선했어요. 결선할 때는 MCB를 내려요 (제작 조건 (9))', 'err');
 }
@@ -3561,7 +3579,7 @@ function addWire(a, b) {
   if (!TERM[a] || !TERM[b]) return say('그 단자가 지금 안 보여요. 조작판 단자는 뒷면으로 뒤집어야 보여요', 'info');
   if (S.wires.some(w => (w.a === a && w.b === b) || (w.a === b && w.b === a))) return say('이미 연결돼 있어요', 'info');
   if (wireLock(a, b)) return say(wireLock(a, b), 'info');
-  const cnt = id => S.wires.filter(w => w.a === id || w.b === id).length;
+  const cnt = terminalLoad;
   const full = [a, b].find(id => cnt(id) >= termMax(id)); if (full) return mistake(termFull(full));
   if (mixesACDC(a, b)) { UI.flash = { a, b }; renderOver(); setTimeout(() => { UI.flash = null; renderOver(); }, 900); return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요'); }
   snap(); S.wires.push({ a, b, t: S.elapsed, k: S.wseq = (S.wseq || 0) + 1 }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit(); prepCharge();   // k: 꽂은 순번 (방금 꽂은 선 표시)
@@ -3656,7 +3674,7 @@ function renderSteps() {
   let h = R.err ? `<li class="errline">${esc(R.err)}</li>` : '', marked = false;
   GROUP_TITLE.forEach((name, k) => {
     const steps = stepsFor(k), d = steps.filter(s => s.done).length; marked = false;
-    h += `<li class="grp" id="sec${k}">${esc(name)} <span class="gcount">${d}/${steps.length}</span><button class="fillbtn" data-act="fill" data-k="${k}">정답 채우기</button></li>`;
+    h += `<li class="grp" id="sec${k}">${esc(name)} <span class="gcount">${d}/${steps.length}</span><button class="fillbtn" data-act="fill" data-k="${k}">예시 채우기</button></li>`;
     if (k === 4) h += `<li class="judgeli"><button class="nextbtn" data-act="judge"${prevDone() && cablesIn() && fusesIn() && plugsIn() ? '' : ' disabled'}>${judgeRan() ? '동작 검사 다시 받기' : '동작 검사 받기'}</button></li>`;
     for (const s of steps) {
       const now = !s.done && !marked; if (now) marked = true;
@@ -3688,7 +3706,7 @@ function guideUnder() {
   {
     if (c && c.kind === 'dev' && c.key !== 'servo') { const row = ROW[RAIL_ROW[RAIL_OF[c.key]]]; s += R(84, row.y0 + 3, 592, row.y1 - row.y0 - 6, 'class="guide-slot"'); }
     if (c && c.key === 'servo') s += R(SERVO.x, SERVO.y, SERVO.w, SERVO.h, 'class="guide-slot"');
-    if (c && c.kind === 'cable' && tbInst()) { const tb = tbInst(), by = devY(tb) + 34; for (const k of Object.keys(CABLES)) if (CABLES[k].item === c.key && !S.cables[k]) { const x0 = tbTermX(tb, CABLES[k].ns[0]) - 4.5, x1 = tbTermX(tb, CABLES[k].ns[CABLES[k].ns.length - 1]) + 4.5; s += R(x0, by - 6, x1 - x0, 14, 'class="guide-slot"'); } }
+    if (c && c.kind === 'cable' && tbInst()) for (const T of TERMS.filter(t=>/^TB\.\d+\.b$/.test(t.id))) s += C(T.x,T.y,3.5,`class="${UI.powerStart===T.id ? 'pend-ring' : 'guide-ring'}"`);
     if (c && c.kind === 'tbcover' && tbRect()) { const r = tbRect(); s += R(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 'class="guide-slot"'); }
     if (c && c.kind === 'cover') for (const [, q] of frList()) if (q.type === 'duct' && q.stuck && !q.covered) { const r = frRect(q); s += R(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 'class="guide-slot"'); }
     if (t === 'stopper') for (const e of groupEnds()) if (!e.ok) s += R(e.x, ROW[RAIL_ROW[e.rail]].cy - 23, STOPPER_W, 46, 'class="guide-slot"');
@@ -3696,10 +3714,10 @@ function guideUnder() {
   return s;
 }
 const CAB_HOLE = { x: 60, y: PANEL.h };   // 왼쪽 세로 덕트 아래 끝 구멍: 전원 케이블과 컨베이어 선이 판 밖으로 나가는 곳
-function drawPowerCable() {   // 단자대 1, 2번 아래 → 맨 아래 덕트 → 왼쪽 아래 덕트 구멍 → 밖 (플러그)
+function drawPowerCable() {   // 사용자가 고른 단자대 두 단자 아래 → 맨 아래 덕트 → 왼쪽 아래 덕트 구멍 → 밖 (플러그)
   const tb = S.inst.find(i => i.type === 'tb'); if (!tb) return '';
-  const by = devY(tb) + 34, rx0 = tb.x + 6.3, tx0 = tb.x + 14.9, rx = rx0 - 2.3, tx = tx0 - 2.3, hR = { r: 2.05 }, yd = DUCT_Y.dB + 9, hx = CAB_HOLE.x - 8, oy = PANEL.h + 62;
-  return `<path d="M${F(rx)} ${F(by + ferLen(hR) - 1.8)}V${F(yd)}" stroke="#2a2d30" stroke-width="2.4" fill="none"/><path d="M${F(tx)} ${F(by + ferLen(hR) - 1.8)}V${F(yd)}" stroke="#e9e9e4" stroke-width="2.4" fill="none"/>` + ferruleAt(rx, by, 0, 1, hR) + ferruleAt(tx, by, 0, 1, hR) + SCRS(rx0, by) + SCRS(tx0, by) +
+  const by = devY(tb) + 34, ends = powerTerms(S.cables), rx0 = tbTermX(tb,+ends[0].split('.')[1]), tx0 = tbTermX(tb,+ends[1].split('.')[1]), rx = rx0 - 2.3, tx = tx0 - 2.3, hR = { r: 2.05 }, yd = DUCT_Y.dB + 9, hx = CAB_HOLE.x - 8, oy = PANEL.h + 62;
+  return `<path d="M${F(rx)} ${F(by + ferLen(hR) - 1.8)}V${F(yd)}H${hx}" stroke="#2a2d30" stroke-width="2.4" fill="none"/><path d="M${F(tx)} ${F(by + ferLen(hR) - 1.8)}V${F(yd)}" stroke="#e9e9e4" stroke-width="2.4" fill="none"/>` + ferruleAt(rx, by, 0, 1, hR) + ferruleAt(tx, by, 0, 1, hR) + SCRS(rx0, by) + SCRS(tx0, by) +
     `<path d="M${F(tx + 2)} ${F(yd)}H${hx + 8}Q${hx} ${F(yd)} ${hx} ${F(yd + 8)}V${PANEL.h + 30}C${hx} ${oy} ${hx - 20} ${oy} ${hx - 52} ${oy}" stroke="#16191b" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` +
     R(hx - 66, oy - 6, 13, 12, 'rx="2" fill="#3a3f44" stroke="#16191b" stroke-width=".6"') + R(hx - 71, oy - 4, 5.5, 2, 'fill="#c8ccd0"') + R(hx - 71, oy + 2, 5.5, 2, 'fill="#c8ccd0"') +
     `<text x="${hx - 72}" y="${oy + 19}" class="cable-label" font-size="8">전원 케이블 AC220V (R, T)</text>`;
@@ -4257,7 +4275,7 @@ function scoreSheet() {
   else if (S.violations.includes('장갑 없이 드릴 사용')) { tp = 0; tw = '장갑 없이 드릴을 써서 받을 수 없어요'; }
   else if (bypass.length) { tp = 0; tw = '단자대를 거치지 않고 바로 이은 전선이 있어서 받을 수 없어요'; }
   else if (S.helical !== 2) { tp = 0; tw = '헬리컬 밴드로 외부 전선을 정리하지 않아서 받을 수 없어요'; }
-  else if (S.usedFill) { tp = 0; tw = '정답 채우기를 써서 받을 수 없어요'; }
+  else if (S.usedFill) { tp = 0; tw = '예시 채우기를 써서 받을 수 없어요'; }
   rows.push({ no: '4-1', t: '끝나기 30분 전 0.1 / 25분 0.08 / 20분 0.06 / 15분 0.04 / 10분 0.02', max: .1, got: tp, why: tw });
   let g = null, total = 0;
   for (const r of rows) { if (r.grp) { g = r; g.sum = 0; g.max = 0; continue; } if (r.cond !== undefined) { g.cond = true; continue; } g.sum += r.got; g.max += r.max; total += r.got; }
@@ -4293,8 +4311,7 @@ function wireName(id) {
     .replace(/^MCB /, '차단기 MCB ').replace(/^(FS[12]) /, '퓨즈 $1 ').replace(/^(R\d) /, '릴레이 $1 ').replace(/^(T\d) /, '타이머 $1 ').replace(/^조작판 뒷면 /, '조작판 ');
 }
 function wireRows() {
-  const ref = new Set(REF_WIRES.map(([x, y]) => [x, y].sort().join('|')));
-  return withAllTerms(() => S.wires.map((w, i) => ({ n: i + 1, t: w.t, a: w.a, b: w.b, an: wireName(w.a), bn: wireName(w.b), ok: ref.has([w.a, w.b].sort().join('|')) })));
+  return withAllTerms(() => S.wires.map((w, i) => ({ n: i + 1, t: w.t, a: w.a, b: w.b, an: wireName(w.a), bn: wireName(w.b) })));
 }
 const stamp = () => { const d = new Date(), z = v => String(v).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
 function wireText(rows) {
@@ -4306,9 +4323,9 @@ function wireCSV(rows) {
   return '\uFEFF' + ['순서,꽂은 시간,출발,도착,출발 기호,도착 기호', ...rows.map(r => [r.n, r.t !== undefined ? fmt(r.t) : '', r.an, r.bn, r.a, r.b].map(q).join(','))].join('\r\n') + '\r\n';
 }
 function showWireList() {
-  const rows = wireRows(), ex = S.exam && S.exam.on, wrong = rows.filter(r => !r.ok).length;
-  let h = `<h2>배선 목록</h2><p class="muted">꽂은 순서대로예요. 총 ${rows.length}개${ex || !rows.length ? '' : wrong ? `, 정답 배선에 없는 선 ${wrong}개` : ', 모두 정답 배선에 있어요'}. 옮겨 꽂은 선은 처음 꽂은 순서 자리에 바뀐 위치로 나와요.</p>`;
-  h += rows.length ? `<ol class="wl">${rows.map(r => `<li class="${ex || r.ok ? '' : 'bad'}"><span class="wl-n">${r.n}</span><span class="wl-t">${esc(r.an)} → ${esc(r.bn)}${!ex && !r.ok ? '<small>정답 배선에 없음</small>' : ''}</span><span class="wl-m">${r.t !== undefined ? fmt(r.t) : ''}</span></li>`).join('')}</ol>` : '<p>아직 꽂은 전선이 없어요.</p>';
+  const rows = wireRows();
+  let h = `<h2>배선 목록</h2><p class="muted">꽂은 순서대로 총 ${rows.length}개예요. 예시와 다른 연결도 실제 동작이 맞으면 통과해요. 옮겨 꽂은 선은 처음 순서 자리에 바뀐 위치로 나와요.</p>`;
+  h += rows.length ? `<ol class="wl">${rows.map(r => `<li><span class="wl-n">${r.n}</span><span class="wl-t">${esc(r.an)} → ${esc(r.bn)}</span><span class="wl-m">${r.t !== undefined ? fmt(r.t) : ''}</span></li>`).join('')}</ol>` : '<p>아직 꽂은 전선이 없어요.</p>';
   h += `<div class="actions">${rows.length ? `<button class="primary" data-act="wl-copy">글자 복사</button>${DL ? '<button data-act="wl-txt">TXT 저장</button><button data-act="wl-csv">CSV 저장</button>' : ''}` : ''}<button data-act="wl-import">불러오기</button><button data-act="close">닫기</button></div>`;
   openModal(h);
 }
@@ -4395,6 +4412,26 @@ function openChooser(z, e) {
   el.style.left = clamp(cx - 118, 8, window.innerWidth - 244) + 'px'; el.style.top = clamp(cy + 16, 8, window.innerHeight - 200) + 'px';
 }
 function closeChooser() { $('#chooser').hidden = true; UI.chooserZone = null; }
+
+function tbLabel(n) { return (S && S.tbLabels && S.tbLabels[n - 1]) ?? TB_LABELS[n - 1] ?? ''; }
+function tbLabelAt(p) {
+  const tb = tbInst(); if (!tb) return null;
+  if (p.y < devY(tb) + 15 || p.y > devY(tb) + 28) return null;
+  const n = Math.floor((p.x - tb.x - 2) / 8.6) + 1;
+  return n >= 1 && n <= TB_N ? n : null;
+}
+function editTBLabels(n = 1) {
+  if (!tbInst()) return say('단자대를 먼저 설치해요', 'info');
+  openModal(`<h2>단자대 견출지</h2><p>견출지는 이름표예요. 글씨를 바꾸어도 전선은 옮겨지지 않아요. 단자 번호와 관계없이 실제 연결로 작동해요.</p><div class="tb-label-editor">${Array.from({length:TB_N},(_,i)=>`<label>${i+1}번<input data-tb-label="${i+1}" aria-label="단자대 ${i+1}번 견출지" maxlength="12" value="${esc(tbLabel(i+1))}"></label>`).join('')}</div><div class="actions"><button class="primary" data-act="tb-label-save">적용</button><button data-act="close">취소</button></div>`);
+  setTimeout(()=>{ const input = $(`[data-tb-label="${n}"]`); if(input){input.focus(); input.select();} },40);
+}
+function saveTBLabels() {
+  const labels = [...document.querySelectorAll('[data-tb-label]')].map(i=>i.value.trim());
+  if(labels.length !== TB_N) return;
+  snap(); S.tbLabels = labels; closeModal(); commit(); say('단자대 견출지를 바꿨어요. 전기 연결은 그대로예요','ok');
+}
+$('#btnTBLabels').addEventListener('click',()=>editTBLabels());
+
 function applyLabel(z, text) {
   closeChooser();
   if (text !== z.expect) return mistake(S.guide ? `틀렸어요. 여기는 '${z.expect}'예요` : '견출지 글자가 틀렸어요');
@@ -4605,6 +4642,7 @@ $('#modal').addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) { if (e.target === $('#modal') && UI.modalClosable) closeModal(); return; }
   const a = b.dataset.act;
+  if (a === 'tb-label-save') return saveTBLabels();
   if (a === 'score-locate') return locateScore(b.dataset.no);
   if (a === 'close') closeModal();
   else if (a === 'next') nextStage();
@@ -4622,9 +4660,9 @@ $('#modal').addEventListener('click', e => {
   else if (a === 'p-home') showHome();
   else if (a.startsWith('wl-')) wireAct(a);
 });
-/* ---------- 시연 보기: 처음부터 끝까지 정답대로, 한 동작씩 (영상처럼 재생) ---------- */
+/* ---------- 시연 보기: 처음부터 끝까지 예시대로, 한 동작씩 (영상처럼 재생) ---------- */
 const FIT_V = { x: -40, y: -90, w: 1300, h: 1110 };
-function demoScript() {   // 정답 채우기를 동작 하나 단위로 쪼갠다. 동작 ops: [set|push, 경로, 값]
+function demoScript() {   // 예시 채우기를 동작 하나 단위로 쪼갠다. 동작 ops: [set|push, 경로, 값]
   const keep = S, out = [];
   const add = (st, text, ops, o = {}) => out.push({ st, text, ops, ...o });
   const pad = (r, m = 30) => ({ x: r.x - m, y: r.y - m, w: r.w + 2 * m, h: r.h + 2 * m });
@@ -4735,7 +4773,7 @@ function demoScript() {   // 정답 채우기를 동작 하나 단위로 쪼갠�
     add(5, 'PLC 단자 덮개 닫기 (위, 아래)', [['set', ['plcLid'], { t: true, b: true }]], { focus: rowV('c1'), hl: { box: devR(S.inst.find(i => i.type === 'plc')) } });
     S.ties.forEach((t, k) => add(5, `케이블 타이로 조작판 전선 묶기 (${k + 1}/${S.ties.length})`, [['push', ['ties'], { ...t, state: 'tight' }]], { focus: OP_V, hl: { tie: k } }));
     if (S.ties.length) add(5, '니퍼로 케이블 타이 끝 자르기', [['set', ['ties'], S.ties]], { focus: OP_V });
-    add(5, '완성! 처음부터 끝까지 정답대로 마쳤어요', [], { focus: FIT_V, sub: '여기서부터 직접 해보기로 이어서 연습하거나, ⏮ 단계 번호로 다시 볼 수 있어요' });
+    add(5, '완성! 처음부터 끝까지 예시대로 마쳤어요', [], { focus: FIT_V, sub: '여기서부터 직접 해보기로 이어서 연습하거나, ⏮ 단계 번호로 다시 볼 수 있어요' });
   } finally { S = keep; buildTerms(); }
   return out;
 }
@@ -5045,7 +5083,7 @@ $('#xp').addEventListener('click', e => {
 function demoUI() {   // 자막: 지금 몇 단계 몇 번째, 무엇을 어디에
   const N = DEMO.steps.length, st = DEMO.steps[DEMO.i];
   let h;
-  if (!st) h = `<div class="dc-h"><b>시연 보기</b><span class="dc-all">전체 ${N}개 동작</span></div><div class="dc-t">1. 조작판부터 6. 마무리까지 정답대로 한 동작씩 보여줘요</div><div class="dc-s">⏸ 멈추고 ⏮ ⏭(← →)로 한 동작씩 넘겨요. 번호를 누르면 그 단계로 가요</div>`;
+  if (!st) h = `<div class="dc-h"><b>시연 보기</b><span class="dc-all">전체 ${N}개 동작</span></div><div class="dc-t">1. 조작판부터 6. 마무리까지 예시대로 한 동작씩 보여줘요</div><div class="dc-s">⏸ 멈추고 ⏮ ⏭(← →)로 한 동작씩 넘겨요. 번호를 누르면 그 단계로 가요</div>`;
   else { const same = DEMO.steps.filter(x => x.st === st.st), k = same.indexOf(st) + 1;
     h = `<div class="dc-h"><b>${st.st + 1}. ${GROUP_TITLE[st.st]}</b><span>${k} / ${same.length}</span><span class="dc-all">전체 ${DEMO.i + 1} / ${N}</span></div>` + (st.grp ? `<div class="dc-g">${esc(st.grp)}</div>` : '') + `<div class="dc-t">${esc(st.text)}</div>` + (st.sub ? `<div class="dc-s">${esc(st.sub)}</div>` : ''); }
   $('#demoCap').innerHTML = h; demoDia(); opChkPos();
@@ -5077,7 +5115,7 @@ $('#opChk').addEventListener('click', e => { if (!DEMO.on && e.target.closest('.
     if (b.dataset.ds !== undefined) return demoJump(DEMO.steps.findIndex(x => x.st === +b.dataset.ds));
     const d = b.dataset.d;
     if (d === 'play') demoPlay(!DEMO.play); else if (d === 'prev') demoStep(-1); else if (d === 'next') demoStep(1); else if (d === 'x') demoClose();
-    else if (d === 'here') { demoPlay(false); const st = DEMO.cur; confirmBox('지금 하던 작업 대신 시연의 이 상태에서 이어서 연습할까요? 정답 채우기를 쓴 것과 같아서 시간점수는 없어요.', () => { demoClose(true); S = st; S.usedFill = true; undoStack = []; UI.lastDone = null; commit(); fit(); say('시연 상태에서 이어서 연습해요', 'info'); }); }
+    else if (d === 'here') { demoPlay(false); const st = DEMO.cur; confirmBox('지금 하던 작업 대신 시연의 이 상태에서 이어서 연습할까요? 예시 채우기를 쓴 것과 같아서 시간점수는 없어요.', () => { demoClose(true); S = st; S.usedFill = true; undoStack = []; UI.lastDone = null; commit(); fit(); say('시연 상태에서 이어서 연습해요', 'info'); }); }
   });
   $('#demoRange').addEventListener('input', e => demoJump(+e.target.value));
   $('#demoSpeed').addEventListener('change', e => { DEMO.speed = +e.target.value || 1; if (DEMO.play) demoPlay(true); });
@@ -5155,7 +5193,7 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return undo(); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Escape') { clearInspection(); if (UI.replug) return cancelReplug(); UI.carry = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
+  if (e.key === 'Escape') { clearInspection(); if (UI.replug) return cancelReplug(); UI.carry = null; UI.powerStart = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
   if (e.key === '+' || e.key === '=') return zoomCenter(1 / 1.3);
   if (e.key === '-') return zoomCenter(1.3);
   if (e.key === '0') return fit();
@@ -5185,7 +5223,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.4', date: '2026.11.01', notes: ['기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.5', date: '2026.11.01', notes: ['단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function fixState() {   // 예전에 저장한 상태를 지금 형식으로
   if (!S.floor) S.floor = []; if (!S.cables) S.cables = { power: false };
@@ -5217,7 +5255,7 @@ function fixState() {   // 예전에 저장한 상태를 지금 형식으로
 function setMode(m, st) {   // 모드와 그 모드의 작업 상태로 바꾼다
   if (DEMO.on) demoClose(); if (TZ.id) tzClose();
   closeDevicePanel(); clearInspection(); closeTermSearch();
-  MODE = m; S = st; fixState(); document.body.dataset.mode = m; if (m !== 'prac') PRAC.L = null;
+  MODE = m; S = st; UI.powerStart = null; fixState(); document.body.dataset.mode = m; if (m !== 'prac') PRAC.L = null;
   undoStack = []; UI.carry = null; UI.pending = null; UI.replug = null; UI.peek = false; UI.pickKey = null; UI.meter = null; liveReset(); closeModal();
   buildTerms(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(x => x.done); renderAll(); hideHome();
   requestAnimationFrame(() => { fit(); renderOver(); });
@@ -5235,7 +5273,7 @@ function goExam() {
 }
 function startExam() {
   const prep = SET.prepTime ? Math.round(stripAvg()) : 0;
-  confirmBox('시험 모드를 시작할까요? 3시간 30분 타이머가 돌고, 가이드, 할 일 목록, 정답 채우기, 시연 보기가 꺼져요. 다 끝나면 위의 제출하고 채점을 눌러요. 자유 모드에서 하던 작업은 그대로 남아요.'
+  confirmBox('시험 모드를 시작할까요? 3시간 30분 타이머가 돌고, 가이드, 할 일 목록, 예시 채우기, 시연 보기가 꺼져요. 다 끝나면 위의 제출하고 채점을 눌러요. 자유 모드에서 하던 작업은 그대로 남아요.'
     + (prep ? ` 선 준비 시간: 선을 ${STRIP_N}가닥 꽂을 때마다 ${fmt(prep)}씩 더해요 (선 따기 연습 평균).` : SET.prepTime ? ' 선 따기 연습 기록이 없어서 선 준비 시간은 더하지 않아요.' : ''), () => {
     if (MODE !== 'prac') save();
     const st = newState(false); st.exam = { on: true, prep }; st.selfChk = {}; setMode('exam', st); save(); say('시험 시작. 남은 시간 3:30:00', 'info');
@@ -5403,7 +5441,7 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
         const ok = new Set([...before, ...mine]), h = new Set(S.wires.map(w => pairKey(w.a, w.b)));
         for (const w of S.wires) { const k = pairKey(w.a, w.b); if (ok.has(k)) continue;
           const g = WIRE_GROUPS.findIndex(x => x.ws.some(([a, b]) => pairKey(a, b) === k)), nm = id => (TERM[id] && TERM[id].nm) || id;
-          return g < 0 ? `정답 배선이 아니에요: ${nm(w.a)} → ${nm(w.b)}` : `${nm(w.a)} → ${nm(w.b)}은(는) '${WIRE_GROUPS[g].t.replace(/ · 회로도 \d/, '')}' 묶음이에요. 지금은 '${G.t.replace(/ · 회로도 \d/, '')}'만 이어요`; }
+          return g < 0 ? `예시 배선이 아니에요: ${nm(w.a)} → ${nm(w.b)}` : `${nm(w.a)} → ${nm(w.b)}은(는) '${WIRE_GROUPS[g].t.replace(/ · 회로도 \d/, '')}' 묶음이에요. 지금은 '${G.t.replace(/ · 회로도 \d/, '')}'만 이어요`; }
         return before.every(k => h.has(k)) ? '' : '앞 묶음에서 이은 선을 뺐어요';
       },
       next: () => {
@@ -5418,13 +5456,13 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
     next: () => dressNext(S.wires) || P_DONE });
   // 5. 동작 검사
   const conv = () => S.conveyor || { x: CVW.x, y: CVW.y }, sen = mm => ({ x: conv().x + mm, y: conv().y + CVW.bw / 2, r: 26 });
-  L(4, '전원 케이블 꽂기', '전원 케이블을 단자대 1번(R), 2번(T) 아래에 꽂아요. 선은 왼쪽 아래 덕트 구멍으로 나가요', { keys: ['cables'], focus: P_V.conv,
+  L(4, '전원 케이블 꽂기', '예시에서는 R선은 1번, T선은 2번에 꽂아요. 번호는 자유이며 실제 배선과 함께 맞춰요', { keys: ['cables'], focus: P_V.conv,
     fill: () => { S.cables = { ...CAB_ALL }; }, prog: () => [S.cables.power ? 1 : 0, 1], goal: () => !!S.cables.power,
-    next: () => ({ tx: '전원 케이블 → 단자대 1번, 2번 아래', sub: UI.carry && UI.carry.kind === 'cable' ? '빨간 원(단자대 1, 2번 아래)을 눌러요' : "재료함 '동작 검사 재료'의 전원 케이블을 들고 빨간 원을 눌러요", tray: 'power', hl: { rings: ['TB.1.b', 'TB.2.b'].map(t => tRing(t)).filter(Boolean) } }) });
+    next: () => ({ tx: UI.powerStart ? '이제 T선을 꽂을 단자를 눌러요 (예시: 2번)' : 'R선을 꽂을 단자를 눌러요 (예시: 1번)', sub: UI.carry && UI.carry.kind === 'cable' ? 'R선과 T선을 서로 다른 단자에 차례로 꽂아요' : "재료함 '동작 검사 재료'의 전원 케이블을 들고 빨간 원을 눌러요", tray: 'power', hl: { rings: [UI.powerStart ? 'TB.2.b' : 'TB.1.b'].map(t => tRing(t)).filter(Boolean) } }) });
   L(4, '컨베이어 내려놓기', '컨베이어를 제어판 아래 바닥에 내려놓아요', { keys: ['conveyor'], focus: P_V.conv,
     fill: () => { S.conveyor = { x: 130, y: 880 }; S.convLeads = {}; }, prog: () => [S.conveyor ? 1 : 0, 1], goal: () => !!S.conveyor,
     next: () => ({ tx: '컨베이어 → 제어판 아래 바닥', sub: "재료함 '동작 검사 재료'의 컨베이어를 들고 빨간 테두리 바닥을 눌러요", tray: 'conveyor', hl: { box: { x: 130 - 16, y: 880 - 100, w: CONV.L + 32, h: CVW.bw + 112 } } }) });
-  L(4, '컨베이어 선 결선', '컨베이어 선 6가닥을 단자대 아래(바깥쪽)에: S+ 19, S1 20, S2 21, S− 22, FR 24, BR 25번', { keys: ['leads'], focus: P_V.conv,
+  L(4, '컨베이어 선 결선', '컨베이어 선 6가닥을 단자대 아래(바깥쪽)에: 번호는 자유예요. 센서 전원·출력·모터 신호가 실제 회로에 맞게 연결되어야 해요', { keys: ['leads'], focus: P_V.conv,
     fill: () => { S.convLeads = { ...CV_REF }; }, prog: () => [CV_LEADS.filter(l => S.convLeads[l[0]] === l[3]).length, 6], goal: () => CV_LEADS.every(l => S.convLeads[l[0]] === l[3]),
     check: () => { for (const [k, , , t] of CV_LEADS) if (S.convLeads[k] && S.convLeads[k] !== t) return `컨베이어 ${k === 'S-' ? 'S−' : k}선은 ${TERM[t] ? TERM[t].nm : t}에 꽂아요`; return ''; },
     next: () => { const l = CV_LEADS.find(x => S.convLeads[x[0]] !== x[3]); if (!l) return P_DONE; const e = leadEnd(l[0]), T = tRing(l[3]);
@@ -5533,7 +5571,7 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
       reveal: 'R6 12번(공통) → T1 7번(코일 +) 선이 빠져서 S1 신호가 T1까지 못 갔어요. T1이 안 세니 R4(정회전)가 안 켜졌어요. 팩을 S1에 두고 재면 T1 7–2 전압이 0V예요.' },
     { t: '거꾸로 돌아요', sym: 'S1에 팩을 놓으면 GL은 켜지는데 컨베이어가 반대로 돌아요', area: '컨베이어 선 6가닥 (단자대 19~25번 아래). FR은 24번, BR은 25번', where: ['TB.24.b', 'TB.25.b'],
       apply: () => { S.convLeads.FR = 'TB.25.b'; S.convLeads.BR = 'TB.24.b'; }, fix: () => { S.convLeads = { ...CV_REF }; },
-      reveal: 'FR선과 BR선이 바뀌어 꽂혀 있었어요 (FR 25번, BR 24번). R4가 켜지면 24번에 +24V가 가는데 거기에 BR선이 있어서 반대로 돌았어요. 선 이름을 보고 S+ 19, S1 20, S2 21, S− 22, FR 24, BR 25번.' },
+      reveal: 'FR선과 BR선이 바뀌어 꽂혀 있었어요 (FR 25번, BR 24번). R4가 켜지면 24번에 +24V가 가는데 거기에 BR선이 있어서 반대로 돌았어요. 선 이름을 보고 번호는 자유예요. 센서 전원·출력·모터 신호가 실제 회로에 맞게 연결되어야 해요.' },
     { t: '안 멈추고 떨어져요', sym: '정회전으로 팩이 S2에 닿아도 안 멈추고 끝에서 떨어져요', area: '수동(M) 리셋 회로: S1·R5 a, S2·R4 a → T3·R6 코일', ...W('R5.10', 'T3.1'),
       reveal: 'R5 10번 → T3 1번 선이 빠져서 S1·R5 a, S2·R4 a 신호가 T3·R6 코일까지 못 갔어요. 리셋(T3 한시 b)이 안 돼서 안 멈췄어요.' },
     { t: '너무 늦게 멈춰요', sym: 'S2에 닿고 한참 뒤에야 멈춰서 팩이 지나치거나 떨어져요', area: '타이머 다이얼: T1·T2는 t1(1~3초), T3는 t2(1초 이내)', box: () => { const i = tim('T3'); return i && devBox(i); },
@@ -5572,7 +5610,7 @@ const FAIL_WHY = [   // 실패 문구 → 왜 안 되는지 한 줄
   [/서보 드라이버 커넥터 구멍/, '서보 드라이버 커넥터 구멍은 선 한 가닥만 들어가요. 두 곳으로 가야 하면 다른 단자(퓨즈, SMPS)에서 나눠요.'],
   [/교류 220V 쪽과 직류 24V/, '220V가 24V 쪽(PLC 입력, 릴레이 코일, 램프, SMPS 출력)으로 들어가면 기기가 타요. 교류와 직류는 절대 잇지 않아요.'],
   [/장갑/, '드릴 작업은 장갑이 필수예요. 장갑 없이 드릴을 쓰면 시간점수가 0점이에요 (채점시 유의사항).'],
-  [/정답 배선이 아니에요/, '회로도와 다른 곳에 이었어요. 회로도에서 그 선이 어디에서 어디로 가는지, 접점 번호(공통·a·b)를 다시 확인해요.'],
+  [/예시 배선이 아니에요/, '회로도와 다른 곳에 이었어요. 회로도에서 그 선이 어디에서 어디로 가는지, 접점 번호(공통·a·b)를 다시 확인해요.'],
   [/묶음이에요/, '맞는 선이지만 다른 묶음 차례예요. 묶음 순서대로 이으면 빠뜨리는 선이 줄어요.'],
   [/앞 묶음에서 이은 선을 뺐어요/, '앞에서 맞게 이은 선은 그대로 둬요.'],
   [/지금 할 일이 아니에요/, '연습은 한 번에 한 가지씩 익혀요. 순서를 지키면 실제 시험에서도 빠뜨리는 작업이 줄어요.'],
@@ -5825,7 +5863,7 @@ function homeHelpHTML() {
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
     + sec('접점', '기구 해설', '<ul><li><b>기구 해설(I)</b> 도구를 들고 기구를 누르면 하는 일, 현재 상태, 쉬운 그림이 나와요. 창을 연 채 손 도구로 버튼·센서를 조작하면 상태가 바뀌어요.</li><li>릴레이는 길이 바뀌는 그림으로, 타이머는 기다리는 순서와 남은 시간으로 배워요. 번호가 필요할 때만 <b>단자 번호·자세한 정보</b>를 펴세요.</li><li>시험 중에는 기구 해설을 숨겨요. 제출 후 다시 볼 수 있어요.</li></ul>')
     + sec('찾기', '단자 검색과 채점 복습', '<ul><li>위의 <b>단자 검색</b>에서 R3, PLC P20, TB 1번 또는 부저 같은 이름을 찾아요. 설치한 기구의 단자만 나와요.</li><li><b>위치</b>를 누르면 그 단자를 확대해요. <b>연결 추적</b>은 꽂은 전선과 고정 공통선으로 이어진 단자들을 표시해요. 접점 상태와 전압은 테스터로 확인해요.</li><li>자유 모드나 시험 제출 뒤 <b>채점표 → 관련 위치 보기</b>로 감점된 항목의 부품·단자를 확인해요. 강조는 Esc 또는 단자 검색의 <b>강조 지우기</b>로 지워요.</li></ul>')
-    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 정답 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 정답 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
+    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 예시 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 예시 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
 }
@@ -5871,7 +5909,7 @@ LIVE.timer = setInterval(() => liveStep(DEMO.on ? (DEMO.play ? .1 * DEMO.speed :
 requestAnimationFrame(() => { fit(); renderOver(); });
 showHome();   // 시작은 늘 메인 화면
 window.SIM = { get S() { return S; }, get TERM() { return TERM; }, get UI() { return UI; }, tap: (x, y) => handleTap({ x, y }, null), tray: k => trayTap(k), tool: id => setTool(id),
-  label: (zid, txt) => applyLabel(OP_ZONES.find(z => z.id === zid), txt), next: nextStage, jump: n => jumpTo(n), flip: () => toggleFlip(), wire: (a, b) => addWire(a, b), fit, zoomTo: b => fitTo(b), stageDone, getChecks, runChecks: w => runChecks(w, fuseState()), mixesACDC, liveDown, get LIVE() { return LIVE; } };
+  label: (zid, txt) => applyLabel(OP_ZONES.find(z => z.id === zid), txt), next: nextStage, jump: n => jumpTo(n), flip: () => toggleFlip(), wire: (a, b) => addWire(a, b), fit, zoomTo: b => fitTo(b), stageDone, getChecks, runChecks: w => runChecks(w, fuseState(), {cab:S.cables,leads:convLeads(),ts:tsetMap()}), mixesACDC, liveDown, get LIVE() { return LIVE; } };
 
 /* ---------- 마우스에 붙는 도구 그림 (화면 픽셀 단위, 끝점이 (0,0)) ---------- */
 const GLOVE_ART = '<g transform="translate(-6 -32)" fill="#2d6cdf" stroke="#173f8c" stroke-width="1"><rect x="0" y="11" width="22" height="20" rx="6"/><rect x="1" y="1" width="5" height="14" rx="2.5"/><rect x="6.5" y="-1" width="5" height="15" rx="2.5"/><rect x="12" y="0" width="5" height="14" rx="2.5"/><rect x="17.2" y="3" width="4.6" height="12" rx="2.3"/><rect x="-7" y="15" width="11" height="5" rx="2.5" transform="rotate(-35 -2 17)"/><rect x="2" y="29" width="18" height="6" rx="1.5" fill="#173f8c"/></g>';
