@@ -183,11 +183,14 @@ test('relay live diagram follows actual coil and all four contact poles through 
   await page.evaluate(() => { liveDown('pb1'); liveRelease(); });
   state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='R3')));
   assert.equal(state.coil,true); assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['9','5'],['10','6'],['11','7'],['12','8']]);
-  assert.match(await page.locator('#deviceLive').textContent(), /코일 ON/);
-  assert.match(await page.locator('#deviceLive').textContent(), /9–5 닫힘/);
+  assert.match(await page.locator('#deviceLive').textContent(), /신호를 받아 길이 바뀌었어요/);
+  assert.match(await page.locator('#deviceLive svg').getAttribute('aria-label'), /작동할 때 길이 이어짐/);
+  await page.locator('#deviceDetails summary').click();
+  assert.match(await page.locator('#deviceAdvancedLive').textContent(), /9–5 닫힘/);
   await page.evaluate(() => { liveDown('pb1'); liveRelease(); });
-  assert.match(await page.locator('#deviceLive').textContent(), /코일 OFF/);
-  assert.match(await page.locator('#deviceLive').textContent(), /9–1 닫힘/);
+  assert.match(await page.locator('#deviceLive').textContent(), /신호를 기다리고 있어요/);
+  assert.match(await page.locator('#deviceLive svg').getAttribute('aria-label'), /평소 길이 이어짐/);
+  assert.match(await page.locator('#deviceAdvancedLive').textContent(), /9–1 닫힘/);
 });
 
 test('timer separates instantaneous contacts, delayed contacts, countdown, and power-off reset', async () => {
@@ -198,16 +201,16 @@ test('timer separates instantaneous contacts, delayed contacts, countdown, and p
   assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['1','3'],['8','5']]);
   await page.evaluate(() => liveStep(.5));
   state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='T1')));
-  assert.equal(state.remaining,1.5); assert.match(await page.locator('[data-timer-status]').textContent(), /남은 1.5초/);
+  assert.equal(state.remaining,1.5); assert.match(await page.locator('#deviceLive').textContent(), /남은 1.5초/);
   await page.evaluate(() => liveStep(1.5));
   state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='T1')));
   assert.equal(state.out,true); assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['1','3'],['8','6']]);
-  assert.match(await page.locator('[data-timer-status]').textContent(), /시간 완료/);
+  assert.match(await page.locator('#deviceLive').textContent(), /기다리기가 끝났어요/);
   await page.evaluate(() => { LIVE.inp.mcb=false; liveStep(0); });
   state = await page.evaluate(() => deviceContactState(deviceCatalog().find(d=>d.name==='T1')));
   assert.equal(state.coil,false); assert.equal(state.out,false); assert.equal(state.elapsed,0);
   assert.deepEqual(state.contacts.map(c=>[c.com,c.closed]),[['1',null],['8','5']]);
-  assert.match(await page.locator('[data-timer-status]').textContent(), /대기/);
+  assert.match(await page.locator('#deviceLive').textContent(), /신호를 기다리고 있어요/);
 });
 
 test('displayed contact pairs agree with the circuit solver for every fitted and socket state', async () => {
@@ -234,8 +237,9 @@ test('unplugged relay and timer show no closed socket contacts', async () => {
   await fullState();
   for (const name of ['R1','T1']) {
     await page.evaluate(name => { const d=deviceCatalog().find(d=>d.name===name); S.plug[d.id]=false; liveStep(0); openDevicePanel(d.key); renderOver(); },name);
-    assert.match(await page.locator('#deviceLive').textContent(),/미장착/);
-    assert.equal(await page.locator('#deviceLive .contact-closed').count(),0);
+    assert.match(await page.locator('#deviceLive').textContent(),/아직 꽂지 않았어요/);
+    await page.locator('#deviceDetails summary').click();
+    assert.equal(await page.locator('#deviceAdvancedLive .contact-closed').count(),0);
     const state=await page.evaluate(name=>deviceContactState(deviceCatalog().find(d=>d.name===name)),name);
     assert.equal(state.coil,false); assert.ok(state.contacts.every(c=>c.closed===null));
   }
@@ -269,9 +273,9 @@ test('all installed devices expose their terminal map and supported live state',
     assert.equal(await page.locator('#deviceLive').isVisible(),true,d.name);
   }
   await page.evaluate(()=>openDevicePanel(deviceCatalog().find(d=>d.type==='fuse').key));
-  assert.match(await page.locator('#deviceLive').textContent(),/퓨즈 정상/);
+  assert.match(await page.locator('#deviceLive').textContent(),/퓨즈 2개가 정상이에요/);
   await page.evaluate(()=>{const d=deviceCatalog().find(d=>d.type==='fuse');S.fuses[d.id][0]='f5x';liveStep(0)});
-  assert.match(await page.locator('#deviceLive').textContent(),/퓨즈 끊어짐/);
+  assert.match(await page.locator('#deviceLive').textContent(),/퓨즈가 끊어졌어요/);
 });
 
 test('board contact overlay is removed and device inspector remains available after exam submission', async () => {
@@ -302,4 +306,47 @@ test('device panel fits mobile screen and closes with Escape and mode changes', 
   await page.locator('#deviceSelect').press('Escape');assert.equal(await page.locator('#devicePanel').isHidden(),true);
   await page.evaluate(()=>{openDevicePanel(deviceCatalog().find(d=>d.name==='R1').key);showHome();});
   assert.equal(await page.locator('#devicePanel').isHidden(),true);
+});
+
+test('beginner guide introduces the job and current state while hiding pin jargon for every device', async () => {
+  await fullState();
+  const keys=await page.evaluate(()=>deviceCatalog().map(d=>d.key));
+  for(const key of keys) {
+    await page.evaluate(key=>openDevicePanel(key),key);
+    assert.ok((await page.locator('#devicePurpose').textContent()).length>10,key);
+    assert.ok((await page.locator('#deviceLive .device-now strong').textContent()).length>3,key);
+    assert.equal(await page.locator('#deviceDetails').getAttribute('open'),null,key);
+    assert.equal(await page.locator('#devicePins').isVisible(),false,key);
+    assert.equal(await page.locator('#deviceSpec').isVisible(),false,key);
+    const basic=await page.locator('#deviceLive').innerText();
+    assert.doesNotMatch(basic,/COM|NC|NO|코일|a접점|b접점|순시접점|한시접점/,key);
+  }
+});
+
+test('timer lesson shows three steps and progress corresponding to actual wait time', async () => {
+  await fullState();
+  await page.evaluate(()=>{openDevicePanel(deviceCatalog().find(d=>d.name==='T1').key);LIVE.inp.mcb=true;LIVE.inp.ss='M';LIVE.pack=CONV.s1;liveStep(0);liveStep(.5)});
+  assert.match(await page.locator('#deviceLive .timer-steps .current').innerText(),/시간 기다리기/);
+  assert.equal(await page.locator('#deviceLive progress').getAttribute('max'),'2');
+  assert.equal(await page.locator('#deviceLive progress').getAttribute('value'),'0.5');
+  await page.evaluate(()=>liveStep(1.5));
+  assert.match(await page.locator('#deviceLive .timer-steps .current').innerText(),/스위치 바꾸기/);
+  assert.equal(await page.locator('#deviceLive progress').getAttribute('value'),'2');
+  await page.evaluate(()=>{LIVE.inp.mcb=false;liveStep(0)});
+  assert.match(await page.locator('#deviceLive .timer-steps .current').innerText(),/신호 받기/);
+  assert.equal(await page.locator('#deviceLive progress').getAttribute('value'),'0');
+});
+
+test('beginner guide stays readable in narrow dark screen and details remain optional', async () => {
+  await page.setViewportSize({width:360,height:800});await page.emulateMedia({colorScheme:'dark'});await fullState();
+  await page.evaluate(()=>openDevicePanel(deviceCatalog().find(d=>d.name==='R3').key));
+  const b=await page.locator('#devicePanel').boundingBox();assert.ok(b.x>=0&&b.x+b.width<=360);
+  assert.equal(await page.locator('#devicePanel').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+  assert.equal(await page.locator('#deviceLive svg').isVisible(),true);
+  await page.locator('#deviceDetails summary').click();
+  assert.equal(await page.locator('#devicePins').isVisible(),true);
+  assert.match(await page.locator('#deviceAdvancedLive').textContent(),/9–1 닫힘/);
+  await page.locator('#deviceSelect').selectOption('op:hmi');
+  assert.equal(await page.locator('#deviceDetails').getAttribute('open'),null);
+  assert.match(await page.locator('#devicePurpose').textContent(),/터치패널/);
 });
