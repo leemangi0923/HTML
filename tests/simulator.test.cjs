@@ -625,3 +625,64 @@ test('older lamp ties migrate onto the new route once, including a save viewed f
     assert.deepEqual(result,{ties:12,cut:12,score:30,view:back,unchangedWires:true,stable:true,version:1});
   }
 });
+
+test('quiz bank serves all twenty questions without repeats, locks answers and explains every answer', async () => {
+  const before = await page.evaluate(() => JSON.stringify(S));
+  await page.locator('[data-home="quiz"]').click();
+  const ids=[];
+  for(let n=0;n<40;n++) {
+    const info=await page.evaluate(()=>({id:QZ.current.id,right:QZ.choices.findIndex(a=>a.correct),count:QUIZ_BANK.length}));
+    assert.equal(info.count,20); ids.push(info.id);
+    const answer=n%2===0?info.right:(info.right+1)%3;
+    await page.locator(`[data-answer="${answer}"]`).click();
+    assert.equal(await page.locator('.qz-choice:disabled').count(),3);
+    assert.equal(await page.locator('.qz-choice.is-correct').count(),1);
+    assert.ok((await page.locator('#qzFeedback').textContent()).length>20);
+    await page.evaluate(()=>quizAct('qz-answer',{dataset:{answer:'0'}}));
+    assert.equal(await page.evaluate(()=>QZ.solved),n+1,'double answer must not count');
+    await page.locator('[data-home="qz-next"]').click();
+  }
+  assert.equal(new Set(ids.slice(0,20)).size,20); assert.equal(new Set(ids.slice(20)).size,20);
+  assert.notEqual(ids[19],ids[20]);
+  assert.equal(await page.evaluate(()=>QZ.correct),20);
+  assert.equal(await page.evaluate(()=>JSON.stringify(S)),before,'quiz must not modify the simulation');
+  assert.equal(await page.locator('button').filter({hasText:'틀린 문제'}).count(),0);
+});
+
+test('quiz filters reset the session and contact explanations show the actual state', async () => {
+  await page.locator('[data-home="quiz"]').click();
+  for(const [category,count] of [['기구',6],['접점',6],['타이머',4],['회로',4]]) {
+    await page.locator(`[data-category="${category}"]`).click();
+    const seen=[];
+    for(let i=0;i<count;i++) {
+      const info=await page.evaluate(()=>({id:QZ.current.id,cat:QZ.current.cat,right:QZ.choices.findIndex(a=>a.correct),scene:QZ.current.scene}));
+      assert.equal(info.cat,category); seen.push(info.id);
+      assert.equal(await page.locator('[data-home="qz-next"]').count(),0);
+      await page.locator(`[data-answer="${info.right}"]`).click();
+      if(category==='접점') {
+        const closed=info.scene.type==='a'?info.scene.on:!info.scene.on;
+        assert.match(await page.locator('.qz-contact svg').getAttribute('aria-label'),closed?/닫힘/:/열림/);
+      }
+      await page.locator('[data-home="qz-next"]').click();
+    }
+    assert.equal(new Set(seen).size,count);
+    assert.equal(await page.evaluate(()=>QZ.solved),count);
+  }
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.hm-card').count(),6);
+});
+
+test('quiz remains readable on a narrow screen and supports keyboard answers', async () => {
+  await page.setViewportSize({width:360,height:740});
+  await page.locator('[data-home="quiz"]').click();
+  for(const cat of ['접점','회로']) {
+    await page.locator(`[data-category="${cat}"]`).click();
+    await page.locator('[data-answer="0"]').focus(); await page.keyboard.press('Enter');
+    await page.waitForFunction(()=>document.activeElement?.id==='qzFeedback');
+    assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true);
+    await page.locator('[data-home="qz-next"]').click();
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'qzQuestion');
+  }
+  await page.locator('[data-home="main"]').click();
+  assert.equal(await page.locator('.hm-card.quiz').count(),1);
+});

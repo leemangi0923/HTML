@@ -277,6 +277,30 @@ body.demo .side { pointer-events: none; }   /* 시연 중 할 일은 체크박�
 @keyframes hmPack { 0%, 10% { transform: translateX(0); } 44%, 58% { transform: translateX(196px); } 92%, 100% { transform: translateX(0); } }
 .hm-led { animation: hmLed 1.6s steps(2) infinite; }
 @keyframes hmLed { 50% { opacity: .3; } }
+/* 회로 퀴즈 */
+.hm-card.quiz { --c: #bda3ff; }
+.qz-page { max-width: 860px; animation: none; }
+.qz-intro, .qz-hint { color: #a8b5bc; font-size: 14px; line-height: 1.6; }
+.qz-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+.qz-tabs [aria-pressed="true"] { color: #e4d8ff; border-color: #bda3ff; background: #30283f; }
+.qz-card { padding: clamp(18px,4vw,32px); border: 1px solid #37434d; border-radius: 20px; background: #151d23; }
+.qz-tag { color: #c5b0ff; font-size: 13px; font-weight: 700; }
+.qz-card h2 { font-size: clamp(20px,3vw,27px); line-height: 1.5; margin: 12px 0 22px; }
+.qz-flow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; padding: 24px 10px; background: #0c141b; border-radius: 12px; margin-bottom: 22px; }
+.qz-flow div { padding: 14px; border: 1px solid #496071; border-radius: 10px; color: #dae9f2; font-size: 15px; line-height: 1.5; max-width: 100%; overflow-wrap: anywhere; box-sizing: border-box; }
+.qz-contact { text-align: center; background: #0c141b; border-radius: 12px; padding: 18px; margin-bottom: 22px; }
+.qz-contact b { color: #ffe09b; } .qz-contact svg { display: block; width: 100%; max-width: 400px; margin: 0 auto; }
+.qz-contact p { color: #b4c4cd; margin: 6px 0; font-size: 14px; }
+.qz-choices { display: grid; gap: 10px; }
+.qz-choice { display: flex; align-items: center; gap: 12px; width: 100%; padding: 15px; border: 1px solid #4a5864; border-radius: 12px; background: #202d37; text-align: left; cursor: pointer; line-height: 1.5; }
+.qz-choice span { color: #a9bbca; } .qz-choice b { margin-left: auto; white-space: nowrap; font-size: 12px; }
+.qz-choice:hover:enabled, .qz-choice:focus-visible { border-color: #bda3ff; outline: 2px solid #bda3ff; outline-offset: 2px; }
+.qz-choice:disabled { cursor: default; opacity: .65; }
+.qz-choice.is-correct { border-color: #65e0a3; background: #16392c; opacity: 1; }
+.qz-choice.is-wrong { border-color: #ff9898; background: #42272c; opacity: 1; }
+.qz-feedback { margin-top: 22px; padding: 18px; border-left: 3px solid #bda3ff; background: #252536; border-radius: 6px; line-height: 1.7; }
+.qz-feedback p { margin: 8px 0 0; color: #d4dce4; } .qz-next { margin-top: 18px; width: 100%; min-height: 48px; }
+
 /* 연습 목록, 도움말 */
 .hm-top { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; flex-wrap: wrap; }
 .hm-back { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 13px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 9px; background: rgba(255, 255, 255, .05); cursor: pointer; font-weight: 700; }
@@ -5278,7 +5302,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.5.3', date: '2026.11.01', notes: ['표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.6.0', date: '2026.11.03', notes: ['회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -5901,6 +5925,365 @@ function homeArt() {   // 장식 그림: 제어판, 조작판, 컨베이어 (배
     + devs + wires.map((d, k) => `<path class="hm-wire" style="animation-delay:${.3 + k * .18}s" d="${d}"/>`).join('')
     + '<path class="hm-wire" style="animation-delay:2s;stroke-width:5;stroke:#1c1f22" d="M322 40C352 40 352 90 372 96"/>' + op + conv + '</svg>';
 }
+/* ---------- 회로 퀴즈: 시뮬레이터 작업과 독립된 문제은행 ---------- */
+const QUIZ_BANK = [
+  {
+    "id": 1,
+    "cat": "기구",
+    "q": "누르면 회로를 연결하고, 손을 떼면 돌아오는 기구는?",
+    "answers": [
+      "누름 버튼",
+      "타이머",
+      "단자대"
+    ],
+    "ex": "누름 버튼은 손으로 누르는 동안 접점 상태가 바뀌고, 놓으면 원래 상태로 돌아와요.",
+    "scene": [
+      "손으로 누름",
+      "접점 상태 변화",
+      "놓으면 복귀"
+    ]
+  },
+  {
+    "id": 2,
+    "cat": "기구",
+    "q": "작은 제어 신호로 여러 접점을 함께 바꾸는 기구는?",
+    "answers": [
+      "릴레이",
+      "퓨즈",
+      "단자대"
+    ],
+    "ex": "릴레이는 코일에 전기를 넣어 접점을 움직여요. 하나의 코일로 여러 접점을 함께 바꿀 수 있어요.",
+    "scene": [
+      "제어 신호",
+      "코일",
+      "여러 접점"
+    ]
+  },
+  {
+    "id": 3,
+    "cat": "기구",
+    "q": "전원을 넣고 정해진 시간이 지난 뒤 접점을 바꾸는 기구는?",
+    "answers": [
+      "한시 동작 타이머",
+      "일반 릴레이",
+      "표시등"
+    ],
+    "ex": "한시 동작 타이머는 설정한 시간만큼 기다린 뒤 한시 접점을 바꿔요.",
+    "scene": [
+      "전원 ON",
+      "설정 시간 대기",
+      "한시 접점 변화"
+    ]
+  },
+  {
+    "id": 4,
+    "cat": "기구",
+    "q": "회로의 전기적 상태를 빛으로 알려주는 기구는?",
+    "answers": [
+      "표시등",
+      "푸시 버튼",
+      "퓨즈"
+    ],
+    "ex": "표시등은 회로 상태를 빛으로 알려줘요. 스스로 다른 접점을 움직이는 기구는 아니에요.",
+    "scene": [
+      "회로 상태",
+      "빛으로 확인"
+    ]
+  },
+  {
+    "id": 5,
+    "cat": "기구",
+    "q": "과전류가 흐를 때 내부가 녹아 회로를 끊는 부품은?",
+    "answers": [
+      "퓨즈",
+      "릴레이 코일",
+      "견출지"
+    ],
+    "ex": "퓨즈는 정격을 넘는 전류가 흐르면 녹아서 회로를 끊어요. 교체 전에 과전류 원인을 확인해야 해요.",
+    "scene": [
+      "과전류",
+      "내부가 녹음",
+      "회로 차단"
+    ]
+  },
+  {
+    "id": 6,
+    "cat": "기구",
+    "q": "전선을 연결하는 단자대의 견출지를 바꾸면 전기 연결도 바뀔까요?",
+    "answers": [
+      "이름만 바뀌고 연결은 그대로다",
+      "글자에 맞춰 자동으로 다시 연결된다",
+      "모든 단자가 서로 연결된다"
+    ],
+    "ex": "견출지는 이름표예요. 실제 연결은 전선과 단자 구조로 결정돼요.",
+    "scene": [
+      "견출지 = 이름표",
+      "실제 전선 = 연결"
+    ]
+  },
+  {
+    "id": 7,
+    "cat": "접점",
+    "q": "코일에 전기가 없는 상태에서 a접점은?",
+    "answers": [
+      "열려 있다",
+      "닫혀 있다",
+      "계속 깜빡인다"
+    ],
+    "ex": "a접점은 평소에 열려 있어요. 코일이 켜지면 닫혀서 전기가 흐를 수 있어요.",
+    "scene": {
+      "type": "a",
+      "on": false
+    }
+  },
+  {
+    "id": 8,
+    "cat": "접점",
+    "q": "릴레이 코일이 켜지면 a접점은?",
+    "answers": [
+      "닫힌다",
+      "열린다",
+      "끊어진 채로 고정된다"
+    ],
+    "ex": "코일이 켜지면 a접점이 붙어요. 회로의 다른 부분도 연결돼 있다면 전류가 흐를 수 있어요.",
+    "scene": {
+      "type": "a",
+      "on": true
+    }
+  },
+  {
+    "id": 9,
+    "cat": "접점",
+    "q": "코일에 전기가 없는 상태에서 b접점은?",
+    "answers": [
+      "닫혀 있다",
+      "열려 있다",
+      "전기를 만들어 낸다"
+    ],
+    "ex": "b접점은 평소에 닫혀 있어요. 코일이 켜지면 열려서 그 경로를 끊어요.",
+    "scene": {
+      "type": "b",
+      "on": false
+    }
+  },
+  {
+    "id": 10,
+    "cat": "접점",
+    "q": "릴레이 코일이 켜지면 b접점은?",
+    "answers": [
+      "열린다",
+      "닫힌다",
+      "항상 붙어 있다"
+    ],
+    "ex": "b접점은 코일이 켜지면 떨어져요. a접점과 반대로 움직여요.",
+    "scene": {
+      "type": "b",
+      "on": true
+    }
+  },
+  {
+    "id": 11,
+    "cat": "접점",
+    "q": "켜져 있던 릴레이 코일의 전원을 끄면 a접점은?",
+    "answers": [
+      "다시 열린다",
+      "닫힌 채 유지된다",
+      "b접점으로 바뀐다"
+    ],
+    "ex": "일반적인 복귀형 릴레이는 전원을 끄면 원래 상태로 돌아가요. a접점은 다시 열려요.",
+    "scene": {
+      "type": "a",
+      "on": false
+    }
+  },
+  {
+    "id": 12,
+    "cat": "접점",
+    "q": "b접점만 전원·표시등과 직렬 연결돼 있어요. 코일이 켜지면 표시등은?",
+    "answers": [
+      "꺼진다",
+      "켜진다",
+      "밝기가 두 배가 된다"
+    ],
+    "ex": "코일이 켜지면 b접점이 열려요. 표시등으로 흐르던 전류가 끊겨서 꺼져요.",
+    "scene": {
+      "type": "b",
+      "on": true,
+      "lamp": true
+    }
+  },
+  {
+    "id": 13,
+    "cat": "타이머",
+    "q": "3초 ON 지연 타이머를 켠 지 1초예요. 한시 a접점은?",
+    "answers": [
+      "아직 열려 있다",
+      "이미 닫혀 있다",
+      "전원이 꺼질 때만 닫힌다"
+    ],
+    "ex": "설정한 3초가 아직 지나지 않았어요. 한시 a접점은 기다리는 동안 열려 있어요.",
+    "scene": [
+      "설정 3초",
+      "전원 ON 후 1초",
+      "한시 a접점 ?"
+    ]
+  },
+  {
+    "id": 14,
+    "cat": "타이머",
+    "q": "3초 ON 지연 타이머에 전원을 4초 동안 계속 넣었어요. 한시 a접점은?",
+    "answers": [
+      "닫혀 있다",
+      "열려 있다",
+      "1초마다 열리고 닫힌다"
+    ],
+    "ex": "설정한 3초를 지났으므로 한시 a접점이 닫혀요. 전원이 유지되면 그 상태를 유지해요.",
+    "scene": [
+      "설정 3초",
+      "전원 ON 후 4초",
+      "한시 a접점 ?"
+    ]
+  },
+  {
+    "id": 15,
+    "cat": "타이머",
+    "q": "3초 ON 지연 타이머가 동작할 때, 한시 b접점은 어떻게 되나요?",
+    "answers": [
+      "3초 뒤 열린다",
+      "켜자마자 닫힌다",
+      "계속 닫혀 있다"
+    ],
+    "ex": "한시 b접점은 처음에는 닫혀 있다가, 설정 시간이 지나면 열려요.",
+    "scene": [
+      "전원 ON",
+      "3초 대기",
+      "한시 b접점 ?"
+    ]
+  },
+  {
+    "id": 16,
+    "cat": "타이머",
+    "q": "비유지형 ON 지연 타이머가 기다리는 중 전원을 끄면?",
+    "answers": [
+      "대기 시간이 초기화된다",
+      "전원 없이 계속 시간을 센다",
+      "즉시 한시 a접점이 닫힌다"
+    ],
+    "ex": "비유지형은 전원이 끊기면 시간이 초기화돼요. 다시 켜면 설정 시간만큼 처음부터 기다려요.",
+    "scene": [
+      "대기 중",
+      "전원 OFF",
+      "다시 켜면 처음부터"
+    ]
+  },
+  {
+    "id": 17,
+    "cat": "회로",
+    "q": "열린 a접점 두 개가 직렬로 연결돼 있어요. 표시등을 켜려면?",
+    "answers": [
+      "두 접점이 모두 닫혀야 한다",
+      "하나만 닫히면 된다",
+      "둘 다 열려 있어야 한다"
+    ],
+    "ex": "직렬은 전기가 지나는 길이 하나예요. 중간에 하나라도 열려 있으면 전류가 흐르지 못해요.",
+    "scene": [
+      "+24V",
+      "a접점 A → a접점 B",
+      "표시등 → 0V"
+    ]
+  },
+  {
+    "id": 18,
+    "cat": "회로",
+    "q": "a접점 두 개가 병렬로 연결돼 있어요. 다른 부분은 정상일 때 표시등을 켜려면?",
+    "answers": [
+      "둘 중 하나 이상 닫히면 된다",
+      "반드시 둘 다 닫혀야 한다",
+      "둘 다 열려야 한다"
+    ],
+    "ex": "병렬은 갈림길이에요. 한쪽 길만 연결돼도 표시등까지 전기가 흐를 수 있어요.",
+    "scene": [
+      "+24V",
+      "갈림길: a접점 A / a접점 B",
+      "표시등 → 0V"
+    ]
+  },
+  {
+    "id": 19,
+    "cat": "회로",
+    "q": "자기유지 회로에서 시작 버튼을 놓아도 릴레이가 계속 켜지는 이유는?",
+    "answers": [
+      "릴레이 a접점이 시작 버튼의 우회 길을 만든다",
+      "코일이 전기를 저장한다",
+      "견출지가 전원을 공급한다"
+    ],
+    "ex": "코일이 켜지면 시작 버튼과 병렬인 릴레이 a접점이 닫혀요. 버튼을 놓아도 그 길로 코일에 전기가 흘러요.",
+    "scene": [
+      "시작 버튼 ∥ 릴레이 a접점",
+      "코일",
+      "접점이 우회 길 유지"
+    ]
+  },
+  {
+    "id": 20,
+    "cat": "회로",
+    "q": "전원이 켜져 있고 버튼과 표시등은 정상이지만, 직렬 연결선 한 가닥이 빠졌어요. 버튼을 누르면?",
+    "answers": [
+      "표시등이 켜지지 않는다",
+      "전선 없이도 표시등이 켜진다",
+      "전압이 두 배가 된다"
+    ],
+    "ex": "전류는 전원에서 나와 돌아오는 연결된 길이 필요해요. 선이 빠져 길이 끊기면 표시등은 켜지지 않아요.",
+    "scene": [
+      "+24V → 버튼",
+      "연결선 끊김 ✕",
+      "표시등 → 0V"
+    ]
+  }
+];
+const QZ = { deck: [], current: null, choices: [], selected: null, solved: 0, correct: 0, category: '전체', last: null };
+function quizShuffle(items) {
+  const out = [...items];
+  for (let i=out.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [out[i],out[j]]=[out[j],out[i]]; }
+  return out;
+}
+function quizNext() {
+  if (!QZ.deck.length) {
+    QZ.deck=quizShuffle(QUIZ_BANK.filter(q=>QZ.category==='전체'||q.cat===QZ.category));
+    if(QZ.deck.length>1 && QZ.deck[QZ.deck.length-1].id===QZ.last) [QZ.deck[0],QZ.deck[QZ.deck.length-1]]=[QZ.deck[QZ.deck.length-1],QZ.deck[0]];
+  }
+  QZ.current=QZ.deck.pop(); QZ.last=QZ.current.id;
+  QZ.choices=quizShuffle(QZ.current.answers.map((text,i)=>({text,correct:i===0}))); QZ.selected=null;
+}
+function quizStart(category='전체') {
+  QZ.category=category; QZ.deck=[]; QZ.solved=0; QZ.correct=0; quizNext(); UI.homePage='quiz'; renderHome();
+}
+function quizScene(q) {
+  if(Array.isArray(q.scene)) return `<div class="qz-flow" aria-label="문제 상황">${q.scene.map((t,i)=>`${i?'<span aria-hidden="true">→</span>':''}<div>${esc(t)}</div>`).join('')}</div>`;
+  const d=q.scene, reveal=QZ.selected!==null, closed=d.type==='a'?d.on:!d.on;
+  return `<div class="qz-contact"><b>코일 ${d.on?'ON · 전기 있음':'OFF · 전기 없음'}</b><svg viewBox="0 0 360 110" role="img" aria-label="${d.type}접점 ${reveal?(closed?'닫힘':'열림'):'상태를 맞혀보세요'}"><g fill="none" stroke="#8db6c9" stroke-width="3"><path d="M25 55H135 M225 55H335"/><circle cx="140" cy="55" r="5"/><circle cx="220" cy="55" r="5"/>${reveal?`<path stroke="${closed?'#65e0a3':'#ffc96b'}" d="M145 55L215 ${closed?55:22}"/>`:''}</g>${!reveal?'<text x="180" y="65" text-anchor="middle" fill="#f3c11b" font-size="32">?</text>':''}<text x="180" y="100" text-anchor="middle" fill="#b4c4cd" font-size="16">${d.type}접점${d.lamp?' → 표시등':''}</text></svg><p>${reveal?(closed?'접점이 붙어서 길이 이어져요.':'접점이 떨어져서 길이 끊겨요.'):'현재 코일 상태에서 접점은 어떻게 될까요?'}</p></div>`;
+}
+function homeQuizHTML() {
+  if(!QZ.current) quizNext();
+  const q=QZ.current, answered=QZ.selected!==null;
+  return `<div class="hm-page qz-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>회로 퀴즈</h1><span class="hm-prog">푼 문제 ${QZ.solved} · 정답 ${QZ.correct}</span></div>
+  <p class="qz-intro">그림을 보고 한 문제씩. 시간 제한 없이 원하는 만큼 풀어요.</p>
+  <div class="qz-tabs" aria-label="문제 범위">${['전체','기구','접점','타이머','회로'].map(c=>`<button class="hm-chip" data-home="qz-category" data-category="${c}" aria-pressed="${QZ.category===c}">${c==='전체'?'전체 랜덤':c}</button>`).join('')}</div>
+  <section class="qz-card"><span class="qz-tag">${q.cat} · 문제은행 ${QUIZ_BANK.filter(x=>QZ.category==='전체'||x.cat===QZ.category).length}문제</span><h2 id="qzQuestion" tabindex="-1">${esc(q.q)}</h2>${quizScene(q)}
+  <div class="qz-choices">${QZ.choices.map((a,i)=>`<button data-home="qz-answer" data-answer="${i}" ${answered?'disabled':''} class="qz-choice${answered&&a.correct?' is-correct':''}${answered&&QZ.selected===i&&!a.correct?' is-wrong':''}"><span>${i+1}</span>${esc(a.text)}${answered&&a.correct?'<b>정답</b>':answered&&QZ.selected===i?'<b>내 선택</b>':''}</button>`).join('')}</div>
+  ${answered?`<div class="qz-feedback" id="qzFeedback" role="status" tabindex="-1"><strong>${QZ.choices[QZ.selected].correct?'정답이에요!':'아쉬워요. 정답을 확인해 보세요.'}</strong><p>${esc(q.ex)}</p></div><button class="hm-go qz-next" data-home="qz-next">다음 문제 →</button>`:'<p class="qz-hint">답을 고르면 이유를 알려드려요.</p>'}</section>
+  <p class="qz-intro">같은 범위의 문제를 모두 풀면 다시 섞어서 출제해요. 범위를 바꾸면 풀이 수가 새로 시작돼요.</p></div>`;
+}
+function quizAct(a,b) {
+  if(a==='qz-category') { if(b.dataset.category!==QZ.category) quizStart(b.dataset.category); else return; }
+  if(a==='qz-next') { if(QZ.selected===null)return; quizNext(); renderHome(); }
+  if(a==='qz-answer') {
+    const i=Number(b.dataset.answer); if(QZ.selected!==null||!Number.isInteger(i)||!QZ.choices[i])return;
+    QZ.selected=i; QZ.solved++; if(QZ.choices[i].correct) QZ.correct++; renderHome();
+  }
+  $(a==='qz-answer'?'#qzFeedback':'#qzQuestion')?.focus({preventScroll:true});
+}
+
 function homeMainHTML() {
   const pd = pracDone(), nP = LESSONS.filter(L => pd[L.id] !== undefined).length;
   const fr = MODE === 'free' ? S : loadKey(STORE), frTxt = fr ? (() => { const n = withState(fr, () => { fixState(); return STAGES.filter(stageDone).length; }); return n === 6 ? '완성했어요 · 다시 해도 돼요' : n || fr.elapsed > 2000 ? `진행 ${n} / 6 단계 · ${fmt(fr.elapsed)}` : '처음부터 시작'; })() : '처음부터 시작';
@@ -5914,6 +6297,7 @@ function homeMainHTML() {
     + `<button class="hm-card exam" data-home="exam">${hmIc('exam')}<b>시험 모드</b><p>가이드 없이 실제 시험처럼. 제출하면 과제지 기준 채점</p><small>${exTxt}</small></button>`
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
+    + `<button class="hm-card quiz" data-home="quiz">${hmIc('help')}<b>회로 퀴즈</b><p>기구·접점·회로 동작을 문제로 익혀보세요</p><small>20문제 · 무작위 출제</small></button>`
     + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
@@ -5948,7 +6332,7 @@ function homeHelpHTML() {
 }
 function renderHome() {
   const p = UI.homePage || 'main', el = $('#home');
-  el.innerHTML = p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : p === 'strip' ? homeStripHTML() : homeMainHTML();
+  el.innerHTML = p === 'quiz' ? homeQuizHTML() : p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : p === 'strip' ? homeStripHTML() : homeMainHTML();
   el.scrollTop = 0; stripTick();
 }
 function showHome(page = 'main') {
@@ -5965,6 +6349,8 @@ $('#home').addEventListener('click', e => {
   const b = e.target.closest('[data-home]'); if (!b) return;
   const a = b.dataset.home;
   if (a === 'main' || a === 'prac' || a === 'help' || a === 'strip') { UI.homePage = a; UI.stripChk = null; renderHome(); return; }
+  if (a === 'quiz') return quizStart();
+  if (a.startsWith('qz-')) return quizAct(a,b);
   if (a.startsWith('s-')) return stripAct(a, b);
   if (a === 'free') return goFree();
   if (a === 'exam') return goExam();
