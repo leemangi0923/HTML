@@ -626,13 +626,13 @@ test('older lamp ties migrate onto the new route once, including a save viewed f
   }
 });
 
-test('quiz bank serves all twenty questions without repeats, locks answers and explains every answer', async () => {
+test('quiz bank serves all one hundred questions without repeats, locks answers and explains every answer', async () => {
   const before = await page.evaluate(() => JSON.stringify(S));
   await page.locator('[data-home="quiz"]').click();
   const ids=[];
-  for(let n=0;n<40;n++) {
+  for(let n=0;n<200;n++) {
     const info=await page.evaluate(()=>({id:QZ.current.id,right:QZ.choices.findIndex(a=>a.correct),count:QUIZ_BANK.length}));
-    assert.equal(info.count,20); ids.push(info.id);
+    assert.equal(info.count,100); ids.push(info.id);
     const answer=n%2===0?info.right:(info.right+1)%4;
     await page.locator(`[data-answer="${answer}"]`).click();
     assert.equal(await page.locator('.qz-choice:disabled').count(),4);
@@ -642,16 +642,16 @@ test('quiz bank serves all twenty questions without repeats, locks answers and e
     assert.equal(await page.evaluate(()=>QZ.solved),n+1,'double answer must not count');
     await page.locator('[data-home="qz-next"]').click();
   }
-  assert.equal(new Set(ids.slice(0,20)).size,20); assert.equal(new Set(ids.slice(20)).size,20);
-  assert.notEqual(ids[19],ids[20]);
-  assert.equal(await page.evaluate(()=>QZ.correct),20);
+  assert.equal(new Set(ids.slice(0,100)).size,100); assert.equal(new Set(ids.slice(100)).size,100);
+  assert.notEqual(ids[99],ids[100]);
+  assert.equal(await page.evaluate(()=>QZ.correct),100);
   assert.equal(await page.evaluate(()=>JSON.stringify(S)),before,'quiz must not modify the simulation');
   assert.equal(await page.locator('button').filter({hasText:'틀린 문제'}).count(),0);
 });
 
 test('task quiz categories cover tool identification, materials and working methods', async () => {
   await page.locator('[data-home="quiz"]').click();
-  for(const [category,count] of [['공구',8],['재료',6],['작업 요령',6]]) {
+  for(const [category,count] of [['공구',20],['기구·재료',20],['설치·가공',15],['전선·배선',20],['동작·진단',15],['안전·마무리',10]]) {
     await page.locator(`[data-category="${category}"]`).click();
     const seen=[];
     for(let i=0;i<count;i++) {
@@ -678,7 +678,7 @@ test('task quiz categories cover tool identification, materials and working meth
 test('quiz remains readable on a narrow screen and supports keyboard answers', async () => {
   await page.setViewportSize({width:360,height:740});
   await page.locator('[data-home="quiz"]').click();
-  for(const cat of ['공구','재료','작업 요령']) {
+  for(const cat of ['공구','기구·재료','설치·가공','전선·배선','동작·진단','안전·마무리']) {
     await page.locator(`[data-category="${cat}"]`).click();
     await page.locator('[data-answer="0"]').focus(); await page.keyboard.press('Enter');
     await page.waitForFunction(()=>document.activeElement?.id==='qzFeedback');
@@ -695,7 +695,9 @@ test('tool illustrations load offline without exposing the answer before selecti
   await page.route('https://**/*',route=>route.abort());
   await page.locator('[data-home="quiz"]').click();
   await page.locator('[data-category="공구"]').click();
-  for(let i=0;i<8;i++) {
+  // These ten identification questions have no text answer outside the choices.
+  for(let i=1;i<=10;i++) {
+    await page.evaluate(id=>{QZ.current=QUIZ_BANK.find(q=>q.id===id);QZ.selected=null;QZ.choices=quizShuffle(QZ.current.answers.map((text,i)=>({text,correct:i===0})));renderHome();},i);
     const picture=page.locator('.qz-art svg');
     assert.equal(await picture.count(),1);
     assert.ok(await picture.locator('path').count()>0);
@@ -707,4 +709,35 @@ test('tool illustrations load offline without exposing the answer before selecti
     assert.ok((await page.locator('.qz-art figcaption').textContent()).includes(answer));
     await page.locator('[data-home="qz-next"]').click();
   }
+});
+
+
+test('reviewed quiz conditions and concept diagrams are explicit and stable', async () => {
+  const data=await page.evaluate(()=>QUIZ_BANK.map(q=>({id:q.id,q:q.q,cat:q.cat,choices:q.answers,conditions:q.conditions||'',ex:q.ex,scene:q.scene})));
+  assert.deepEqual(data.map(q=>q.id),Array.from({length:100},(_,i)=>i+1));
+  for(const q of data) assert.equal(new Set(q.choices).size,4,`four distinct choices: ${q.id}`);
+  for(const id of [76,77,78]) {
+    const q=data[id-1];assert.match(q.conditions,/공통선/);assert.match(q.conditions,/우회/);assert.match(q.conditions,/비유지형/);
+  }
+  assert.match(data[78].choices[0],/제어전원/);assert.match(data[78].choices[0],/공통선/);
+  assert.match(data[86].q,/전원 투입형·비유지형/);assert.match(data[86].q,/완전히 초기화/);
+  assert.match(data[90].ex,/전후/);assert.match(data[90].ex,/검증된 전압원/);
+  assert.match(data[59].q,/옆으로/);assert.match(data[59].ex,/앞끝/);
+  await page.locator('[data-home="quiz"]').click();
+  for(const [id,expected] of [[29,'KACON'],[30,'TIMER']]) {
+    const text=await page.evaluate(id=>{const q=QUIZ_BANK.find(q=>q.id===id);const el=document.createElement('div');el.innerHTML=quizScene(q);return el.textContent;},id);
+    assert.match(text,new RegExp(expected),'device body, not just an empty socket');
+  }
+  await page.setViewportSize({width:360,height:740});
+  for(const id of [43,44,59,60,61,66,71,76,77,78,86,87,97]) {
+    await page.evaluate(id=>{QZ.current=QUIZ_BANK.find(q=>q.id===id);QZ.selected=null;QZ.choices=QZ.current.answers.map((text,i)=>({text,correct:i===0}));renderHome();},id);
+    assert.equal(await page.locator('.qz-art svg').count(),1);
+    assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true,`mobile width: ${id}`);
+    if([76,77,78,86,87].includes(id)) {
+      assert.ok((await page.locator('.qz-conditions').textContent()).length>35);
+      assert.match(await page.locator('.qz-art figcaption').textContent(),/개념도/);
+    }
+  }
+  const links=await page.evaluate(()=>{QZ.current=QUIZ_BANK.find(q=>q.id===91);QZ.selected=0;renderHome();return [...document.querySelectorAll('.qz-sources a')].map(a=>({href:a.href,rel:a.rel}));});
+  assert.equal(links.length,2);for(const a of links){assert.ok(a.href.startsWith('https://'));assert.match(a.rel,/noopener/);}
 });
