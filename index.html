@@ -2282,21 +2282,35 @@ function tieBetween(P1, P2, skip, any) {   // 두 점 사이를 지나가는 조
 const TIE_MAX = 80;   // 한 번에 끌어서 묶을 수 있는 길이 (mm)
 const TIE_END = 16;   // 단자에서 이만큼(mm) 안은 묶지 않는다 (압착단자가 휘지 않게)
 const tieEndOK = (w, x, y) => [w.a, w.b].every(id => !TERM[id] || Math.hypot(TERM[id].x - x, TERM[id].y - y) >= TIE_END);
-function deform(pts, an, keepStart = 7, keepEnd = 7) {   // 선이 타이 자리를 정확히 지나게: 타이 앞뒤 4mm는 다발로 나란히, 타이 사이와 단자 쪽은 부드럽게 (압착단자와 표시등 옆 직선 구간은 그대로)
+function deform(pts, an, keepStart = 7, keepEnd = 7, locked = []) {   // 선이 타이 자리를 정확히 지나게: 타이 앞뒤 4mm는 다발로 나란히, 타이 사이와 단자 쪽은 부드럽게 (압착단자와 표시등 옆 직선 구간은 그대로)
   const q = [{ x: pts[0][0], y: pts[0][1], s: 0 }]; let acc = 0;
   for (let k = 1; k < pts.length; k++) {
     const a = pts[k - 1], b = pts[k], l = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(l / 2.5));
     for (let j = 1; j <= n; j++) q.push({ x: a[0] + (b[0] - a[0]) * j / n, y: a[1] + (b[1] - a[1]) * j / n, s: acc + l * j / n });
     acc += l;
   }
-  const E0 = Math.min(keepStart, acc / 2), E1 = Math.min(keepEnd, acc - E0), C = [[E0, 0, 0]];   // 조정점 [s, dx, dy]: 단자 쪽 0 → 타이마다 (앞 4mm, 뒤 4mm) → 반대쪽 단자 0
-  for (const A of [...an].sort((p, r) => p.s0 - r.s0)) { const a = Math.max(clamp(A.s0 - 4, E0, acc - E1), C[C.length - 1][0]), b = Math.max(clamp(A.s0 + 4, E0, acc - E1), a); C.push([a, A.dx, A.dy], [b, A.dx, A.dy]); }
-  C.push([Math.max(acc - E1, C[C.length - 1][0]), 0, 0]);
+  const E0 = Math.min(keepStart, acc / 2), E1 = Math.min(keepEnd, acc - E0);
+  // 고정 구간은 타이 변형을 전파하지 않는다. 각 노출 구간의 양 끝에서 변위를 0으로 시작한다.
+  const fixed = [[0,E0],[acc-E1,acc],...locked].map(([a,b])=>[clamp(a,0,acc),clamp(b,0,acc)]).sort((a,b)=>a[0]-b[0]);
+  const merged=[];
+  for(const r of fixed) { const last=merged[merged.length-1];if(last && r[0]<=last[1])last[1]=Math.max(last[1],r[1]);else merged.push([...r]); }
+  const spans=[];
+  for(let k=1;k<merged.length;k++) {
+    const lo=merged[k-1][1],hi=merged[k][0];if(hi<=lo)continue;
+    const C=[[lo,0,0]];
+    for(const A of an.filter(a=>a.s0>lo && a.s0<hi).sort((a,b)=>a.s0-b.s0)) {
+      const a=Math.max(clamp(A.s0-4,lo,hi),C[C.length-1][0]),b=Math.max(clamp(A.s0+4,lo,hi),a);
+      C.push([a,A.dx,A.dy],[b,A.dx,A.dy]);
+    }
+    C.push([hi,0,0]);spans.push({lo,hi,C});
+  }
+  for(const [a,b] of merged)for(const v of [a,b])q.push({...ptAtS(pts,v),s:v});
+  q.sort((a,b)=>a.s-b.s);
   return q.map(o => {
-    if (o.s <= E0 || o.s >= acc - E1) return [o.x, o.y];
-    let j = 0; while (j < C.length - 2 && o.s > C[j + 1][0]) j++;
-    const [s0, x0, y0] = C[j], [s1, x1, y1] = C[j + 1], t = s1 > s0 ? clamp((o.s - s0) / (s1 - s0), 0, 1) : 1, e = t * t * (3 - 2 * t);   // smoothstep: 꺾이지 않게
-    return [o.x + x0 + (x1 - x0) * e, o.y + y0 + (y1 - y0) * e];
+    const span=spans.find(r=>o.s>r.lo && o.s<r.hi);if(!span)return [o.x,o.y];
+    const C=span.C;let j=0;while(j<C.length-2 && o.s>C[j+1][0])j++;
+    const [s0,x0,y0]=C[j],[s1,x1,y1]=C[j+1],t=s1>s0?clamp((o.s-s0)/(s1-s0),0,1):1,e=t*t*(3-2*t);
+    return [o.x+x0+(x1-x0)*e,o.y+y0+(y1-y0)*e];
   });
 }
 function wireHit(p, tol, filt) {   // 가장 가까운 전선과 그 위치
@@ -3315,10 +3329,19 @@ function ferOff(w, id) {   // 압착단자는 진입 방향에 수직으로 나�
   const ws = S.wires.filter(x => x.a === id || x.b === id); let k = ws.indexOf(w);
   if (ws.length === 2 && !T.ov) { const ox = x => { const o = TERM[x.a === id ? x.b : x.a]; return o ? (T.entrySide ? o.y : o.x) : (T.entrySide ? T.y : T.x); }, a0 = ox(ws[0]), a1 = ox(ws[1]); if (Math.abs(a0 - a1) > .5) k = ox(w) === Math.min(a0, a1) ? 0 : 1; }   // 연결되는 쪽 순서에 맞춰 배치해 단자 바로 옆에서 꼬이지 않게
   const o = (k === 0 ? -1 : 1) * (T.r + .25); return T.ov ? -o : o; }   // 바깥 줄 위로 지나가는 선은 반대쪽부터   // 바깥 줄 위로 지나가는 선은 반대쪽부터 (바깥 줄 선과 겹치지 않게)
+function wireFixedRanges(w,i,pts) {
+  if(!isExtWire(w) || !(S.helical || (gathered(w) && hcovNow()>0)))return [];
+  const lane=(((i*7)%13)-6)*1.7, B=S.helical===2?bandCurve(lane*.35):bundle1(lane*.4);
+  const end=B[B.length-1], exit=projOn(pts,{x:end[0],y:end[1]});if(!exit || exit.dist>1e-5)return [];
+  if(S.helical)return [opStart(w)?[exit.s,pathLen(pts)]:[0,exit.s]];
+  // 감는 중에는 실제로 덮인 구간만 고정한다. 밴드의 양쪽 노출 전선은 각각 움직일 수 있다.
+  const covered=cutPath(B.slice().reverse(),hcovNow()),far=covered[covered.length-1],q=projOn(pts,{x:far[0],y:far[1]});
+  return q ? [[Math.min(q.s,exit.s),Math.max(q.s,exit.s)]] : [];
+}
 function wirePts(w, i) {
   const old=WIRE_GEOMETRY.wires.get(w);if(old && old.i===i && old.ties===S.ties && old.tieCount===(S.ties?.length||0) && old.helical===S.helical)return old.points;
   const pts=basePts(w,i),an=pts && S.ties?.length ? tieAnchors(w) : [];
-  const points=an.length ? deform(pts,an,TERM[w.a]?.entrySide ? OP_LAMP_LEAD : 7,TERM[w.b]?.entrySide ? OP_LAMP_LEAD : 7) : pts;
+  const points=an.length ? deform(pts,an,TERM[w.a]?.entrySide ? OP_LAMP_LEAD : 7,TERM[w.b]?.entrySide ? OP_LAMP_LEAD : 7,wireFixedRanges(w,i,pts)) : pts;
   WIRE_GEOMETRY.wires.set(w,{i,points,ties:S.ties,tieCount:S.ties?.length||0,helical:S.helical});return points;
 }
 function basePts(w, i, ex) {
@@ -5309,7 +5332,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.7.0', date: '2026.11.04', notes: ['검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.7.1', date: '2026.11.04', notes: ['헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;

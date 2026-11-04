@@ -741,3 +741,44 @@ test('reviewed quiz conditions and concept diagrams are explicit and stable', as
   const links=await page.evaluate(()=>{QZ.current=QUIZ_BANK.find(q=>q.id===91);QZ.selected=0;renderHome();return [...document.querySelectorAll('.qz-sources a')].map(a=>({href:a.href,rel:a.rel}));});
   assert.equal(links.length,2);for(const a of links){assert.ok(a.href.startsWith('https://'));assert.match(a.rel,/noopener/);}
 });
+
+test('helical covering pins wires while ties move exposed tails in either endpoint direction', async () => {
+  for(const phase of ['partial','wrapped','duct'])for(const reverse of [false,true]) {
+    await fullState();
+    const result=await page.evaluate(({phase,reverse})=>{
+      S.helical=phase==='duct'?2:phase==='wrapped'?1:0;S.hcov=phase==='partial'?.5:0;UI.hcovLive=null;
+      S.hgath=S.wires.filter(isExtWire).map(w=>pairKey(w.a,w.b));S.ties=[];
+      if(reverse)S.wires=S.wires.map(w=>isExtWire(w)?{...w,a:w.b,b:w.a}:w);
+      buildTerms();invalidateWireGeometry();
+      const wires=JSON.stringify(S.wires),ws=S.wires.filter(isExtWire).slice(0,2);
+      const paths=ws.map(w=>{const i=S.wires.indexOf(w),p=basePts(w,i);return {w,i,p,L:pathLen(p),fixed:wireFixedRanges(w,i,p)[0]};});
+      for(const which of ['op','panel']) {
+        const anchors=paths.map(o=>{
+          const side=(which==='op')===opStart(o.w)?'before':'after';
+          const edge=side==='before'?o.fixed[0]:o.fixed[1],room=side==='before'?edge:o.L-edge;
+          if(room<65)return null;
+          const s=edge+(side==='before'?-35:35),a=ptAtS(o.p,s);
+          return {a:o.w.a,b:o.w.b,f:s/o.L,x:a.x,y:a.y};
+        });
+        if(anchors.some(a=>!a))continue;
+        S.ties.push({ws:anchors,state:'cut',c:{x:anchors.reduce((s,a)=>s+a.x,0)/2+25,y:anchors.reduce((s,a)=>s+a.y,0)/2+15},u:{x:1,y:0}});
+      }
+      invalidateWireGeometry();let drift=0,moved=0,seams=0;
+      for(const o of paths) {
+        const pts=wirePts(o.w,o.i);let s=0;
+        for(let k=0;k<o.p.length;k++) {
+          if(k)s+=Math.hypot(o.p[k][0]-o.p[k-1][0],o.p[k][1]-o.p[k-1][1]);
+          if(s>=o.fixed[0] && s<=o.fixed[1])drift=Math.max(drift,projOn(pts,{x:o.p[k][0],y:o.p[k][1]}).dist);
+        }
+        for(const edge of o.fixed)seams=Math.max(seams,projOn(pts,ptAtS(o.p,edge)).dist);
+        for(const p of pts)moved=Math.max(moved,projOn(o.p,{x:p[0],y:p[1]}).dist);
+      }
+      return {drift,moved,seams,ties:S.ties.length,unchanged:JSON.stringify(S.wires)===wires};
+    },{phase,reverse});
+    assert.ok(result.ties>0,`${phase}: exercise a tie`);
+    assert.ok(result.drift<1e-6,`${phase}, reversed=${reverse}: band drift ${result.drift}`);
+    assert.ok(result.seams<1e-6,`${phase}: unchanged band exit`);
+    assert.ok(result.moved>5,`${phase}: uncovered tail still moves`);
+    assert.equal(result.unchanged,true);
+  }
+});
