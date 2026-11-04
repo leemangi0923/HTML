@@ -782,3 +782,61 @@ test('helical covering pins wires while ties move exposed tails in either endpoi
     assert.equal(result.unchanged,true);
   }
 });
+
+test('middle-button pan batches camera writes, reuses geometry and preserves the final position', async()=>{
+  await fullState();await page.evaluate(()=>hideHome());
+  const b=await page.locator('#board').boundingBox(),x=b.x+100,y=b.y+100;
+  await page.mouse.move(x,y);await page.mouse.down({button:'middle'});
+  const r=await page.evaluate(async({x,y})=>{
+    const cam0={...UI.gesture.cam0},before=JSON.stringify(S),world=gWorld.firstChild;
+    let writes=0,reads=0;const set=svg.setAttribute.bind(svg),get=svg.getBoundingClientRect.bind(svg);
+    svg.setAttribute=(key,...a)=>{if(key==='viewBox')writes++;return set(key,...a);};
+    svg.getBoundingClientRect=(...a)=>{reads++;return get(...a);};
+    for(let n=1;n<=80;n++)svg.dispatchEvent(new PointerEvent('pointermove',{clientX:x+n,clientY:y+n/2,pointerId:1,pointerType:'mouse',buttons:4,bubbles:true}));
+    const beforeFrame=writes,readBurst=reads,pending=!!cameraFrame;
+    await new Promise(done=>requestAnimationFrame(done));
+    const afterFrame=writes,unchangedWorld=world===gWorld.firstChild;
+    // Release before the following frame: flush the final input synchronously.
+    svg.dispatchEvent(new PointerEvent('pointermove',{clientX:x+90,clientY:y+50,pointerId:1,pointerType:'mouse',buttons:4,bubbles:true}));
+    const rect=UI.gesture.rect,expected={x:cam0.x-90/rect.width*cam0.w,y:cam0.y-50/rect.height*cam0.h};
+    svg.dispatchEvent(new PointerEvent('pointerup',{clientX:x+90,clientY:y+50,pointerId:1,pointerType:'mouse',button:1,bubbles:true}));
+    const view=svg.getAttribute('viewBox'),flushed=cameraFrame===0;
+    await new Promise(done=>requestAnimationFrame(done));
+    svg.setAttribute=set;svg.getBoundingClientRect=get;
+    return {beforeFrame,readBurst,pending,afterFrame,unchangedWorld,flushed,stable:view===svg.getAttribute('viewBox'),position:Math.abs(UI.cam.x-expected.x)<1e-7&&Math.abs(UI.cam.y-expected.y)<1e-7,unchanged:JSON.stringify(S)===before,gesture:UI.gesture,panning:document.body.classList.contains('panning'),visible:getComputedStyle(gOver).visibility};
+  },{x,y});
+  await page.mouse.up({button:'middle'});
+  assert.deepEqual(r,{beforeFrame:0,readBurst:0,pending:true,afterFrame:1,unchangedWorld:true,flushed:true,stable:true,position:true,unchanged:true,gesture:null,panning:false,visible:'visible'});
+});
+
+test('camera cancellation and lost capture flush pending movement without leaving panning active',async()=>{
+  await fullState();await page.evaluate(()=>hideHome());
+  for(const ending of ['pointercancel','lostpointercapture','blur']) {
+    const result=await page.evaluate(async ending=>{
+      const r=svg.getBoundingClientRect();UI.gesture={type:'pan',sx:r.left+40,sy:r.top+40,cam0:{...UI.cam},rect:r};beginCameraGesture();
+      svg.dispatchEvent(new PointerEvent('pointermove',{clientX:r.left+90,clientY:r.top+70,pointerId:1,pointerType:'mouse',buttons:4,bubbles:true}));
+      if(ending==='blur')window.dispatchEvent(new Event('blur'));else svg.dispatchEvent(new PointerEvent(ending,{pointerId:1,pointerType:'mouse',bubbles:true}));
+      const view=svg.getAttribute('viewBox');await new Promise(done=>requestAnimationFrame(done));
+      return {pending:cameraFrame,gesture:UI.gesture,panning:document.body.classList.contains('panning'),stable:view===svg.getAttribute('viewBox')};
+    },ending);
+    assert.deepEqual(result,{pending:0,gesture:null,panning:false,stable:true});
+  }
+});
+
+test('touch pinch and left-button camera drag keep their final camera and refresh zoom detail',async()=>{
+  await fullState();await page.evaluate(()=>hideHome());
+  const r=await page.evaluate(async()=>{
+    const b=svg.getBoundingClientRect();
+    UI.gesture={type:'press',sx:b.left+10,sy:b.top+10,cam0:{...UI.cam},rect:b,moved:false};
+    svg.dispatchEvent(new PointerEvent('pointermove',{clientX:b.left+50,clientY:b.top+30,pointerId:1,pointerType:'mouse',buttons:1,bubbles:true}));
+    const dragged=!!cameraFrame&&document.body.classList.contains('panning');
+    svg.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,pointerType:'mouse',bubbles:true}));
+    UI.ptrs.set(11,{x:b.left+50,y:b.top+50});UI.ptrs.set(12,{x:b.left+150,y:b.top+50});
+    const cam0={...UI.cam};UI.gesture={type:'pinch',d0:100,cam0,m0:{x:b.left+100,y:b.top+50},rect:b};beginCameraGesture();
+    svg.dispatchEvent(new PointerEvent('pointermove',{clientX:b.left+1050,clientY:b.top+50,pointerId:12,pointerType:'touch',bubbles:true}));
+    svg.dispatchEvent(new PointerEvent('pointerup',{pointerId:12,pointerType:'touch',bubbles:true}));
+    UI.ptrs.clear();
+    return {dragged,zoomed:UI.cam.w<cam0.w,detail:UI.detail=== (b.width/UI.cam.w>4.2),pending:cameraFrame,panning:document.body.classList.contains('panning'),gesture:UI.gesture};
+  });
+  assert.deepEqual(r,{dragged:true,zoomed:true,detail:true,pending:0,panning:false,gesture:null});
+});

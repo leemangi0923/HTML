@@ -512,6 +512,7 @@ svg text { font-family: var(--font); }
 @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 @media (prefers-reduced-motion: reduce) { .guide-ring, .board-wrap.shake { animation: none; } .toast { transition: none; } }
 body.dragging, body.dragging *, body.panning, body.panning * { cursor: grabbing !important; }
+body.panning #gOver { visibility: hidden; }
 *, *::before, *::after { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 input, textarea { -webkit-user-select: text; user-select: text; }
 ::selection { background: transparent; }
@@ -4485,9 +4486,33 @@ function checkImport(pairs) {
 
 /* ---------- 카메라 ---------- */
 function toWorld(cx, cy) { const r = svg.getBoundingClientRect(); return { x: UI.cam.x + (cx - r.left) / Math.max(1, r.width) * UI.cam.w, y: UI.cam.y + (cy - r.top) / Math.max(1, r.height) * UI.cam.h }; }
-function applyCam() {
-  const c = UI.cam; if (!(c.w > 0 && c.h > 0)) return; svg.setAttribute('viewBox', `${F(c.x)} ${F(c.y)} ${F(c.w)} ${F(c.h)}`);
-  const det = svg.clientWidth / c.w > 4.2; if (det !== UI.detail) { UI.detail = det; renderWorld(); }
+function applyCam(rect) {
+  const c = UI.cam; if (!(c.w > 0 && c.h > 0)) return;
+  const width=rect?rect.width:svg.clientWidth, view=`${F(c.x)} ${F(c.y)} ${F(c.w)} ${F(c.h)}`;
+  if(svg.getAttribute('viewBox')!==view)svg.setAttribute('viewBox',view);
+  const det = width / c.w > 4.2; if (det !== UI.detail) { UI.detail = det; renderWorld(); }
+}
+let cameraFrame=0, cameraRect=null;
+function cameraGestureActive() { const g=UI.gesture;return !!g && (g.type==='pan'||g.type==='pinch'||(g.type==='press'&&g.moved&&!g.live)); }
+function beginCameraGesture() {
+  if(overlayFrame){cancelAnimationFrame(overlayFrame);overlayFrame=0;}
+  document.body.classList.add('panning');
+}
+function requestCamera(rect) {
+  cameraRect=rect;
+  if(!cameraFrame)cameraFrame=requestAnimationFrame(()=>{
+    cameraFrame=0;const r=cameraRect;cameraRect=null;applyCam(r);
+    if(UI.lens||UI.lensPin)lensUpdate();updateFollower();
+  });
+}
+function flushCamera() {
+  if(!cameraFrame)return;
+  cancelAnimationFrame(cameraFrame);cameraFrame=0;const r=cameraRect;cameraRect=null;applyCam(r);
+}
+function endCameraGesture() {
+  flushCamera();document.body.classList.remove('panning');
+  if(UI.mouse)UI.pointer=toWorld(UI.mouse.x,UI.mouse.y);
+  UI.hoverTerm=null;renderOver();if(UI.lens||UI.lensPin)lensUpdate();updateFollower();
 }
 function fitTo(b) {
   const r = svg.getBoundingClientRect(), asp = r.height / Math.max(1, r.width); let w = b.w, h = b.w * asp;
@@ -4554,12 +4579,12 @@ function showFinal() {
 svg.addEventListener('pointerdown', e => {
   if (e.pointerType === 'mouse' && e.button === 1) {   // 휠 누르고 끌기: 무엇을 들고 있든 화면만 움직인다
     e.preventDefault(); svg.setPointerCapture(e.pointerId);
-    UI.gesture = { type: 'pan', sx: e.clientX, sy: e.clientY, cam0: { ...UI.cam } }; document.body.classList.add('panning'); return;
+    UI.gesture = { type: 'pan', sx: e.clientX, sy: e.clientY, cam0: { ...UI.cam }, rect:svg.getBoundingClientRect() }; beginCameraGesture(); return;
   }
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   svg.setPointerCapture(e.pointerId); UI.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (UI.ptrs.size === 2) { const [a, b] = [...UI.ptrs.values()]; UI.gesture = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), cam0: { ...UI.cam }, m0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }; return; }
-  UI.overBoard = true; UI.gesture = { type: 'press', sx: e.clientX, sy: e.clientY, cam0: { ...UI.cam }, moved: false };
+  if (UI.ptrs.size === 2) { const [a, b] = [...UI.ptrs.values()]; UI.gesture = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), cam0: { ...UI.cam }, m0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, rect:svg.getBoundingClientRect() }; beginCameraGesture(); return; }
+  UI.overBoard = true; UI.gesture = { type: 'press', sx: e.clientX, sy: e.clientY, cam0: { ...UI.cam }, rect:svg.getBoundingClientRect(), moved: false };
   if (!UI.carry && !UI.replug && S.tool !== 'inspect') { const k = liveHit(toWorld(e.clientX, e.clientY)); if (k && (k === 'mcb' || k === 'grab' || S.tool === 'hand')) { UI.gesture.live = k; UI.gesture.t0 = performance.now(); liveDown(k); } }   // 동작 확인 조작 (MCB 스위치는 어떤 도구로도)
   if (S.tool === 'hand' && !UI.carry && !UI.replug && S.opBack) { const p0 = toWorld(e.clientX, e.clientY), tt = tieAt(p0, false, 14); if (tt) UI.gesture = { type: 'tiemove', t: tt, sx: e.clientX, sy: e.clientY, p0, moved: false }; }   // 묶은 타이를 손으로 끌어 옮기기
   if (UI.carry && UI.carry.kind === 'helical' && S.opBack && !S.helical) { const p0 = toWorld(e.clientX, e.clientY), q = pushFrom(p0); UI.gesture = { type: q ? 'hpush' : 'hgather', sx: e.clientX, sy: e.clientY, p0, s: q ? Math.max(q.s, 0) : 0, moved: false }; UI.hgEnd = p0; if (q) UI.gesture.s = Math.min(q.s, (S.hcov || 0) * pathLen(bundleR())); }   // 헬리컬 밴드: 가로질러 끌어 모으기, 다발 끝에서 끌어 밀기
@@ -4579,15 +4604,15 @@ function flushPointerOverlay() {
 }
 svg.addEventListener('pointermove', e => {
   if (UI.ptrs.has(e.pointerId)) UI.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (UI.carry && UI.carry.kind === 'pack') ckThru({ x: e.clientX, y: e.clientY });
-  const g = UI.gesture, r = svg.getBoundingClientRect();
+  if (!cameraGestureActive() && UI.carry && UI.carry.kind === 'pack') ckThru({ x: e.clientX, y: e.clientY });
+  const g = UI.gesture, r = g?.rect || svg.getBoundingClientRect();
   if (g && g.type === 'pinch' && UI.ptrs.size === 2) {
     const [a, b] = [...UI.ptrs.values()], d = Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const wx = g.cam0.x + (g.m0.x - r.left) / r.width * g.cam0.w, wy = g.cam0.y + (g.m0.y - r.top) / r.height * g.cam0.h;
     const nw = clamp(g.cam0.w * g.d0 / d, 40, 3000), nh = nw * r.height / r.width;
-    UI.cam = { x: wx - (m.x - r.left) / r.width * nw, y: wy - (m.y - r.top) / r.height * nh, w: nw, h: nh }; return applyCam();
+    UI.cam = { x: wx - (m.x - r.left) / r.width * nw, y: wy - (m.y - r.top) / r.height * nh, w: nw, h: nh }; return requestCamera(r);
   }
-  if (g && g.type === 'pan') { UI.cam = { ...g.cam0, x: g.cam0.x - (e.clientX - g.sx) / r.width * g.cam0.w, y: g.cam0.y - (e.clientY - g.sy) / r.height * g.cam0.h }; return applyCam(); }
+  if (g && g.type === 'pan') { UI.cam = { ...g.cam0, x: g.cam0.x - (e.clientX - g.sx) / r.width * g.cam0.w, y: g.cam0.y - (e.clientY - g.sy) / r.height * g.cam0.h }; return requestCamera(r); }
   if (g && g.type === 'tiemove') {   // 묶인 타이를 끄는 중: 선이 따라온다
     if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 5) { if (!tieToNew(g.t)) { UI.gesture = null; return; } snap(); g.moved = true; g.c0 = { ...g.t.c }; g.rank = tieGeo(g.t).rank; }
     if (!g.moved) return; const p = toWorld(e.clientX, e.clientY), why = tieDrag(g, p); UI.pointer = p;
@@ -4603,8 +4628,8 @@ svg.addEventListener('pointermove', e => {
   if (g && g.type === 'dbox') { if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; UI.dboxEnd = toWorld(e.clientX, e.clientY); UI.pointer = UI.dboxEnd; return requestPointerOverlay(); }
   if (g && g.type === 'press') {
     if (g.live) return;   // 버튼, 팩을 누르는 동안은 화면을 움직이지 않는다
-    if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 7) g.moved = true;
-    if (g.moved) { UI.cam = { ...g.cam0, x: g.cam0.x - (e.clientX - g.sx) / r.width * g.cam0.w, y: g.cam0.y - (e.clientY - g.sy) / r.height * g.cam0.h }; return applyCam(); }
+    if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 7) { g.moved = true;beginCameraGesture(); }
+    if (g.moved) { UI.cam = { ...g.cam0, x: g.cam0.x - (e.clientX - g.sx) / r.width * g.cam0.w, y: g.cam0.y - (e.clientY - g.sy) / r.height * g.cam0.h }; return requestCamera(r); }
   }
   UI.overBoard = true;
   const p = toWorld(e.clientX, e.clientY); UI.pointer = p;
@@ -4612,9 +4637,9 @@ svg.addEventListener('pointermove', e => {
   requestPointerOverlay();
 });
 svg.addEventListener('pointerup', e => {
-  flushPointerOverlay();
+  const wasCamera=cameraGestureActive();flushCamera();flushPointerOverlay();
   const g = UI.gesture; UI.ptrs.delete(e.pointerId);
-  if (g && g.type === 'pan') { UI.gesture = null; document.body.classList.remove('panning'); return; }
+  if (g && g.type === 'pan') { UI.gesture = null; endCameraGesture(); return; }
   if (g && g.live) { UI.gesture = null; if (g.live === 'grab' && performance.now() - g.t0 < 250) { liveRelease(); if (S.tool !== 'hand') { S.tool = 'hand'; UI.meter = null; renderTools(); } pickPack(); } return; }   // 팩을 살짝 누르면 집기
   if (g && g.type === 'press' && !g.moved) { const p = toWorld(e.clientX, e.clientY); UI.pointer = p; handleTap(p, e); }
   if (g && g.type === 'tiedrag') { const p1 = toWorld(e.clientX, e.clientY); UI.tieEnd = null; UI.gesture = null; if (g.moved) makeTie(g.p0, p1); else handleTap(p1, e); }
@@ -4623,8 +4648,11 @@ svg.addEventListener('pointerup', e => {
   if (g && g.type === 'dbox') { const p1 = toWorld(e.clientX, e.clientY); UI.dboxEnd = null; UI.gesture = null; if (!g.moved) handleTap(p1, e); else if (tuckMode(g, p1)) tuckWires(tuckSet(g, p1), p1.x - g.p0.x, p1.y - g.p0.y); else dressPick(g.p0, p1, e.shiftKey || e.ctrlKey); }
   if (g && g.type === 'tiemove') { const p1 = toWorld(e.clientX, e.clientY); UI.gesture = null; if (g.moved) { commit(); say('케이블 타이를 옮겼어요. 묶인 전선이 같이 따라와요', 'ok'); } else handleTap(p1, e); }
   if (!UI.ptrs.size || (g && g.type === 'pinch')) UI.gesture = null;
+  if(wasCamera)endCameraGesture();
 });
-svg.addEventListener('pointercancel', e => { flushPointerOverlay(); const g = UI.gesture; UI.ptrs.delete(e.pointerId); UI.gesture = null; UI.hcovLive = null; document.body.classList.remove('panning'); if (g && g.type === 'tiemove' && g.moved) commit(); renderOver(); });
+svg.addEventListener('pointercancel', e => { flushCamera();flushPointerOverlay(); const g = UI.gesture; UI.ptrs.delete(e.pointerId); UI.gesture = null; UI.hcovLive = null; document.body.classList.remove('panning'); if (g && g.type === 'tiemove' && g.moved) commit(); renderOver(); });
+svg.addEventListener('lostpointercapture',()=>{if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}});
+window.addEventListener('blur',()=>{if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}});
 svg.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
 // 우클릭: 브라우저 메뉴 대신, 손에 든 부품은 재료함으로, 도구는 내려놓기
 document.addEventListener('contextmenu', e => {
@@ -4647,8 +4675,8 @@ document.addEventListener('contextmenu', e => {
   }
 });   // 브라우저 자동 스크롤 막기
 svg.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
-svg.addEventListener('pointerleave', () => { flushPointerOverlay(); UI.overBoard = false; if (!UI.press) UI.hoverTerm = null; renderOver(); });
-window.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; UI.mouse = { x: e.clientX, y: e.clientY, over: !!(e.target.closest && e.target.closest('#board')) }; if (UI.lens || UI.lensPin) lensUpdate(); updateFollower(); });
+svg.addEventListener('pointerleave', () => { if(cameraGestureActive())return;flushPointerOverlay(); UI.overBoard = false; if (!UI.press) UI.hoverTerm = null; renderOver(); });
+window.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; UI.mouse = { x: e.clientX, y: e.clientY, over: !!(e.target.closest && e.target.closest('#board')) }; if(cameraGestureActive())return; if (UI.lens || UI.lensPin) lensUpdate(); updateFollower(); });
 svg.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(clamp(e.deltaY, -120, 120) * .0016)); }, { passive: false });
 $('#tray').addEventListener('pointerdown', e => { const b = e.target.closest('.titem'); if (b) UI.press = { key: b.dataset.key, x: e.clientX, y: e.clientY, type: e.pointerType, drag: false }; });
 window.addEventListener('pointermove', e => {
@@ -5332,7 +5360,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.7.1', date: '2026.11.04', notes: ['헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.7.2', date: '2026.11.04', notes: ['휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
