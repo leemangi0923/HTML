@@ -633,9 +633,9 @@ test('quiz bank serves all twenty questions without repeats, locks answers and e
   for(let n=0;n<40;n++) {
     const info=await page.evaluate(()=>({id:QZ.current.id,right:QZ.choices.findIndex(a=>a.correct),count:QUIZ_BANK.length}));
     assert.equal(info.count,20); ids.push(info.id);
-    const answer=n%2===0?info.right:(info.right+1)%3;
+    const answer=n%2===0?info.right:(info.right+1)%4;
     await page.locator(`[data-answer="${answer}"]`).click();
-    assert.equal(await page.locator('.qz-choice:disabled').count(),3);
+    assert.equal(await page.locator('.qz-choice:disabled').count(),4);
     assert.equal(await page.locator('.qz-choice.is-correct').count(),1);
     assert.ok((await page.locator('#qzFeedback').textContent()).length>20);
     await page.evaluate(()=>quizAct('qz-answer',{dataset:{answer:'0'}}));
@@ -649,9 +649,9 @@ test('quiz bank serves all twenty questions without repeats, locks answers and e
   assert.equal(await page.locator('button').filter({hasText:'틀린 문제'}).count(),0);
 });
 
-test('quiz filters reset the session and contact explanations show the actual state', async () => {
+test('task quiz categories cover tool identification, materials and working methods', async () => {
   await page.locator('[data-home="quiz"]').click();
-  for(const [category,count] of [['기구',6],['접점',6],['타이머',4],['회로',4]]) {
+  for(const [category,count] of [['공구',8],['재료',6],['작업 요령',6]]) {
     await page.locator(`[data-category="${category}"]`).click();
     const seen=[];
     for(let i=0;i<count;i++) {
@@ -659,10 +659,13 @@ test('quiz filters reset the session and contact explanations show the actual st
       assert.equal(info.cat,category); seen.push(info.id);
       assert.equal(await page.locator('[data-home="qz-next"]').count(),0);
       await page.locator(`[data-answer="${info.right}"]`).click();
-      if(category==='접점') {
-        const closed=info.scene.type==='a'?info.scene.on:!info.scene.on;
-        assert.match(await page.locator('.qz-contact svg').getAttribute('aria-label'),closed?/닫힘/:/열림/);
+      if(info.scene.art) {
+        assert.equal(await page.locator('.qz-art svg').count(),1);
+        assert.match(await page.locator('.qz-art figcaption').textContent(),/실제 사진 아님/);
+        const answer=await page.evaluate(()=>QZ.current.answers[0]);
+        assert.ok((await page.locator('.qz-art figcaption').textContent()).includes(answer));
       }
+      assert.ok((await page.locator('.qz-ref').textContent()).length>10);
       await page.locator('[data-home="qz-next"]').click();
     }
     assert.equal(new Set(seen).size,count);
@@ -675,7 +678,7 @@ test('quiz filters reset the session and contact explanations show the actual st
 test('quiz remains readable on a narrow screen and supports keyboard answers', async () => {
   await page.setViewportSize({width:360,height:740});
   await page.locator('[data-home="quiz"]').click();
-  for(const cat of ['접점','회로']) {
+  for(const cat of ['공구','재료','작업 요령']) {
     await page.locator(`[data-category="${cat}"]`).click();
     await page.locator('[data-answer="0"]').focus(); await page.keyboard.press('Enter');
     await page.waitForFunction(()=>document.activeElement?.id==='qzFeedback');
@@ -685,4 +688,23 @@ test('quiz remains readable on a narrow screen and supports keyboard answers', a
   }
   await page.locator('[data-home="main"]').click();
   assert.equal(await page.locator('.hm-card.quiz').count(),1);
+});
+
+
+test('tool illustrations load offline without exposing the answer before selection', async () => {
+  await page.route('https://**/*',route=>route.abort());
+  await page.locator('[data-home="quiz"]').click();
+  await page.locator('[data-category="공구"]').click();
+  for(let i=0;i<8;i++) {
+    const picture=page.locator('.qz-art svg');
+    assert.equal(await picture.count(),1);
+    assert.ok(await picture.locator('path').count()>0);
+    assert.equal(await picture.locator('image').count(),0,'no remote picture dependency');
+    const answer=await page.evaluate(()=>QZ.current.answers[0]);
+    assert.ok(!(await page.locator('.qz-art').textContent()).includes(answer));
+    assert.ok(!(await picture.getAttribute('aria-label')).includes(answer));
+    await page.locator('[data-answer="0"]').click();
+    assert.ok((await page.locator('.qz-art figcaption').textContent()).includes(answer));
+    await page.locator('[data-home="qz-next"]').click();
+  }
 });
