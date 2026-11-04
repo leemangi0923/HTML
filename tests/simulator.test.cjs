@@ -121,7 +121,8 @@ test('search flips to rear terminals and traces actual wires, not reference answ
   const connected = await page.evaluate(() => [...tracedTermIds('PLC.P20')]);
   assert.ok(connected.includes('TB.1.b'), 'fixed terminal block common is included');
   assert.ok(!connected.includes('OP.BZ.1'), 'reference wiring is not used');
-  assert.equal(await page.locator('#inspectionMarks .inspect-wire').count(), 1);
+  assert.equal(await page.locator('#inspectionMarks .inspect-wire').count(), 2, 'the actual R source lead is also traced');
+  assert.ok(await page.evaluate(()=>tracedTermIds('PLC.P20').has('PWR.R')));
   await page.keyboard.press('Escape'); assert.equal(await page.locator('#inspectionMarks').count(), 0);
 });
 
@@ -359,7 +360,7 @@ async function remapTB(map) {
     const remap = id => id.replace(/^TB\.(\d+)\./, (_, n) => `TB.${map[n] || n}.`);
     S.wires = S.wires.map(w=>({...w,a:remap(w.a),b:remap(w.b)}));
     S.convLeads = Object.fromEntries(Object.entries(S.convLeads).map(([k,t])=>[k,remap(t)]));
-    S.cables = {...S.cables,powerTerms:powerTerms(S.cables).map(remap)};
+    S.cables = {...S.cables,powerLeads:Object.fromEntries(Object.entries(powerLeadMap(S.cables)).map(([k,t])=>[k,remap(t)]))};
     S.tbLabels = Array.from({length:TB_N},(_,i)=>tbLabel(i+1));
     const old=[...S.tbLabels];for(let n=1;n<=TB_N;n++) S.tbLabels[(map[n]||n)-1]=old[n-1];
     buildTerms();renderAll();
@@ -430,16 +431,22 @@ test('label tool opens the physical white terminal label and cancel leaves data 
   assert.equal(await page.evaluate(()=>tbLabel(18)), '');
 });
 
-test('power cable can be placed at two arbitrary lower terminals and drawing follows their positions', async () => {
-  await fullState();await page.evaluate(()=>{S.cables.power=false;S.tbCover=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};fitPanel();});
-  const p=await page.evaluate(()=>{const i=tbInst();return [7,17].map(n=>({x:tbTermX(i,n),y:devY(i)+34}))});
-  await clickWorld(p[0].x,p[0].y);assert.equal(await page.evaluate(()=>S.cables.power),false);
-  await clickWorld(p[1].x,p[1].y);
-  assert.deepEqual(await page.evaluate(()=>powerTerms(S.cables)),['TB.7.b','TB.17.b']);
-  assert.equal(await page.evaluate(()=>S.cables.power),true);
-  assert.ok(await page.evaluate(()=>{const p={x:TERM['TB.7.b'].x,y:TERM['TB.7.b'].y+10};return cableAt(p)==='power'}));
-  assert.equal(await page.evaluate(()=>cableAt({x:TERM['TB.12.b'].x,y:TERM['TB.12.b'].y+10})),null);
-  const bad=await functionalResults();assert.ok(bad.judge.length>0,'new source without rewiring must not magically power the old circuit');
+test('power cable is placed on the floor and its three colored leads connect individually', async () => {
+  await fullState();await page.evaluate(()=>{S.cables={power:false};S.tbCover=false;LIVE.inp.mcb=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};buildTerms();renderAll();fitTo({x:-50,y:440,w:650,h:450});});
+  await clickWorld(10,785);
+  assert.deepEqual(await page.evaluate(()=>S.cables.powerLeads),{});
+  assert.equal(await page.evaluate(()=>S.cables.power),false);
+  assert.equal(await page.evaluate(()=>UI.carry),null);
+  for(const [k,n] of [['R',1],['T',2],['E',3]]) {
+    const p=await page.evaluate(({k,n})=>({a:powerLeadEnd(k),b:TERM[`TB.${n}.b`]}),{k,n});
+    await clickWorld(p.a.x,p.a.y);await clickWorld(p.b.x,p.b.y);
+    assert.equal(await page.evaluate(k=>powerLeadMap(S.cables)[k],k),`TB.${n}.b`);
+    assert.equal(await page.evaluate(()=>S.cables.power),k==='E');
+  }
+  assert.deepEqual(await page.evaluate(()=>powerLeadMap(S.cables)),{R:'TB.1.b',T:'TB.2.b',E:'TB.3.b'});
+  assert.deepEqual(await functionalResults(),{checks:[],judge:[],operationPoints:18});
+  const colors=await page.locator('[data-power-lead]').evaluateAll(a=>a.map(n=>n.getAttribute('stroke')));
+  assert.deepEqual(colors,['#925523','#287be0','#21a65a']);
 });
 
 test('alternative wire list is informational and never marks a nonexample pair wrong', async () => {
@@ -450,7 +457,7 @@ test('alternative wire list is informational and never marks a nonexample pair w
 });
 
 test('legacy saves without custom labels or source endpoints retain the original wiring', async () => {
-  await fullState();await page.evaluate(()=>{delete S.tbLabels;delete S.cables.powerTerms;save()});
+  await fullState();await page.evaluate(()=>{delete S.tbLabels;S.cables={power:true};save()});
   await page.reload();await page.waitForFunction(()=>window.SIM);
   assert.equal(await page.evaluate(()=>tbLabel(19)),'S+');
   assert.deepEqual(await page.evaluate(()=>powerTerms(S.cables)),['TB.1.b','TB.2.b']);
@@ -472,13 +479,15 @@ test('custom labels support undo and actual AC short detection follows the moved
   assert.equal(r,true);
 });
 
-test('power selection rejects the same terminal twice and escape cancels a partial cable', async () => {
-  await fullState();await page.evaluate(()=>{S.cables.power=false;S.tbCover=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};fitPanel()});
-  const p=await page.evaluate(()=>({x:tbTermX(tbInst(),7),y:devY(tbInst())+34}));
-  await clickWorld(p.x,p.y);await clickWorld(p.x,p.y);
-  assert.equal(await page.evaluate(()=>S.cables.power),false);
-  await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>!!UI.powerStart),false);
-  assert.equal(await page.evaluate(()=>UI.carry),null);
+test('power leads reject reversed phases, ground on live circuits and duplicate terminals', async () => {
+  await fullState();const r=await page.evaluate(()=>{
+    S.cables={power:false,powerPlaced:{...POWER_POS},powerLeads:{}};S.tbCover=false;LIVE.inp.mcb=false;buildTerms();
+    const rejected=[];
+    for(const [k,t] of [['R','TB.2.b'],['T','TB.1.b'],['E','TB.1.b'],['E','TB.5.b'],['R','TB.7.b'],['R','TB.1.t']]){connectPowerLead('PWR.'+k,t);rejected.push(Object.keys(S.cables.powerLeads).length===0);}
+    connectPowerLead('PWR.R','TB.1.b');connectPowerLead('PWR.T','TB.1.b');
+    return {rejected,leads:powerLeadMap(S.cables),on:S.cables.power};
+  });
+  assert.deepEqual(r,{rejected:[true,true,true,true,true,true],leads:{R:'TB.1.b'},on:false});
 });
 
 test('lamp wires enter from the left with parallel ferrules, including tied and bundled layouts', async () => {
@@ -839,4 +848,70 @@ test('touch pinch and left-button camera drag keep their final camera and refres
     return {dragged,zoomed:UI.cam.w<cam0.w,detail:UI.detail=== (b.width/UI.cam.w>4.2),pending:cameraFrame,panning:document.body.classList.contains('panning'),gesture:UI.gesture};
   });
   assert.deepEqual(r,{dragged:true,zoomed:true,detail:true,pending:0,panning:false,gesture:null});
+});
+
+
+test('power source follows equivalent relocated wiring and rejects saved wrong-color connections',async()=>{
+  await fullState();await remapTB({1:7,7:1,2:17,17:2,3:18,18:3});
+  assert.deepEqual(await functionalResults(),{checks:[],judge:[],operationPoints:18});
+  const result=await page.evaluate(()=>{
+    S.tbCover=false;LIVE.inp.mcb=false;S.cables.powerLeads={};S.cables.power=false;buildTerms();
+    connectPowerLead('PWR.R','TB.7.b');connectPowerLead('PWR.T','TB.17.b');connectPowerLead('PWR.E','TB.18.b');
+    const correct={...powerLeadMap(S.cables)},good=!powerFault(S.cables,staticLinks(S.wires));
+    S.cables.powerLeads={R:correct.T,T:correct.R,E:correct.E};S.cables.power=true;
+    const wrong=evalOnce(staticLinks(S.wires),newSim(),{...LIVE.inp,cab:S.cables,fuses:fuseState(),mcb:true,leads:convLeads(),plug:plugMap()});
+    return {correct,good,wrongOn:wrong.acOn,smps:wrong.out.smps,error:wrong.powerError};
+  });
+  assert.deepEqual(result.correct,{R:'TB.7.b',T:'TB.17.b',E:'TB.18.b'});assert.equal(result.good,true);assert.equal(result.wrongOn,false);assert.equal(result.smps,false);assert.match(result.error,/R/);
+});
+
+test('partly connected power cable saves, restores and can be reconnected with undo',async()=>{
+  await fullState();await page.evaluate(()=>{S.cables={power:false,powerPlaced:{x:35,y:800},powerLeads:{R:'TB.1.b'}};S.tbCover=false;save();});
+  await page.reload();await page.waitForFunction(()=>window.SIM);
+  assert.deepEqual(await page.evaluate(()=>S.cables),{power:false,powerPlaced:{x:35,y:800},powerLeads:{R:'TB.1.b'}});
+  const r=await page.evaluate(()=>{LIVE.inp.mcb=false;connectPowerLead('PWR.T','TB.2.b');connectPowerLead('PWR.E','TB.3.b');const full=powerConnected();selectPowerLead(TERM['PWR.T']);const removed=!S.cables.power&&!powerLeadMap(S.cables).T;undo();return{full,removed,restored:powerConnected(),T:powerLeadMap(S.cables).T};});
+  assert.deepEqual(r,{full:true,removed:true,restored:true,T:'TB.2.b'});
+});
+
+test('power cable blocks live edits, closed covers and missing earth',async()=>{
+  await fullState();const r=await page.evaluate(()=>{
+    S.cables={power:false,powerPlaced:{...POWER_POS},powerLeads:{}};buildTerms();S.tbCover=false;LIVE.inp.mcb=true;
+    connectPowerLead('PWR.R','TB.1.b');const liveBlocked=!S.cables.powerLeads.R;
+    LIVE.inp.mcb=false;S.tbCover=true;connectPowerLead('PWR.R','TB.1.b');const coverBlocked=!S.cables.powerLeads.R;
+    S.tbCover=false;connectPowerLead('PWR.R','TB.1.b');connectPowerLead('PWR.T','TB.2.b');
+    S.cables.power=true; // Even a malformed save claiming completion cannot omit earth.
+    const result=evalOnce(staticLinks(S.wires),newSim(),{...LIVE.inp,mcb:true,cab:S.cables,fuses:fuseState(),leads:convLeads(),plug:plugMap()});
+    return {liveBlocked,coverBlocked,ready:powerConnected(),on:result.acOn,error:result.powerError};
+  });
+  assert.equal(r.liveBlocked,true);assert.equal(r.coverBlocked,true);assert.equal(r.ready,false);assert.equal(r.on,false);assert.match(r.error,/E/);
+});
+
+test('legacy relocated power keeps actual terminals and inspection record during migration',async()=>{
+  await fullState();await remapTB(Object.fromEntries(Array.from({length:40},(_,i)=>[i+1,40-i])));
+  const r=await page.evaluate(()=>{const old=powerTerms(S.cables);S.cables={power:true,powerTerms:old};S.judge={key:judgeKey()};fixState();return {map:powerLeadMap(S.cables),placed:!!powerPlaced(),inspected:judgeRan()};});
+  assert.deepEqual(r,{map:{R:'TB.40.b',T:'TB.39.b',E:'TB.38.b'},placed:true,inspected:true});
+  assert.deepEqual(await functionalResults(),{checks:[],judge:[],operationPoints:18});
+});
+
+test('power practice lesson accepts floor placement and R T E connection one at a time',async()=>{
+  const r=await page.evaluate(()=>{
+    const L=LESSONS.find(l=>l.t.includes('전원 케이블')),st=pracSetup(L);
+    setMode('prac',st);PRAC.L=L;PRAC.state='run';PRAC.cur=null;PRAC.sig=pracSig();PRAC.good=JSON.stringify(S);renderAll();
+    UI.carry={kind:'cable',key:'power',count:1};dropCable({...POWER_POS});
+    const afterDrop=PRAC.state;
+    for(const [k,,,t] of POWER_LEADS)connectPowerLead('PWR.'+k,t);
+    return {afterDrop,state:PRAC.state,complete:L.goal(),leads:powerLeadMap(S.cables)};
+  });
+  assert.deepEqual(r,{afterDrop:'run',state:'win',complete:true,leads:{R:'TB.1.b',T:'TB.2.b',E:'TB.3.b'}});
+});
+
+
+test('walkthrough places the cable then connects all three leads and retains a valid inspection',async()=>{
+  const result=await page.evaluate(()=>{
+    const steps=demoScript(),st=newState(true),power=[];
+    for(const step of steps){demoApply(st,step.ops);if(step.text.includes('전원 케이블을 바닥')||/^(갈색 R|파란색 T|초록색 E)선/.test(step.text))power.push(JSON.parse(JSON.stringify(st.cables)));}
+    setMode('free',st);return {power,ready:powerConnected(),inspected:judgeRan(),error:powerFault(S.cables,staticLinks(S.wires))};
+  });
+  assert.equal(result.power.length,4);assert.deepEqual(result.power.map(x=>Object.keys(x.powerLeads).length),[0,1,2,3]);
+  assert.deepEqual(result.power.map(x=>x.power),[false,false,false,true]);assert.equal(result.ready,true);assert.equal(result.inspected,true);assert.equal(result.error,'');
 });
