@@ -928,3 +928,35 @@ test('automatic stripper uses an embedded reference image and describes the actu
   assert.match(result.answer,/자동 와이어 스트리퍼/);assert.ok(!result.question.includes('굵기별 홈'));assert.match(result.usage,/자동 와이어 스트리퍼/);
   await page.setViewportSize({width:360,height:740});assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true);
 });
+
+test('ordered quiz visits 1 through 100 once, shows the final explanation and ends with a restartable result',async()=>{
+  const state=await page.evaluate(()=>JSON.stringify(S));
+  await page.locator('[data-home="quiz"]').click();
+  await page.locator('[data-answer="0"]').click();
+  await page.locator('[data-mode="ordered"]').click();
+  assert.equal(await page.evaluate(()=>QZ.solved),0);
+  assert.equal(await page.locator('[data-category]').count(),0);
+  for(let id=1;id<=100;id++) {
+    assert.equal(await page.evaluate(()=>QZ.current.id),id);
+    assert.match(await page.locator('[aria-label="순서 진행"]').textContent(),new RegExp(`현재 ${id} / 100번`));
+    const right=await page.evaluate(()=>QZ.choices.findIndex(a=>a.correct));
+    await page.locator(`[data-answer="${id%2===0?right:(right+1)%4}"]`).click();
+    assert.equal(await page.locator('#qzFeedback').count(),1);
+    if(id===100) {
+      assert.equal(await page.locator('#qzComplete').count(),0,'last explanation stays visible');
+      assert.equal(await page.locator('[data-home="qz-next"]').textContent(),'결과 보기');
+    }
+    await page.locator('[data-home="qz-next"]').click();
+  }
+  assert.match(await page.locator('#qzComplete').textContent(),/100문제 완료/);
+  assert.equal(await page.locator('[data-answer]').count(),0);
+  assert.deepEqual(await page.evaluate(()=>({done:QZ.finished,solved:QZ.solved,correct:QZ.correct})),{done:true,solved:100,correct:50});
+  assert.equal(await page.evaluate(()=>document.activeElement.id),'qzComplete');
+  await page.setViewportSize({width:360,height:740});
+  assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true);
+  await page.locator('[data-home="qz-restart"]').click();
+  assert.deepEqual(await page.evaluate(()=>({id:QZ.current.id,solved:QZ.solved,done:QZ.finished})),{id:1,solved:0,done:false});
+  await page.locator('[data-mode="random"]').click();
+  assert.equal(await page.evaluate(()=>QZ.mode),'random');assert.equal(await page.locator('[data-category]').count(),7);
+  assert.equal(await page.evaluate(()=>JSON.stringify(S)),state);
+});

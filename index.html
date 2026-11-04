@@ -5414,7 +5414,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.8.1', date: '2026.11.04', notes: ['사용 공구에 맞춰 검은색 자동 와이어 스트리퍼 이미지·문항 설명 수정', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.8.2', date: '2026.11.04', notes: ['1과제 퀴즈: 1번부터 100번까지 순서대로 풀기와 완료 결과 추가', '사용 공구에 맞춰 검은색 자동 와이어 스트리퍼 이미지·문항 설명 수정', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -7609,13 +7609,15 @@ const QUIZ_BANK = [
   }
 ];
 const QUIZ_CATEGORIES = ["전체", "공구", "기구·재료", "설치·가공", "전선·배선", "동작·진단", "안전·마무리"];
-const QZ = { deck: [], current: null, choices: [], selected: null, solved: 0, correct: 0, category: '전체', last: null };
+const QZ = { deck: [], current: null, choices: [], selected: null, solved: 0, correct: 0, category: '전체', last: null, mode: 'random', finished: false };
 function quizShuffle(items) {
   const out = [...items];
   for (let i=out.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [out[i],out[j]]=[out[j],out[i]]; }
   return out;
 }
 function quizNext() {
+  if(QZ.finished)return;
+  if(QZ.mode==='ordered'&&!QZ.deck.length){QZ.finished=true;return;}
   if (!QZ.deck.length) {
     QZ.deck=quizShuffle(QUIZ_BANK.filter(q=>QZ.category==='전체'||q.cat===QZ.category));
     if(QZ.deck.length>1 && QZ.deck[QZ.deck.length-1].id===QZ.last) [QZ.deck[0],QZ.deck[QZ.deck.length-1]]=[QZ.deck[QZ.deck.length-1],QZ.deck[0]];
@@ -7623,9 +7625,16 @@ function quizNext() {
   QZ.current=QZ.deck.pop(); QZ.last=QZ.current.id;
   QZ.choices=quizShuffle(QZ.current.answers.map((text,i)=>({text,correct:i===0}))); QZ.selected=null;
 }
-function quizStart(category='전체') {
-  QZ.category=category; QZ.deck=[]; QZ.solved=0; QZ.correct=0; quizNext(); UI.homePage='quiz'; renderHome();
+function quizStart(category='전체',mode='random') {
+  QZ.mode=mode==='ordered'?'ordered':'random';QZ.finished=false;QZ.current=null;
+  QZ.category=QZ.mode==='ordered'?'전체':category;
+  QZ.deck=QZ.mode==='ordered'?[...QUIZ_BANK].sort((a,b)=>b.id-a.id):[];
+  QZ.solved=0;QZ.correct=0;quizNext();UI.homePage='quiz';renderHome();
 }
+function quizModeHTML() {
+  return `<div class="qz-tabs" aria-label="출제 방식"><button class="hm-chip" data-home="qz-mode" data-mode="random" aria-pressed="${QZ.mode==='random'}">랜덤으로 풀기</button><button class="hm-chip" data-home="qz-mode" data-mode="ordered" aria-pressed="${QZ.mode==='ordered'}">1번부터 순서대로</button></div>`;
+}
+
 const QUIZ_ART = {
   "wrench": "<path d=\"M98 155L228 74 250 102 121 188Q98 198 91 181Z\"/><path d=\"M225 79Q200 41 234 19L244 45 268 43 279 18Q310 45 287 77L255 104Z\"/><path d=\"M226 80L249 63 265 82 247 100\" fill=\"#8c9ba5\"/><rect x=\"242\" y=\"70\" width=\"19\" height=\"12\" rx=\"3\" fill=\"#3d4a52\" transform=\"rotate(-33 252 76)\"/><path d=\"M247 70L253 79M251 67L257 76M255 65L261 74\" stroke=\"#dfeaf0\" stroke-width=\"2\"/><circle cx=\"109\" cy=\"174\" r=\"6\" fill=\"#17232b\"/>",
   "cutter": "<path d=\"M166 97L123 174Q116 189 130 193L143 189 186 115M190 98L233 174Q239 190 225 193L212 187 171 112\" fill=\"#eea52e\"/><path d=\"M158 91L153 50 174 28 182 77 190 28 212 50 202 91 183 113Z\"/><path d=\"M174 28L182 77 190 28\" fill=\"#586d7a\"/><circle cx=\"182\" cy=\"95\" r=\"12\" fill=\"#637a87\"/>",
@@ -7707,24 +7716,29 @@ function quizScene(q) {
 }
 
 function homeQuizHTML() {
-  if(!QZ.current) quizNext();
+  if(!QZ.current&&!QZ.finished) quizNext();
+  if(QZ.finished)return `<div class="hm-page qz-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>1과제 퀴즈</h1></div>${quizModeHTML()}<section class="qz-card"><h2 id="qzComplete" tabindex="-1">100문제 완료!</h2><p class="qz-intro">1번부터 100번까지 모두 풀었어요.</p><p class="hm-prog">푼 문제 ${QZ.solved} · 정답 ${QZ.correct} · 정답률 ${Math.round(QZ.correct/QUIZ_BANK.length*100)}%</p><button class="hm-go qz-next" data-home="qz-restart">1번부터 다시 풀기</button><button class="hm-back qz-next" data-home="qz-mode" data-mode="random">랜덤으로 풀기</button></section></div>`;
   const q=QZ.current, answered=QZ.selected!==null;
   return `<div class="hm-page qz-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>1과제 퀴즈</h1><span class="hm-prog">푼 문제 ${QZ.solved} · 정답 ${QZ.correct}</span></div>
   <p class="qz-intro">1과제 준비에 필요한 공구·재료·설치·배선·진단·안전을 한 문제씩 익혀요.</p>
-  <div class="qz-tabs" aria-label="문제 범위">${QUIZ_CATEGORIES.map(c=>`<button class="hm-chip" data-home="qz-category" data-category="${c}" aria-pressed="${QZ.category===c}">${c==='전체'?'전체 랜덤':c}</button>`).join('')}</div>
+  ${quizModeHTML()}
+  ${QZ.mode==='ordered'?`<p class="hm-prog" aria-label="순서 진행">현재 ${q.id} / ${QUIZ_BANK.length}번 · 번호 순서대로 출제</p>`:`<div class="qz-tabs" aria-label="문제 범위">${QUIZ_CATEGORIES.map(c=>`<button class="hm-chip" data-home="qz-category" data-category="${c}" aria-pressed="${QZ.category===c}">${c==='전체'?'전체 랜덤':c}</button>`).join('')}</div>`}
   <section class="qz-card"><span class="qz-tag">문항 ${String(q.id).padStart(3,'0')} · ${q.cat} · 문제은행 ${QUIZ_BANK.filter(x=>QZ.category==='전체'||x.cat===QZ.category).length}문제</span><h2 id="qzQuestion" tabindex="-1">${esc(q.q)}</h2>${q.conditions?`<p class="qz-conditions">${esc(q.conditions)}</p>`:''}${quizScene(q)}
   <div class="qz-choices">${QZ.choices.map((a,i)=>`<button data-home="qz-answer" data-answer="${i}" ${answered?'disabled':''} class="qz-choice${answered&&a.correct?' is-correct':''}${answered&&QZ.selected===i&&!a.correct?' is-wrong':''}"><span>${i+1}</span>${esc(a.text)}${answered&&a.correct?'<b>정답</b>':answered&&QZ.selected===i?'<b>내 선택</b>':''}</button>`).join('')}</div>
-  ${answered?`<div class="qz-feedback" id="qzFeedback" role="status" tabindex="-1"><strong>${QZ.choices[QZ.selected].correct?'정답이에요!':'아쉬워요. 정답을 확인해 보세요.'}</strong><p>${esc(q.ex)}</p><small class="qz-ref">관련 작업: ${esc(q.ref)}</small>${(q.sources||[]).length?`<div class="qz-sources">${q.sources.map(r=>`<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.label)} ↗</a>`).join('')}</div>`:''}</div><button class="hm-go qz-next" data-home="qz-next">다음 문제 →</button>`:'<p class="qz-hint">답을 고르면 이유를 알려드려요.</p>'}</section>
-  <p class="qz-intro">같은 범위의 문제를 모두 풀면 다시 섞어서 출제해요. 범위를 바꾸면 풀이 수가 새로 시작돼요.</p></div>`;
+  ${answered?`<div class="qz-feedback" id="qzFeedback" role="status" tabindex="-1"><strong>${QZ.choices[QZ.selected].correct?'정답이에요!':'아쉬워요. 정답을 확인해 보세요.'}</strong><p>${esc(q.ex)}</p><small class="qz-ref">관련 작업: ${esc(q.ref)}</small>${(q.sources||[]).length?`<div class="qz-sources">${q.sources.map(r=>`<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.label)} ↗</a>`).join('')}</div>`:''}</div><button class="hm-go qz-next" data-home="qz-next">${QZ.mode==='ordered'&&!QZ.deck.length?'결과 보기':'다음 문제 →'}</button>`:'<p class="qz-hint">답을 고르면 이유를 알려드려요.</p>'}</section>
+  <p class="qz-intro">${QZ.mode==='ordered'?'1번부터 100번까지 한 번씩 풀어요. 마지막 문제의 해설을 확인하고 결과를 볼 수 있어요.':'같은 범위의 문제를 모두 풀면 다시 섞어서 출제해요. 범위를 바꾸면 풀이 수가 새로 시작돼요.'} 출제 방식을 바꾸면 풀이 수가 새로 시작돼요.</p></div>`;
 }
 function quizAct(a,b) {
+  if(a==='qz-mode'){const mode=b.dataset.mode;if(!['random','ordered'].includes(mode)||mode===QZ.mode)return;quizStart('전체',mode);$('#qzQuestion')?.focus({preventScroll:true});return;}
+  if(a==='qz-restart'){quizStart('전체','ordered');$('#qzQuestion')?.focus({preventScroll:true});return;}
+  if(QZ.finished)return;
   if(a==='qz-category') { if(b.dataset.category!==QZ.category) quizStart(b.dataset.category); else return; }
   if(a==='qz-next') { if(QZ.selected===null)return; quizNext(); renderHome(); }
   if(a==='qz-answer') {
     const i=Number(b.dataset.answer); if(QZ.selected!==null||!Number.isInteger(i)||!QZ.choices[i])return;
     QZ.selected=i; QZ.solved++; if(QZ.choices[i].correct) QZ.correct++; renderHome();
   }
-  $(a==='qz-answer'?'#qzFeedback':'#qzQuestion')?.focus({preventScroll:true});
+  $(QZ.finished?'#qzComplete':a==='qz-answer'?'#qzFeedback':'#qzQuestion')?.focus({preventScroll:true});
 }
 
 function homeMainHTML() {
@@ -7740,7 +7754,7 @@ function homeMainHTML() {
     + `<button class="hm-card exam" data-home="exam">${hmIc('exam')}<b>시험 모드</b><p>가이드 없이 실제 시험처럼. 제출하면 과제지 기준 채점</p><small>${exTxt}</small></button>`
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
-    + `<button class="hm-card quiz" data-home="quiz">${hmIc('help')}<b>1과제 퀴즈</b><p>공구 이름부터 재료·작업 요령까지, 그림으로 익혀요</p><small>${QUIZ_BANK.length}문제 · 무작위 출제</small></button>`
+    + `<button class="hm-card quiz" data-home="quiz">${hmIc('help')}<b>1과제 퀴즈</b><p>공구 이름부터 재료·작업 요령까지, 그림으로 익혀요</p><small>${QUIZ_BANK.length}문제 · 랜덤 / 번호 순서</small></button>`
     + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
