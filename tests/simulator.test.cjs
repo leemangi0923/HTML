@@ -670,7 +670,7 @@ test('task quiz categories cover tool identification, materials and working meth
       await page.locator(`[data-answer="${info.right}"]`).click();
       if(info.scene.art) {
         assert.equal(await page.locator('.qz-art svg').count(),1);
-        assert.match(await page.locator('.qz-art figcaption').textContent(),/실제 사진 아님/);
+        assert.match(await page.locator('.qz-art figcaption').textContent(),info.scene.art==='stripper'?/참고 사진 기반/:/실제 사진 아님/);
         const answer=await page.evaluate(()=>QZ.current.answers[0]);
         assert.ok((await page.locator('.qz-art figcaption').textContent()).includes(answer));
       }
@@ -709,8 +709,8 @@ test('tool illustrations load offline without exposing the answer before selecti
     await page.evaluate(id=>{QZ.current=QUIZ_BANK.find(q=>q.id===id);QZ.selected=null;QZ.choices=quizShuffle(QZ.current.answers.map((text,i)=>({text,correct:i===0})));renderHome();},i);
     const picture=page.locator('.qz-art svg');
     assert.equal(await picture.count(),1);
-    assert.ok(await picture.locator('path').count()>0);
-    assert.equal(await picture.locator('image').count(),0,'no remote picture dependency');
+    if(i===3){assert.equal(await picture.locator('image').count(),1);assert.ok((await picture.locator('image').getAttribute('href')).startsWith('data:image/png;base64,'));}
+    else {assert.ok(await picture.locator('path').count()>0);assert.equal(await picture.locator('image').count(),0,'no remote picture dependency');}
     const answer=await page.evaluate(()=>QZ.current.answers[0]);
     assert.ok(!(await page.locator('.qz-art').textContent()).includes(answer));
     assert.ok(!(await picture.getAttribute('aria-label')).includes(answer));
@@ -914,4 +914,17 @@ test('walkthrough places the cable then connects all three leads and retains a v
   });
   assert.equal(result.power.length,4);assert.deepEqual(result.power.map(x=>Object.keys(x.powerLeads).length),[0,1,2,3]);
   assert.deepEqual(result.power.map(x=>x.power),[false,false,false,true]);assert.equal(result.ready,true);assert.equal(result.inspected,true);assert.equal(result.error,'');
+});
+
+
+test('automatic stripper uses an embedded reference image and describes the actual tool type',async()=>{
+  await page.route('https://**/*',route=>route.abort());
+  const result=await page.evaluate(async()=>{
+    const q=QUIZ_BANK.find(q=>q.id===3);QZ.current=q;QZ.selected=null;QZ.choices=q.answers.map((text,i)=>({text,correct:i===0}));UI.homePage='quiz';renderHome();
+    const picture=document.querySelector('.qz-art image'),im=new Image();im.src=picture.getAttribute('href');await im.decode();
+    return {embedded:im.src.startsWith('data:image/png;base64,'),width:im.naturalWidth,height:im.naturalHeight,caption:document.querySelector('.qz-art figcaption').textContent,question:q.q,answer:q.answers[0],usage:QUIZ_BANK.find(q=>q.id===13).q};
+  });
+  assert.equal(result.embedded,true);assert.ok(result.width>=500&&result.height>=500);assert.match(result.caption,/참고 사진 기반/);assert.match(result.caption,/검은색/);
+  assert.match(result.answer,/자동 와이어 스트리퍼/);assert.ok(!result.question.includes('굵기별 홈'));assert.match(result.usage,/자동 와이어 스트리퍼/);
+  await page.setViewportSize({width:360,height:740});assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true);
 });
