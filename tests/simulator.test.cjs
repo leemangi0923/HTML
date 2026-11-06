@@ -17,7 +17,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 beforeEach(async () => {
-  context = await browser.newContext(); context.setDefaultTimeout(5000);
+  context = await browser.newContext(); context.setDefaultTimeout(15000); // Shared runners can take longer to load the embedded reference image.
   // Fonts are optional; regression checks must also work offline.
   await context.route('https://fonts.googleapis.com/**', route => route.abort());
   await context.route('https://fonts.gstatic.com/**', route => route.abort());
@@ -959,4 +959,59 @@ test('ordered quiz visits 1 through 100 once, shows the final explanation and en
   await page.locator('[data-mode="random"]').click();
   assert.equal(await page.evaluate(()=>QZ.mode),'random');assert.equal(await page.locator('[data-category]').count(),7);
   assert.equal(await page.evaluate(()=>JSON.stringify(S)),state);
+});
+
+test('wiring rejection explains endpoints, highlights them and clears after a valid connection',async()=>{
+  await fullState();await page.evaluate(()=>{S.cables={power:false,powerPlaced:{...POWER_POS},powerLeads:{}};S.tbCover=false;LIVE.inp.mcb=false;buildTerms();connectPowerLead('PWR.R','TB.2.b');});
+  assert.equal(await page.locator('#wiringNotice').isVisible(),true);
+  assert.match(await page.locator('#wiringEndpoints').textContent(),/갈색 R/);assert.match(await page.locator('#wiringReason').textContent(),/T 전원 회로.*차단기/);
+  assert.equal(await page.locator('#wiringErrorMarks circle').count(),2);
+  await page.locator('#wiringFocus').click();
+  assert.equal(await page.evaluate(()=>['PWR.R','TB.2.b'].every(id=>{const t=TERM[id],c=UI.cam;return t.x>=c.x&&t.x<=c.x+c.w&&t.y>=c.y&&t.y<=c.y+c.h})),true);
+  assert.equal(await page.evaluate(()=>{const r=svg.getBoundingClientRect(),n=$('#wiringNotice').getBoundingClientRect();return ['PWR.R','TB.2.b'].every(id=>{const t=TERM[id],x=r.left+(t.x-UI.cam.x)/UI.cam.w*r.width,y=r.top+(t.y-UI.cam.y)/UI.cam.h*r.height;return x<n.left||x>n.right||y<n.top||y>n.bottom;});}),true,'notice must not cover the highlighted endpoints');
+  await page.evaluate(()=>connectPowerLead('PWR.R','TB.1.b'));
+  assert.equal(await page.locator('#wiringNotice').isHidden(),true);assert.equal(await page.locator('#wiringErrorMarks').count(),0);
+});
+
+test('AC DC and conveyor wiring errors show persistent guidance without adding a wire',async()=>{
+  await fullState();await page.evaluate(()=>{S.tbCover=false;for(const f of Object.values(S.fr))f.covered=false;addWire('MCB.B1','SMPS.V2');});
+  assert.match(await page.locator('#wiringReason').textContent(),/220V.*24V/);
+  assert.equal(await page.evaluate(()=>S.wires.some(w=>w.a==='MCB.B1'&&w.b==='SMPS.V2')),false);
+  await page.evaluate(()=>connectLead('CV.S1','R1.13'));
+  assert.match(await page.locator('#wiringReason').textContent(),/단자대.*아래쪽/);
+  await page.evaluate(()=>{const w=S.wires.find(w=>w.a==='TB.1.t'&&w.b==='MCB.B1');UI.replug={w,end:'a',keep:'MCB.B1'};finishReplug(TERM['SMPS.V2']);});
+  assert.match(await page.locator('#wiringReason').textContent(),/220V.*24V/);
+  await page.setViewportSize({width:390,height:844});
+  const box=await page.locator('#wiringNotice').boundingBox();assert.ok(box.width<=390);
+  await page.locator('#wiringClose').click();assert.equal(await page.locator('#wiringNotice').isHidden(),true);
+});
+
+test('ordered quiz resumes the answered question across reload and menu changes without double scoring',async()=>{
+  await page.locator('[data-home="quiz"]').click();await page.locator('[data-mode="ordered"]').click();
+  for(let n=1;n<=3;n++){
+    await page.locator('[data-answer="0"]').click();if(n<3)await page.locator('[data-home="qz-next"]').click();
+  }
+  const before=await page.evaluate(()=>({id:QZ.current.id,choices:QZ.choices,selected:QZ.selected,solved:QZ.solved,correct:QZ.correct}));
+  await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="quiz"]').click();
+  assert.deepEqual(await page.evaluate(()=>({id:QZ.current.id,choices:QZ.choices,selected:QZ.selected,solved:QZ.solved,correct:QZ.correct})),before);
+  assert.equal(await page.locator('[data-answer]:disabled').count(),4);
+  await page.locator('[data-home="qz-next"]').click();assert.equal(await page.evaluate(()=>QZ.current.id),4);
+  await page.locator('[data-mode="random"]').click();await page.locator('[data-mode="ordered"]').click();assert.equal(await page.evaluate(()=>QZ.current.id),4);
+  await page.locator('[data-home="main"]').click();assert.match(await page.locator('.hm-card.quiz small').textContent(),/4번 이어/);
+  await page.locator('[data-home="quiz"]').click();assert.equal(await page.evaluate(()=>QZ.current.id),4);
+  await page.locator('[data-home="qz-restart"]').click();assert.deepEqual(await page.evaluate(()=>[QZ.current.id,QZ.solved]),[1,0]);
+  await page.evaluate(()=>{for(let n=0;n<100;n++){quizAct('qz-answer',{dataset:{answer:'0'}});quizAct('qz-next',{});}});
+  await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="quiz"]').click();assert.equal(await page.locator('#qzComplete').count(),1);
+  assert.equal(await page.evaluate(()=>QZ.solved),100);
+
+});
+
+test('quiz ignores corrupt or incompatible checkpoints and stays usable when saving is blocked',async()=>{
+  for(const record of ['{broken',JSON.stringify({signature:'old',id:99})]){
+    await page.evaluate(record=>localStorage.setItem(QUIZ_PROGRESS_KEY,record),record);await page.reload();await page.waitForFunction(()=>window.SIM);
+    await page.locator('[data-home="quiz"]').click();assert.equal(await page.evaluate(()=>QZ.mode),'random');await page.locator('[data-home="main"]').click();
+  }
+  await page.evaluate(()=>{Storage.prototype.setItem=function(){throw new DOMException('blocked','SecurityError')};});
+  await page.locator('[data-home="quiz"]').click();await page.locator('[data-mode="ordered"]').click();await page.locator('[data-answer="0"]').click();await page.locator('[data-home="qz-next"]').click();
+  assert.equal(await page.evaluate(()=>QZ.current.id),2);
 });

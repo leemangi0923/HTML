@@ -277,6 +277,8 @@ body.demo .side { pointer-events: none; }   /* 시연 중 할 일은 체크박�
 @keyframes hmPack { 0%, 10% { transform: translateX(0); } 44%, 58% { transform: translateX(196px); } 92%, 100% { transform: translateX(0); } }
 .hm-led { animation: hmLed 1.6s steps(2) infinite; }
 @keyframes hmLed { 50% { opacity: .3; } }
+.wiring-notice { position:absolute; z-index:19; left:12px; bottom:62px; max-width:420px; width:calc(100% - 24px); box-sizing:border-box; padding:14px; border:2px solid #df6868; border-radius:12px; background:#fff5f3; color:#502323; box-shadow:0 4px 15px #0004; font-size:14px; line-height:1.5; }
+.wiring-notice[hidden] { display:none; } .wiring-notice p { margin:6px 0; overflow-wrap:anywhere; } .wiring-notice button { margin:6px 8px 0 0; padding:6px 10px; border:1px solid #b95151; border-radius:6px; background:#fff; color:#502323; cursor:pointer; }
 /* 1과제 퀴즈 */
 .hm-card.quiz { --c: #bda3ff; }
 .qz-page { max-width: 860px; animation: none; }
@@ -672,6 +674,7 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
     <aside class="tray"><div class="pane-in"><h2 class="ph">재료함</h2><div class="tray-list" id="tray"></div></div></aside>
     <section class="stage-area">
       <div class="board-wrap" id="boardWrap">
+        <aside id="wiringNotice" class="wiring-notice" hidden role="alert"><strong>연결할 수 없어요</strong><p id="wiringEndpoints"></p><p id="wiringReason"></p><button id="wiringFocus" type="button">위치 보기</button><button id="wiringClose" type="button">닫기</button></aside>
         <section id="devicePanel" class="device-panel" aria-label="기구의 역할과 현재 상태" hidden>
           <div class="search-head"><b>기구 알아보기</b><button id="deviceClose" type="button">닫기</button></div>
           <div class="device-identity"><div id="devicePicture" class="device-picture" aria-hidden="true"></div><div><h2 id="deviceTitle"></h2><p id="devicePurpose"></p></div></div>
@@ -2137,6 +2140,23 @@ function say(msg, kind = 'info') {
   const li = document.createElement('li'); li.className = kind; li.textContent = msg; const log = $('#log'); log.prepend(li);
   while (log.children.length > 50) log.lastChild.remove();
 }
+function clearWiringIssue() { UI.wiringError=null;$('#wiringNotice').hidden=true; }
+function wiringIssue(a,b,message,penalty=true) {
+  UI.wiringError={a,b,message};
+  $('#wiringEndpoints').textContent=[a,b].map(id=>TERM[id]?.nm||id).join(' → ');
+  $('#wiringReason').textContent=message;$('#wiringNotice').hidden=false;renderOver();
+  const text=$('#wiringEndpoints').textContent+': '+message;
+  return penalty?mistake(text):say(text,'info');
+}
+$('#wiringClose').addEventListener('click',()=>{clearWiringIssue();renderOver();});
+$('#wiringFocus').addEventListener('click',()=>{
+  const e=UI.wiringError;if(!e)return;const ids=[e.a,e.b];
+  if(ids.some(id=>id.startsWith('OP.'))&&!S.opBack){S.opBack=true;buildTerms();renderWorld();}
+  const ts=ids.map(id=>TERM[id]).filter(Boolean);if(!ts.length)return;
+  const xs=ts.map(t=>t.x),ys=ts.map(t=>t.y),box={x:Math.min(...xs)-35,y:Math.min(...ys)-35,w:Math.max(120,Math.max(...xs)-Math.min(...xs)+70),h:Math.max(120,Math.max(...ys)-Math.min(...ys)+70)};
+  const r=svg.getBoundingClientRect(),available=Math.max(90,r.height-$('#wiringNotice').offsetHeight-82),scale=Math.min(r.width/box.w,available/box.h);
+  if(scale>0){UI.cam={x:box.x+box.w/2-r.width/(2*scale),y:box.y+box.h/2-available/(2*scale),w:r.width/scale,h:r.height/scale};applyCam();renderOver();}
+});
 function mistake(msg) {
   S.mistakes[0]++; say(msg, 'err');
   (S.mlog = S.mlog || []).push({ t: S.elapsed, msg, at: MODE === 'prac' && PRAC.L ? `연습 ${PRAC.L.id}` : (k => k === undefined ? '마무리 뒤' : GROUP_TITLE[k])(STAGES.find(k => !stageDone(k))) }); if (S.mlog.length > 200) S.mlog.shift();   // 실수 기록 (실수 버튼으로 본다)
@@ -2486,13 +2506,14 @@ function finishReplug(p) {
   const ld = lidAt(p); if (ld) return toggleLid(ld);   // 옮기던 전선을 든 채로 뚜껑 여닫기
   const { w, end, keep } = UI.replug, term = termNear(p, tolMM(16));
   if (!term || term.id === w[end]) return cancelReplug();
-  if (term.id === keep) return say('반대쪽과 같은 단자예요. 다른 단자를 눌러요', 'info');
-  if (S.wires.some(x => x !== w && ((x.a === keep && x.b === term.id) || (x.b === keep && x.a === term.id)))) return say('이미 연결돼 있어요', 'info');
-  const lock = wireLock(keep, term.id); if (lock) return say(lock, 'info');
-  if (S.wires.filter(x => x !== w && (x.a === term.id || x.b === term.id)).length >= termMax(term.id)) return mistake(termFull(term.id));
+  const a=keep,b=term.id;
+  if (term.id === keep) return wiringIssue(a,b,'반대쪽과 같은 단자예요. 다른 단자를 눌러요',false);
+  if (S.wires.some(x => x !== w && ((x.a === keep && x.b === term.id) || (x.b === keep && x.a === term.id)))) return wiringIssue(a,b,'이미 연결돼 있어요. 기존 전선을 확인해요.',false);
+  const lock = wireLock(keep, term.id); if (lock) return wiringIssue(a,b,lock,false);
+  if (S.wires.filter(x => x !== w && (x.a === term.id || x.b === term.id)).length >= termMax(term.id)) return wiringIssue(a,b,termFull(term.id));
   const all = S.wires; S.wires = all.filter(x => x !== w); const bad = mixesACDC(keep, term.id); S.wires = all;
-  if (bad) return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요');
-  snap(); w[end] = term.id; delete w['h' + end]; delete w.tk; w.k = S.wseq = (S.wseq || 0) + 1; UI.replug = null; say(`다시 꽂았어요: ${TERM[keep].nm} ↔ ${term.nm}`, 'ok'); commit();
+  if (bad) return wiringIssue(a,b,'교류 220V와 직류 24V 회로를 연결할 수 없어요. 회로도에서 전원 종류와 공통선을 확인해요.');
+  clearWiringIssue();snap(); w[end] = term.id; delete w['h' + end]; delete w.tk; w.k = S.wseq = (S.wseq || 0) + 1; UI.replug = null; say(`다시 꽂았어요: ${TERM[keep].nm} ↔ ${term.nm}`, 'ok'); commit();
 }
 function tieAction(t) {
   return say(t.state === 'tight' ? '니퍼로 튀어나온 꼬리를 잘라요' : '다 된 케이블 타이예요', 'info');
@@ -2980,15 +3001,17 @@ function selectPowerLead(term) {
 }
 function connectPowerLead(a,b) {
   const id=a.startsWith('PWR.')?a:b,k=id.slice(4),other=id===a?b:a,lead=POWER_LEADS.find(l=>l[0]===k);
-  if(!lead || !powerPlaced() || !TERM[id])return say('전원 케이블을 먼저 바닥에 내려놓아요','info');
-  if(LIVE.inp.mcb)return say('MCB를 내린 뒤 전원선을 연결해요','info');
-  if(!validPowerTerm(other)||!TERM[other])return mistake('전원선은 단자대(TB) 아래쪽 단자에 한 가닥씩 연결해요');
-  if(S.tbCover)return say('단자대 커버를 벗겨야 꽂을 수 있어요','info');
+  if(!lead || !powerPlaced() || !TERM[id])return wiringIssue(a,b,'전원 케이블을 먼저 바닥에 내려놓아요',false);
+  if(LIVE.inp.mcb)return wiringIssue(a,b,'MCB를 내린 뒤 전원선을 연결해요',false);
+  if(!validPowerTerm(other)||!TERM[other])return wiringIssue(a,b,'전원선은 단자대(TB) 아래쪽 단자에 한 가닥씩 연결해요');
+  if(S.tbCover)return wiringIssue(a,b,'단자대 커버를 벗겨야 꽂을 수 있어요',false);
   const m=powerLeadMap(S.cables);
-  if(Object.entries(m).some(([key,t])=>key!==k&&t===other))return mistake('R·T·E는 서로 다른 단자에 연결해요');
-  if(terminalLoad(other)-(m[k]===other?1:0)>=2)return mistake('한 단자에는 압착단자를 2개까지만 꽂아요');
-  if(!powerRoles(staticLinks(S.wires),other)[k])return mistake(`${lead[1]} ${k}선을 잘못 연결했어요. R·T 전원 회로와 E 접지 전용 단자를 확인해요`);
-  snap();S.cables.powerLeads={...m,[k]:other};syncPower();commit();say(`${lead[1]} ${k}선을 ${TERM[other].nm}에 연결했어요`,'ok');
+  const occupied=Object.entries(m).find(([key,t])=>key!==k&&t===other);
+  if(occupied)return wiringIssue(a,b,`${TERM[other].nm}에는 이미 ${occupied[0]}선이 꽂혀 있어요. R·T·E는 서로 다른 단자에 연결해요. 기존 선을 확인하고 해당 회로의 다른 단자를 선택해요.`);
+  if(terminalLoad(other)-(m[k]===other?1:0)>=2)return wiringIssue(a,b,'한 단자에는 압착단자를 2개까지만 꽂아요');
+  const roles=powerRoles(staticLinks(S.wires),other);
+  if(!roles[k])return wiringIssue(a,b,`${lead[1]} ${k}선을 ${roles.R?'R 전원 회로':roles.T?'T 전원 회로':roles.E?'전원·신호와 분리된 단자':'전원 또는 신호 회로'}에 연결하려고 했어요. ${k==='E'?'E는 전원·신호와 분리된 접지 전용 단자에 연결해요.':k+'선은 차단기의 '+k+' 전원 쪽으로 이어진 단자를 확인해요.'} 견출지 이름만 바꾸면 연결은 바뀌지 않아요.`);
+  clearWiringIssue();snap();S.cables.powerLeads={...m,[k]:other};syncPower();commit();say(`${lead[1]} ${k}선을 ${TERM[other].nm}에 연결했어요`,'ok');
 }
 function terminalLoad(id) {
   return S.wires.filter(w=>w.a===id || w.b===id).length + Object.values(S.convLeads).filter(t=>t===id).length + Object.values(powerLeadMap(S.cables)).filter(t=>t===id).length;
@@ -3708,24 +3731,24 @@ function tap3(p) {
 }
 function connectLead(a, b) {   // 컨베이어 선 하나를 단자대 단자에
   const cv = a.startsWith('CV.') ? a : b, other = cv === a ? b : a, k = cv.slice(3);
-  if (other.startsWith('CV.')) return say('컨베이어 선끼리는 이을 수 없어요. 단자대 단자를 눌러요', 'info');
-  if (!/^TB\.\d+\.b$/.test(other)) return mistake('컨베이어 선은 단자대(TB) 아래쪽(바깥쪽) 단자에 꽂아요 (제작 조건 (11))');
-  if (S.tbCover) return say('단자대 커버를 벗겨야 꽂을 수 있어요', 'info');
+  if (other.startsWith('CV.')) return wiringIssue(a,b,'컨베이어 선끼리는 이을 수 없어요. 단자대 단자를 눌러요',false);
+  if (!/^TB\.\d+\.b$/.test(other)) return wiringIssue(a,b,'컨베이어 선은 단자대(TB) 아래쪽 바깥 단자에 연결해요. 제어판 안쪽 단자나 기구에 직접 연결하지 말고 단자대 아래쪽을 선택해요.');
+  if (S.tbCover) return wiringIssue(a,b,'단자대 커버를 벗겨야 꽂을 수 있어요',false);
   const cnt = terminalLoad(other);
-  if (cnt >= 2) return mistake('한 단자에는 압착단자를 2개까지만 꽂아요');
-  if (mixesACDC(cv, other)) return mistake('교류 전원과 직류 회로가 연결돼요. 연결을 확인하세요');
-  snap(); S.convLeads[k] = other; say(`컨베이어 ${k === 'S-' ? 'S−' : k}선을 ${TERM[other].nm}에 꽂았어요`, 'ok'); commit();
+  if (cnt >= 2) return wiringIssue(a,b,'한 단자에는 압착단자를 2개까지만 꽂아요');
+  if (mixesACDC(cv, other)) return wiringIssue(a,b,'컨베이어 선은 직류 24V 신호용이에요. 선택한 단자는 교류 전원 회로와 이어져 있어요. 전원·신호 배선을 확인해 다른 단자를 선택해요.');
+  clearWiringIssue();snap(); S.convLeads[k] = other; say(`컨베이어 ${k === 'S-' ? 'S−' : k}선을 ${TERM[other].nm}에 꽂았어요`, 'ok'); commit();
   if (LIVE.inp.mcb) say('전원이 켜진 채로 결선했어요. 결선할 때는 MCB를 내려요 (제작 조건 (9))', 'err');
 }
 function addWire(a, b) {
   if(a.startsWith('PWR.')||b.startsWith('PWR.'))return connectPowerLead(a,b);
-  if (!TERM[a] || !TERM[b]) return say('그 단자가 지금 안 보여요. 조작판 단자는 뒷면으로 뒤집어야 보여요', 'info');
-  if (S.wires.some(w => (w.a === a && w.b === b) || (w.a === b && w.b === a))) return say('이미 연결돼 있어요', 'info');
-  if (wireLock(a, b)) return say(wireLock(a, b), 'info');
+  if (!TERM[a] || !TERM[b]) return wiringIssue(a,b,'그 단자가 지금 안 보여요. 조작판 단자는 뒷면으로 뒤집어야 보여요',false);
+  if (S.wires.some(w => (w.a === a && w.b === b) || (w.a === b && w.b === a))) return wiringIssue(a,b,'이미 연결돼 있어요',false);
+  if (wireLock(a, b)) return wiringIssue(a,b,wireLock(a, b),false);
   const cnt = terminalLoad;
-  const full = [a, b].find(id => cnt(id) >= termMax(id)); if (full) return mistake(termFull(full));
-  if (mixesACDC(a, b)) { UI.flash = { a, b }; renderOver(); setTimeout(() => { UI.flash = null; renderOver(); }, 900); return mistake('교류 220V 쪽과 직류 24V 쪽이 이어져요. 이 연결은 안 돼요'); }
-  snap(); S.wires.push({ a, b, t: S.elapsed, k: S.wseq = (S.wseq || 0) + 1 }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit(); prepCharge();   // k: 꽂은 순번 (방금 꽂은 선 표시)
+  const full = [a, b].find(id => cnt(id) >= termMax(id)); if (full) return wiringIssue(a,b,`${TERM[full].nm}: 현재 ${terminalLoad(full)}가닥이 연결돼 있어요. ${termFull(full)}. 기존 연결을 확인하고 분기 가능한 다른 단자를 사용해요.`);
+  if (mixesACDC(a,b)) return wiringIssue(a,b,'교류 220V와 직류 24V 회로를 연결할 수 없어요. 회로도에서 전원 종류와 공통선을 확인한 뒤 다른 단자를 선택해요.');
+  clearWiringIssue();snap(); S.wires.push({ a, b, t: S.elapsed, k: S.wseq = (S.wseq || 0) + 1 }); say(`연결: ${TERM[a].nm} ↔ ${TERM[b].nm}`, 'ok'); commit(); prepCharge();   // k: 꽂은 순번 (방금 꽂은 선 표시)
   if (LIVE.inp.mcb) say('전원이 켜진 채로 배선했어요. 배선할 때는 MCB를 내려요 (제작 조건 (9))', 'err');
   if (!(S.exam && S.exam.on) && tbBypass([{ a, b }]).length) say(`${TERM[a].nm} ↔ ${TERM[b].nm}: 조작판 전선은 단자대(TB)를 거쳐야 해요 (제작 조건 (11)). 이대로면 시간점수 0점`, 'err');
 }
@@ -4062,6 +4085,7 @@ function renderOver() {
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
   if (MODE === 'prac' && PRAC.hl) s += PRAC.hl;   // 연습: 할 자리
   if (MODE === 'prac' && PRAC.L && PRAC.L.wg !== undefined) pracDia();   // 단자 하나를 누르면 그 선이 빨강
+  if(UI.wiringError){const {a,b}=UI.wiringError,A=TERM[a],B=TERM[b];s+='<g id="wiringErrorMarks" pointer-events="none">';for(const t of [A,B].filter(Boolean))s+=C(t.x,t.y,Math.max(7,8*px1),`fill="none" stroke="#ff6666" stroke-width="${2*px1}"`);if(A&&B)s+=LN(A.x,A.y,B.x,B.y,'stroke="#ff6666" stroke-width="2" stroke-dasharray="5 4"');s+='</g>';}
   s += inspectionOverlay();
   s += bigLabels(px1);   // 멀리서도 단자 이름
   if (SET.termName && p && UI.overBoard && !(UI.gesture && UI.gesture.moved)) { const t = termNear(p, tolMM(12)); if (t) s += hoverTag(p, wireName(t.id), px1); }
@@ -4728,7 +4752,7 @@ document.addEventListener('contextmenu', e => {
 });   // 브라우저 자동 스크롤 막기
 svg.addEventListener('auxclick', e => { if (e.button === 1) e.preventDefault(); });
 svg.addEventListener('pointerleave', () => { if(cameraGestureActive())return;flushPointerOverlay(); UI.overBoard = false; if (!UI.press) UI.hoverTerm = null; renderOver(); });
-window.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; UI.mouse = { x: e.clientX, y: e.clientY, over: !!(e.target.closest && e.target.closest('#board')) }; if(cameraGestureActive())return; if (UI.lens || UI.lensPin) lensUpdate(); updateFollower(); });
+window.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; UI.mouse = { x: e.clientX, y: e.clientY, notice:!!e.target.closest?.('#wiringNotice'), over: !!(e.target.closest && e.target.closest('#board')) }; if(cameraGestureActive())return; if (UI.lens || UI.lensPin) lensUpdate(); updateFollower(); });
 svg.addEventListener('wheel', e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(clamp(e.deltaY, -120, 120) * .0016)); }, { passive: false });
 $('#tray').addEventListener('pointerdown', e => { const b = e.target.closest('.titem'); if (b) UI.press = { key: b.dataset.key, x: e.clientX, y: e.clientY, type: e.pointerType, drag: false }; });
 window.addEventListener('pointermove', e => {
@@ -5384,7 +5408,7 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return undo(); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Escape') { clearInspection(); if (UI.replug) return cancelReplug(); UI.carry = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
+  if (e.key === 'Escape') { clearWiringIssue();clearInspection(); if (UI.replug) return cancelReplug(); UI.carry = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
   if (e.key === '+' || e.key === '=') return zoomCenter(1 / 1.3);
   if (e.key === '-') return zoomCenter(1.3);
   if (e.key === '0') return fit();
@@ -5414,7 +5438,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.8.2', date: '2026.11.04', notes: ['1과제 퀴즈: 1번부터 100번까지 순서대로 풀기와 완료 결과 추가', '사용 공구에 맞춰 검은색 자동 와이어 스트리퍼 이미지·문항 설명 수정', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.9.0', date: '2026.11.06', notes: ['배선 오류 단자 강조·위치 안내, 순서 퀴즈 자동 저장·이어 풀기 추가', '1과제 퀴즈: 1번부터 100번까지 순서대로 풀기와 완료 결과 추가', '사용 공구에 맞춰 검은색 자동 와이어 스트리퍼 이미지·문항 설명 수정', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '검토한 1과제 퀴즈 100문제와 개념도·불량 비교 그림 추가', '1과제 퀴즈 개편: 공구 식별·재료·작업 요령 20문제와 그림 해설', '회로 퀴즈: 20문제 문제은행, 범위별 무작위 출제와 정답 해설 추가', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -5477,7 +5501,7 @@ function fixState() {   // 예전에 저장한 상태를 지금 형식으로
 function setMode(m, st) {   // 모드와 그 모드의 작업 상태로 바꾼다
   if (DEMO.on) demoClose(); if (TZ.id) tzClose();
   closeDevicePanel(); clearInspection(); closeTermSearch();
-  MODE = m; S = st; fixState(); document.body.dataset.mode = m; if (m !== 'prac') PRAC.L = null;
+  clearWiringIssue();MODE = m; S = st; fixState(); document.body.dataset.mode = m; if (m !== 'prac') PRAC.L = null;
   undoStack = []; UI.carry = null; UI.pending = null; UI.replug = null; UI.peek = false; UI.pickKey = null; UI.meter = null; liveReset(); closeModal();
   buildTerms(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(x => x.done); renderAll(); hideHome();
   requestAnimationFrame(() => { fit(); renderOver(); });
@@ -7610,6 +7634,27 @@ const QUIZ_BANK = [
 ];
 const QUIZ_CATEGORIES = ["전체", "공구", "기구·재료", "설치·가공", "전선·배선", "동작·진단", "안전·마무리"];
 const QZ = { deck: [], current: null, choices: [], selected: null, solved: 0, correct: 0, category: '전체', last: null, mode: 'random', finished: false };
+const QUIZ_PROGRESS_KEY='robot-quiz-ordered-v1';
+const QUIZ_SIGNATURE=(()=>{let h=2166136261;for(const c of JSON.stringify(QUIZ_BANK.map(q=>[q.id,q.q,q.answers])))h=Math.imul(h^c.charCodeAt(0),16777619);return String(h>>>0);})();
+function quizCheckpoint() {
+  try {
+    const p=JSON.parse(localStorage.getItem(QUIZ_PROGRESS_KEY)||'null');
+    if(!p||p.signature!==QUIZ_SIGNATURE||!Number.isInteger(p.id)||p.id<1||p.id>QUIZ_BANK.length||!Array.isArray(p.order)||p.order.length!==4||new Set(p.order).size!==4||!p.order.every(i=>Number.isInteger(i)&&i>=0&&i<4))return null;
+    if(p.selected!==null&&(!Number.isInteger(p.selected)||p.selected<0||p.selected>3))return null;
+    if(p.solved!==p.id-1+(p.selected===null?0:1)||!Number.isInteger(p.correct)||p.correct<0||p.correct>p.solved||typeof p.finished!=='boolean'||(p.finished&&(p.id!==QUIZ_BANK.length||p.selected===null)))return null;
+    return p;
+  }catch{return null;}
+}
+function saveQuizProgress() {
+  if(QZ.mode!=='ordered'||!QZ.current)return;
+  try{localStorage.setItem(QUIZ_PROGRESS_KEY,JSON.stringify({signature:QUIZ_SIGNATURE,id:QZ.current.id,order:QZ.choices.map(a=>QZ.current.answers.indexOf(a.text)),selected:QZ.selected,solved:QZ.solved,correct:QZ.correct,finished:QZ.finished}));}catch{/* Storage unavailable: the current session still works. */}
+}
+function quizResume() {
+  const p=quizCheckpoint();if(!p)return false;
+  Object.assign(QZ,{mode:'ordered',category:'전체',current:QUIZ_BANK.find(q=>q.id===p.id),deck:QUIZ_BANK.filter(q=>q.id>p.id).sort((a,b)=>b.id-a.id),selected:p.selected,solved:p.solved,correct:p.correct,finished:p.finished,last:p.id});
+  QZ.choices=p.order.map(i=>({text:QZ.current.answers[i],correct:i===0}));UI.homePage='quiz';renderHome();$(QZ.finished?'#qzComplete':'#qzQuestion')?.focus({preventScroll:true});return true;
+}
+function quizResumeLabel(){const p=quizCheckpoint();return p?(p.finished?'순서 풀이 완료 · 결과 보기':`${p.id}번 이어 풀기 · ${p.solved}문제 풂`):`${QUIZ_BANK.length}문제 · 랜덤 / 번호 순서`;}
 function quizShuffle(items) {
   const out = [...items];
   for (let i=out.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [out[i],out[j]]=[out[j],out[i]]; }
@@ -7629,10 +7674,10 @@ function quizStart(category='전체',mode='random') {
   QZ.mode=mode==='ordered'?'ordered':'random';QZ.finished=false;QZ.current=null;
   QZ.category=QZ.mode==='ordered'?'전체':category;
   QZ.deck=QZ.mode==='ordered'?[...QUIZ_BANK].sort((a,b)=>b.id-a.id):[];
-  QZ.solved=0;QZ.correct=0;quizNext();UI.homePage='quiz';renderHome();
+  QZ.solved=0;QZ.correct=0;quizNext();saveQuizProgress();UI.homePage='quiz';renderHome();
 }
 function quizModeHTML() {
-  return `<div class="qz-tabs" aria-label="출제 방식"><button class="hm-chip" data-home="qz-mode" data-mode="random" aria-pressed="${QZ.mode==='random'}">랜덤으로 풀기</button><button class="hm-chip" data-home="qz-mode" data-mode="ordered" aria-pressed="${QZ.mode==='ordered'}">1번부터 순서대로</button></div>`;
+  return `<div class="qz-tabs" aria-label="출제 방식"><button class="hm-chip" data-home="qz-mode" data-mode="random" aria-pressed="${QZ.mode==='random'}">랜덤으로 풀기</button><button class="hm-chip" data-home="qz-mode" data-mode="ordered" aria-pressed="${QZ.mode==='ordered'}">1번부터 순서대로</button>${QZ.mode==='ordered'&&!QZ.finished&&QZ.solved>0?'<button class="hm-chip" data-home="qz-restart">1번부터 다시 풀기</button>':''}</div>`;
 }
 
 const QUIZ_ART = {
@@ -7726,17 +7771,17 @@ function homeQuizHTML() {
   <section class="qz-card"><span class="qz-tag">문항 ${String(q.id).padStart(3,'0')} · ${q.cat} · 문제은행 ${QUIZ_BANK.filter(x=>QZ.category==='전체'||x.cat===QZ.category).length}문제</span><h2 id="qzQuestion" tabindex="-1">${esc(q.q)}</h2>${q.conditions?`<p class="qz-conditions">${esc(q.conditions)}</p>`:''}${quizScene(q)}
   <div class="qz-choices">${QZ.choices.map((a,i)=>`<button data-home="qz-answer" data-answer="${i}" ${answered?'disabled':''} class="qz-choice${answered&&a.correct?' is-correct':''}${answered&&QZ.selected===i&&!a.correct?' is-wrong':''}"><span>${i+1}</span>${esc(a.text)}${answered&&a.correct?'<b>정답</b>':answered&&QZ.selected===i?'<b>내 선택</b>':''}</button>`).join('')}</div>
   ${answered?`<div class="qz-feedback" id="qzFeedback" role="status" tabindex="-1"><strong>${QZ.choices[QZ.selected].correct?'정답이에요!':'아쉬워요. 정답을 확인해 보세요.'}</strong><p>${esc(q.ex)}</p><small class="qz-ref">관련 작업: ${esc(q.ref)}</small>${(q.sources||[]).length?`<div class="qz-sources">${q.sources.map(r=>`<a href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.label)} ↗</a>`).join('')}</div>`:''}</div><button class="hm-go qz-next" data-home="qz-next">${QZ.mode==='ordered'&&!QZ.deck.length?'결과 보기':'다음 문제 →'}</button>`:'<p class="qz-hint">답을 고르면 이유를 알려드려요.</p>'}</section>
-  <p class="qz-intro">${QZ.mode==='ordered'?'1번부터 100번까지 한 번씩 풀어요. 마지막 문제의 해설을 확인하고 결과를 볼 수 있어요.':'같은 범위의 문제를 모두 풀면 다시 섞어서 출제해요. 범위를 바꾸면 풀이 수가 새로 시작돼요.'} 출제 방식을 바꾸면 풀이 수가 새로 시작돼요.</p></div>`;
+  <p class="qz-intro">${QZ.mode==='ordered'?'1번부터 100번까지 한 번씩 풀어요. 마지막 문제의 해설을 확인하고 결과를 볼 수 있어요.':'같은 범위의 문제를 모두 풀면 다시 섞어서 출제해요. 범위를 바꾸면 풀이 수가 새로 시작돼요.'} 순서 풀이는 자동 저장되며 다시 들어오면 이어서 풀 수 있어요. 랜덤으로 바꿔도 순서 풀이 기록은 유지돼요.</p></div>`;
 }
 function quizAct(a,b) {
-  if(a==='qz-mode'){const mode=b.dataset.mode;if(!['random','ordered'].includes(mode)||mode===QZ.mode)return;quizStart('전체',mode);$('#qzQuestion')?.focus({preventScroll:true});return;}
+  if(a==='qz-mode'){const mode=b.dataset.mode;if(!['random','ordered'].includes(mode)||mode===QZ.mode)return;if(mode!=='ordered'||!quizResume())quizStart('전체',mode);$('#qzQuestion')?.focus({preventScroll:true});return;}
   if(a==='qz-restart'){quizStart('전체','ordered');$('#qzQuestion')?.focus({preventScroll:true});return;}
   if(QZ.finished)return;
   if(a==='qz-category') { if(b.dataset.category!==QZ.category) quizStart(b.dataset.category); else return; }
-  if(a==='qz-next') { if(QZ.selected===null)return; quizNext(); renderHome(); }
+  if(a==='qz-next') { if(QZ.selected===null)return; quizNext();saveQuizProgress(); renderHome(); }
   if(a==='qz-answer') {
     const i=Number(b.dataset.answer); if(QZ.selected!==null||!Number.isInteger(i)||!QZ.choices[i])return;
-    QZ.selected=i; QZ.solved++; if(QZ.choices[i].correct) QZ.correct++; renderHome();
+    QZ.selected=i; QZ.solved++; if(QZ.choices[i].correct) QZ.correct++;saveQuizProgress(); renderHome();
   }
   $(QZ.finished?'#qzComplete':a==='qz-answer'?'#qzFeedback':'#qzQuestion')?.focus({preventScroll:true});
 }
@@ -7754,7 +7799,7 @@ function homeMainHTML() {
     + `<button class="hm-card exam" data-home="exam">${hmIc('exam')}<b>시험 모드</b><p>가이드 없이 실제 시험처럼. 제출하면 과제지 기준 채점</p><small>${exTxt}</small></button>`
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
-    + `<button class="hm-card quiz" data-home="quiz">${hmIc('help')}<b>1과제 퀴즈</b><p>공구 이름부터 재료·작업 요령까지, 그림으로 익혀요</p><small>${QUIZ_BANK.length}문제 · 랜덤 / 번호 순서</small></button>`
+    + `<button class="hm-card quiz" data-home="quiz">${hmIc('help')}<b>1과제 퀴즈</b><p>공구 이름부터 재료·작업 요령까지, 그림으로 익혀요</p><small>${quizResumeLabel()}</small></button>`
     + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
@@ -7806,7 +7851,7 @@ $('#home').addEventListener('click', e => {
   const b = e.target.closest('[data-home]'); if (!b) return;
   const a = b.dataset.home;
   if (a === 'main' || a === 'prac' || a === 'help' || a === 'strip') { UI.homePage = a; UI.stripChk = null; renderHome(); return; }
-  if (a === 'quiz') return quizStart();
+  if (a === 'quiz') return quizResume()||quizStart();
   if (a.startsWith('qz-')) return quizAct(a,b);
   if (a.startsWith('s-')) return stripAct(a, b);
   if (a === 'free') return goFree();
@@ -7860,7 +7905,7 @@ function toolCursor(p) {   // 누르는 곳은 십자 포인터, 도구 그림�
 }
 function updateFollower() {
   const el = $('#follower'), m = UI.mouse;
-  if (!m || m.over || TZ.id || !$('#home').hidden || !(UI.carry || (!['hand', 'inspect'].includes(S.tool) && SET.toolArt))) { el.hidden = true; return; }   // 메인 화면 위에서는 안 따라다닌다
+  if (!m || m.over || m.notice || TZ.id || !$('#home').hidden || !(UI.carry || (!['hand', 'inspect'].includes(S.tool) && SET.toolArt))) { el.hidden = true; return; }   // 메인 화면 위에서는 안 따라다닌다
   const key = UI.carry ? 'c' + UI.carry.kind + UI.carry.key + 'x' + (UI.carry.count || 1) : 't' + S.tool + (S.gloves ? 'g' : '');
   if (el.dataset.key !== key) { el.dataset.key = key; el.innerHTML = UI.carry ? `<div class="fitem">${trayThumb({ kind: UI.carry.kind, key: UI.carry.key })}${(UI.carry.count || 1) > 1 ? `<span class="fcount">×${UI.carry.count}</span>` : ''}</div>` : `<svg viewBox="-20 -60 90 90" width="72" height="72" aria-hidden="true">${toolPlaced(S.tool)}</svg>`; }
   el.hidden = false; el.style.left = (m.x + (UI.carry ? 14 : -16)) + 'px'; el.style.top = (m.y + (UI.carry ? -70 : -48)) + 'px';   // 포인터 오른쪽 위 (도구는 끝이 포인터에)
