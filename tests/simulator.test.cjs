@@ -17,7 +17,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); if (server) await new Promise(resolve => server.close(resolve)); });
 beforeEach(async () => {
-  context = await browser.newContext(); context.setDefaultTimeout(15000); // Shared runners can take longer to load the embedded reference image.
+  context = await browser.newContext(); context.setDefaultTimeout(15000); // Allow shared runners time to initialize the full board.
   // Fonts are optional; regression checks must also work offline.
   await context.route('https://fonts.googleapis.com/**', route => route.abort());
   await context.route('https://fonts.gstatic.com/**', route => route.abort());
@@ -635,121 +635,12 @@ test('older lamp ties migrate onto the new route once, including a save viewed f
   }
 });
 
-test('quiz bank serves all one hundred questions without repeats, locks answers and explains every answer', async () => {
-  const before = await page.evaluate(() => JSON.stringify(S));
-  await page.locator('[data-home="quiz"]').click();
-  const ids=[];
-  for(let n=0;n<200;n++) {
-    const info=await page.evaluate(()=>({id:QZ.current.id,right:QZ.choices.findIndex(a=>a.correct),count:QUIZ_BANK.length}));
-    assert.equal(info.count,100); ids.push(info.id);
-    const answer=n%2===0?info.right:(info.right+1)%4;
-    await page.locator(`[data-answer="${answer}"]`).click();
-    assert.equal(await page.locator('.qz-choice:disabled').count(),4);
-    assert.equal(await page.locator('.qz-choice.is-correct').count(),1);
-    assert.ok((await page.locator('#qzFeedback').textContent()).length>20);
-    await page.evaluate(()=>quizAct('qz-answer',{dataset:{answer:'0'}}));
-    assert.equal(await page.evaluate(()=>QZ.solved),n+1,'double answer must not count');
-    await page.locator('[data-home="qz-next"]').click();
-  }
-  assert.equal(new Set(ids.slice(0,100)).size,100); assert.equal(new Set(ids.slice(100)).size,100);
-  assert.notEqual(ids[99],ids[100]);
-  assert.equal(await page.evaluate(()=>QZ.correct),100);
-  assert.equal(await page.evaluate(()=>JSON.stringify(S)),before,'quiz must not modify the simulation');
-  assert.equal(await page.locator('button').filter({hasText:'틀린 문제'}).count(),0);
-});
-
-test('task quiz categories cover tool identification, materials and working methods', async () => {
-  await page.locator('[data-home="quiz"]').click();
-  for(const [category,count] of [['공구',20],['기구·재료',20],['설치·가공',15],['전선·배선',20],['동작·진단',15],['안전·마무리',10]]) {
-    await page.locator(`[data-category="${category}"]`).click();
-    const seen=[];
-    for(let i=0;i<count;i++) {
-      const info=await page.evaluate(()=>({id:QZ.current.id,cat:QZ.current.cat,right:QZ.choices.findIndex(a=>a.correct),scene:QZ.current.scene}));
-      assert.equal(info.cat,category); seen.push(info.id);
-      assert.equal(await page.locator('[data-home="qz-next"]').count(),0);
-      await page.locator(`[data-answer="${info.right}"]`).click();
-      if(info.scene.art) {
-        assert.equal(await page.locator('.qz-art svg').count(),1);
-        assert.match(await page.locator('.qz-art figcaption').textContent(),info.scene.art==='stripper'?/참고 사진 기반/:/실제 사진 아님/);
-        const answer=await page.evaluate(()=>QZ.current.answers[0]);
-        assert.ok((await page.locator('.qz-art figcaption').textContent()).includes(answer));
-      }
-      assert.ok((await page.locator('.qz-ref').textContent()).length>10);
-      await page.locator('[data-home="qz-next"]').click();
-    }
-    assert.equal(new Set(seen).size,count);
-    assert.equal(await page.evaluate(()=>QZ.solved),count);
-  }
-  await page.keyboard.press('Escape');
-  assert.equal(await page.locator('.hm-card').count(),6);
-});
-
-test('quiz remains readable on a narrow screen and supports keyboard answers', async () => {
-  await page.setViewportSize({width:360,height:740});
-  await page.locator('[data-home="quiz"]').click();
-  for(const cat of ['공구','기구·재료','설치·가공','전선·배선','동작·진단','안전·마무리']) {
-    await page.locator(`[data-category="${cat}"]`).click();
-    await page.locator('[data-answer="0"]').focus(); await page.keyboard.press('Enter');
-    await page.waitForFunction(()=>document.activeElement?.id==='qzFeedback');
-    assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true);
-    await page.locator('[data-home="qz-next"]').click();
-    assert.equal(await page.evaluate(()=>document.activeElement.id),'qzQuestion');
-  }
-  await page.locator('[data-home="main"]').click();
-  assert.equal(await page.locator('.hm-card.quiz').count(),1);
-});
 
 
-test('tool illustrations load offline without exposing the answer before selection', async () => {
-  await page.route('https://**/*',route=>route.abort());
-  await page.locator('[data-home="quiz"]').click();
-  await page.locator('[data-category="공구"]').click();
-  // These ten identification questions have no text answer outside the choices.
-  for(let i=1;i<=10;i++) {
-    await page.evaluate(id=>{QZ.current=QUIZ_BANK.find(q=>q.id===id);QZ.selected=null;QZ.choices=quizShuffle(QZ.current.answers.map((text,i)=>({text,correct:i===0})));renderHome();},i);
-    const picture=page.locator('.qz-art svg');
-    assert.equal(await picture.count(),1);
-    if(i===3){assert.equal(await picture.locator('image').count(),1);assert.ok((await picture.locator('image').getAttribute('href')).startsWith('data:image/png;base64,'));}
-    else {assert.ok(await picture.locator('path').count()>0);assert.equal(await picture.locator('image').count(),0,'no remote picture dependency');}
-    const answer=await page.evaluate(()=>QZ.current.answers[0]);
-    assert.ok(!(await page.locator('.qz-art').textContent()).includes(answer));
-    assert.ok(!(await picture.getAttribute('aria-label')).includes(answer));
-    await page.locator('[data-answer="0"]').click();
-    assert.ok((await page.locator('.qz-art figcaption').textContent()).includes(answer));
-    await page.locator('[data-home="qz-next"]').click();
-  }
-});
 
 
-test('reviewed quiz conditions and concept diagrams are explicit and stable', async () => {
-  const data=await page.evaluate(()=>QUIZ_BANK.map(q=>({id:q.id,q:q.q,cat:q.cat,choices:q.answers,conditions:q.conditions||'',ex:q.ex,scene:q.scene})));
-  assert.deepEqual(data.map(q=>q.id),Array.from({length:100},(_,i)=>i+1));
-  for(const q of data) assert.equal(new Set(q.choices).size,4,`four distinct choices: ${q.id}`);
-  for(const id of [76,77,78]) {
-    const q=data[id-1];assert.match(q.conditions,/공통선/);assert.match(q.conditions,/우회/);assert.match(q.conditions,/비유지형/);
-  }
-  assert.match(data[78].choices[0],/제어전원/);assert.match(data[78].choices[0],/공통선/);
-  assert.match(data[86].q,/전원 투입형·비유지형/);assert.match(data[86].q,/완전히 초기화/);
-  assert.match(data[90].ex,/전후/);assert.match(data[90].ex,/검증된 전압원/);
-  assert.match(data[59].q,/옆으로/);assert.match(data[59].ex,/앞끝/);
-  await page.locator('[data-home="quiz"]').click();
-  for(const [id,expected] of [[29,'KACON'],[30,'TIMER']]) {
-    const text=await page.evaluate(id=>{const q=QUIZ_BANK.find(q=>q.id===id);const el=document.createElement('div');el.innerHTML=quizScene(q);return el.textContent;},id);
-    assert.match(text,new RegExp(expected),'device body, not just an empty socket');
-  }
-  await page.setViewportSize({width:360,height:740});
-  for(const id of [43,44,59,60,61,66,71,76,77,78,86,87,97]) {
-    await page.evaluate(id=>{QZ.current=QUIZ_BANK.find(q=>q.id===id);QZ.selected=null;QZ.choices=QZ.current.answers.map((text,i)=>({text,correct:i===0}));renderHome();},id);
-    assert.equal(await page.locator('.qz-art svg').count(),1);
-    assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true,`mobile width: ${id}`);
-    if([76,77,78,86,87].includes(id)) {
-      assert.ok((await page.locator('.qz-conditions').textContent()).length>35);
-      assert.match(await page.locator('.qz-art figcaption').textContent(),/개념도/);
-    }
-  }
-  const links=await page.evaluate(()=>{QZ.current=QUIZ_BANK.find(q=>q.id===91);QZ.selected=0;renderHome();return [...document.querySelectorAll('.qz-sources a')].map(a=>({href:a.href,rel:a.rel}));});
-  assert.equal(links.length,2);for(const a of links){assert.ok(a.href.startsWith('https://'));assert.match(a.rel,/noopener/);}
-});
+
+
 
 test('helical covering pins wires while ties move exposed tails in either endpoint direction', async () => {
   for(const phase of ['partial','wrapped','duct'])for(const reverse of [false,true]) {
@@ -797,7 +688,8 @@ test('middle-button pan batches camera writes, reuses geometry and preserves the
   const b=await page.locator('#board').boundingBox(),x=b.x+100,y=b.y+100;
   await page.mouse.move(x,y);await page.mouse.down({button:'middle'});
   const r=await page.evaluate(async({x,y})=>{
-    const cam0={...UI.gesture.cam0},before=JSON.stringify(S),world=gWorld.firstChild;
+    const snapshot=()=>JSON.stringify({...S,elapsed:0}); // The running work clock is allowed to advance while panning.
+    const cam0={...UI.gesture.cam0},before=snapshot(),world=gWorld.firstChild;
     let writes=0,reads=0;const set=svg.setAttribute.bind(svg),get=svg.getBoundingClientRect.bind(svg);
     svg.setAttribute=(key,...a)=>{if(key==='viewBox')writes++;return set(key,...a);};
     svg.getBoundingClientRect=(...a)=>{reads++;return get(...a);};
@@ -812,7 +704,7 @@ test('middle-button pan batches camera writes, reuses geometry and preserves the
     const view=svg.getAttribute('viewBox'),flushed=cameraFrame===0;
     await new Promise(done=>requestAnimationFrame(done));
     svg.setAttribute=set;svg.getBoundingClientRect=get;
-    return {beforeFrame,readBurst,pending,afterFrame,unchangedWorld,flushed,stable:view===svg.getAttribute('viewBox'),position:Math.abs(UI.cam.x-expected.x)<1e-7&&Math.abs(UI.cam.y-expected.y)<1e-7,unchanged:JSON.stringify(S)===before,gesture:UI.gesture,panning:document.body.classList.contains('panning'),visible:getComputedStyle(gOver).visibility};
+    return {beforeFrame,readBurst,pending,afterFrame,unchangedWorld,flushed,stable:view===svg.getAttribute('viewBox'),position:Math.abs(UI.cam.x-expected.x)<1e-7&&Math.abs(UI.cam.y-expected.y)<1e-7,unchanged:snapshot()===before,gesture:UI.gesture,panning:document.body.classList.contains('panning'),visible:getComputedStyle(gOver).visibility};
   },{x,y});
   await page.mouse.up({button:'middle'});
   assert.deepEqual(r,{beforeFrame:0,readBurst:0,pending:true,afterFrame:1,unchangedWorld:true,flushed:true,stable:true,position:true,unchanged:true,gesture:null,panning:false,visible:'visible'});
@@ -917,49 +809,7 @@ test('walkthrough places the cable then connects all three leads and retains a v
 });
 
 
-test('automatic stripper uses an embedded reference image and describes the actual tool type',async()=>{
-  await page.route('https://**/*',route=>route.abort());
-  const result=await page.evaluate(async()=>{
-    const q=QUIZ_BANK.find(q=>q.id===3);QZ.current=q;QZ.selected=null;QZ.choices=q.answers.map((text,i)=>({text,correct:i===0}));UI.homePage='quiz';renderHome();
-    const picture=document.querySelector('.qz-art image'),im=new Image();im.src=picture.getAttribute('href');await im.decode();
-    return {embedded:im.src.startsWith('data:image/png;base64,'),width:im.naturalWidth,height:im.naturalHeight,caption:document.querySelector('.qz-art figcaption').textContent,question:q.q,answer:q.answers[0],usage:QUIZ_BANK.find(q=>q.id===13).q};
-  });
-  assert.equal(result.embedded,true);assert.ok(result.width>=500&&result.height>=500);assert.match(result.caption,/참고 사진 기반/);assert.match(result.caption,/검은색/);
-  assert.match(result.answer,/자동 와이어 스트리퍼/);assert.ok(!result.question.includes('굵기별 홈'));assert.match(result.usage,/자동 와이어 스트리퍼/);
-  await page.setViewportSize({width:360,height:740});assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true);
-});
 
-test('ordered quiz visits 1 through 100 once, shows the final explanation and ends with a restartable result',async()=>{
-  const state=await page.evaluate(()=>JSON.stringify(S));
-  await page.locator('[data-home="quiz"]').click();
-  await page.locator('[data-answer="0"]').click();
-  await page.locator('[data-mode="ordered"]').click();
-  assert.equal(await page.evaluate(()=>QZ.solved),0);
-  assert.equal(await page.locator('[data-category]').count(),0);
-  for(let id=1;id<=100;id++) {
-    assert.equal(await page.evaluate(()=>QZ.current.id),id);
-    assert.match(await page.locator('[aria-label="순서 진행"]').textContent(),new RegExp(`현재 ${id} / 100번`));
-    const right=await page.evaluate(()=>QZ.choices.findIndex(a=>a.correct));
-    await page.locator(`[data-answer="${id%2===0?right:(right+1)%4}"]`).click();
-    assert.equal(await page.locator('#qzFeedback').count(),1);
-    if(id===100) {
-      assert.equal(await page.locator('#qzComplete').count(),0,'last explanation stays visible');
-      assert.equal(await page.locator('[data-home="qz-next"]').textContent(),'결과 보기');
-    }
-    await page.locator('[data-home="qz-next"]').click();
-  }
-  assert.match(await page.locator('#qzComplete').textContent(),/100문제 완료/);
-  assert.equal(await page.locator('[data-answer]').count(),0);
-  assert.deepEqual(await page.evaluate(()=>({done:QZ.finished,solved:QZ.solved,correct:QZ.correct})),{done:true,solved:100,correct:50});
-  assert.equal(await page.evaluate(()=>document.activeElement.id),'qzComplete');
-  await page.setViewportSize({width:360,height:740});
-  assert.equal(await page.evaluate(()=>document.querySelector('#home').scrollWidth<=innerWidth),true);
-  await page.locator('[data-home="qz-restart"]').click();
-  assert.deepEqual(await page.evaluate(()=>({id:QZ.current.id,solved:QZ.solved,done:QZ.finished})),{id:1,solved:0,done:false});
-  await page.locator('[data-mode="random"]').click();
-  assert.equal(await page.evaluate(()=>QZ.mode),'random');assert.equal(await page.locator('[data-category]').count(),7);
-  assert.equal(await page.evaluate(()=>JSON.stringify(S)),state);
-});
 
 test('wiring rejection explains endpoints, highlights them and clears after a valid connection',async()=>{
   await fullState();await page.evaluate(()=>{S.cables={power:false,powerPlaced:{...POWER_POS},powerLeads:{}};S.tbCover=false;LIVE.inp.mcb=false;buildTerms();connectPowerLead('PWR.R','TB.2.b');});
@@ -986,32 +836,16 @@ test('AC DC and conveyor wiring errors show persistent guidance without adding a
   await page.locator('#wiringClose').click();assert.equal(await page.locator('#wiringNotice').isHidden(),true);
 });
 
-test('ordered quiz resumes the answered question across reload and menu changes without double scoring',async()=>{
-  await page.locator('[data-home="quiz"]').click();await page.locator('[data-mode="ordered"]').click();
-  for(let n=1;n<=3;n++){
-    await page.locator('[data-answer="0"]').click();if(n<3)await page.locator('[data-home="qz-next"]').click();
-  }
-  const before=await page.evaluate(()=>({id:QZ.current.id,choices:QZ.choices,selected:QZ.selected,solved:QZ.solved,correct:QZ.correct}));
-  await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="quiz"]').click();
-  assert.deepEqual(await page.evaluate(()=>({id:QZ.current.id,choices:QZ.choices,selected:QZ.selected,solved:QZ.solved,correct:QZ.correct})),before);
-  assert.equal(await page.locator('[data-answer]:disabled').count(),4);
-  await page.locator('[data-home="qz-next"]').click();assert.equal(await page.evaluate(()=>QZ.current.id),4);
-  await page.locator('[data-mode="random"]').click();await page.locator('[data-mode="ordered"]').click();assert.equal(await page.evaluate(()=>QZ.current.id),4);
-  await page.locator('[data-home="main"]').click();assert.match(await page.locator('.hm-card.quiz small').textContent(),/4번 이어/);
-  await page.locator('[data-home="quiz"]').click();assert.equal(await page.evaluate(()=>QZ.current.id),4);
-  await page.locator('[data-home="qz-restart"]').click();assert.deepEqual(await page.evaluate(()=>[QZ.current.id,QZ.solved]),[1,0]);
-  await page.evaluate(()=>{for(let n=0;n<100;n++){quizAct('qz-answer',{dataset:{answer:'0'}});quizAct('qz-next',{});}});
-  await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="quiz"]').click();assert.equal(await page.locator('#qzComplete').count(),1);
-  assert.equal(await page.evaluate(()=>QZ.solved),100);
 
-});
 
-test('quiz ignores corrupt or incompatible checkpoints and stays usable when saving is blocked',async()=>{
-  for(const record of ['{broken',JSON.stringify({signature:'old',id:99})]){
-    await page.evaluate(record=>localStorage.setItem(QUIZ_PROGRESS_KEY,record),record);await page.reload();await page.waitForFunction(()=>window.SIM);
-    await page.locator('[data-home="quiz"]').click();assert.equal(await page.evaluate(()=>QZ.mode),'random');await page.locator('[data-home="main"]').click();
+
+test('home has five working modes after removing the quiz',async()=>{
+  assert.equal(await page.locator('.hm-card').count(),5);
+  assert.equal(await page.locator('[data-home="quiz"]').count(),0);
+  assert.equal(await page.evaluate(()=>typeof QUIZ_BANK),'undefined');
+  for(const route of ['help','strip','prac']){
+    await page.locator(`[data-home="${route}"]`).click();
+    assert.equal(await page.locator('.hm-top h1').count(),1);
+    await page.locator('.hm-back[data-home="main"]').click();
   }
-  await page.evaluate(()=>{Storage.prototype.setItem=function(){throw new DOMException('blocked','SecurityError')};});
-  await page.locator('[data-home="quiz"]').click();await page.locator('[data-mode="ordered"]').click();await page.locator('[data-answer="0"]').click();await page.locator('[data-home="qz-next"]').click();
-  assert.equal(await page.evaluate(()=>QZ.current.id),2);
 });
