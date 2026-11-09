@@ -24,7 +24,7 @@ const path = require('node:path');
       const nm = names();
       const devices = S.inst.map(i => {
         const d = DEV[i.type], y = devY(i), extra = i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : ['relay','timer'].includes(i.type) ? !!S.plug[i.id] : S.fuses[i.id];
-        return { name: nm[i.id], type: i.type, x: i.x, y, w: d.w, h: d.h, image: asset(nm[i.id], drawDevice(i.type, i.x, y, nm[i.id], extra), i.x, y, d.w, d.h) };
+        return { name: nm[i.id], type: i.type, x: i.x, y, w: d.w, h: d.h, terminals: devTerms(i.type), image: asset(nm[i.id], drawDevice(i.type, i.x, y, nm[i.id], extra), i.x, y, d.w, d.h) };
       });
       devices.push({name:'SERVO',type:'servo',...SERVO,image:asset('SERVO',dServo(SERVO.x,SERVO.y,true),SERVO.x,SERVO.y,SERVO.w,SERVO.h)});
       const frames = frList().filter(([,q]) => q.slot).map(([id,q]) => {

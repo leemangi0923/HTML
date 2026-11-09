@@ -41,7 +41,7 @@ test('3D circuit accepts alternative terminal-block routes and detects source an
   assert.deepEqual(circuit.validWires([null, ['bogus', 'PB.1'], ['PB.1', 'PB.1'], ['PB.1', 'PB.2'], ['PB.2', 'PB.1']]), [['PB.1', 'PB.2']]);
 });
 
-async function session(viewport = { width: 1440, height: 1000 }) {
+async function session(viewport = { width: 1440, height: 1000 }, mode = 'circuit') {
   const context = await browser.newContext({ viewport }); context.setDefaultTimeout(15000);
   const errors = [], external = [];
   await context.route('**/*', route => {
@@ -49,7 +49,7 @@ async function session(viewport = { width: 1440, height: 1000 }) {
     external.push(route.request().url()); return route.abort();
   });
   const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`${origin}/lab-3d.html?mode=circuit`); await page.waitForFunction(() => window.LAB3D);
+  await page.goto(`${origin}/lab-3d.html${mode === 'circuit' ? '?mode=circuit' : ''}`); await page.waitForFunction(mode === 'circuit' ? () => window.LAB3D : () => window.WORKSHOP3D?.ready);
   return { page, context, errors, external };
 }
 async function state(page) { return page.evaluate(() => LAB3D.state); }
@@ -145,5 +145,58 @@ test('original 3D workshop matches source dimensions and device positions and ex
     assert.deepEqual(errors,[]);
     // Only the original simulator's optional fonts can request external assets.
     assert.ok(external.every(url=>/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(url)));
+  } finally {await context.close();}
+});
+
+test('walking body cannot tunnel through the table, slides around its edge and stays inside the room', async () => {
+  const { moveBody, blocked, walkingDirection } = await import('../lab-3d/walk-physics.mjs');
+  const front=moveBody({x:0,z:24},0,-100);
+  assert.ok(front.z>=18 && front.z<19);assert.equal(front.x,0);assert.equal(blocked(front.x,front.z),false);
+  const side=moveBody(front,30,-5);assert.ok(side.x>20);assert.equal(blocked(side.x,side.z),false);
+  const wall=moveBody({x:25,z:24},200,200);assert.ok(wall.x<=46 && wall.z<=39);
+  assert.ok(Math.abs(Math.hypot(...Object.values(walkingDirection(1,1,0)))-1)<1e-10);
+  const turned=walkingDirection(1,0,Math.PI/2);assert.ok(turned.x<-.999 && Math.abs(turned.z)<1e-10);
+});
+
+test('first-person walking uses real keyboard and mouse input, stops at the bench and clears on Escape', async () => {
+  const {page,context,errors,external}=await session(undefined,'workshop');
+  try {
+    assert.equal(await page.evaluate(()=>WORKSHOP3D.state.walk.mode),'walk');
+    assert.ok(await page.evaluate(()=>WORKSHOP3D.state.details.screws>300));
+    await page.locator('#walkStart').click();await page.waitForFunction(()=>WORKSHOP3D.state.walk.active);
+    await page.keyboard.down('KeyW');
+    await page.waitForFunction(()=>WORKSHOP3D.state.walk.position.z<18.65,{},{timeout:15000});
+    await page.keyboard.up('KeyW');
+    assert.ok(await page.evaluate(()=>WORKSHOP3D.state.walk.position.z>=18));
+    await page.keyboard.down('KeyD');await page.waitForFunction(()=>WORKSHOP3D.state.walk.position.x>1);
+    const yaw=await page.evaluate(()=>WORKSHOP3D.state.walk.yaw);await page.mouse.move(700,340);
+    await page.waitForFunction(yaw=>WORKSHOP3D.state.walk.yaw!==yaw,yaw);
+    await page.keyboard.press('Escape');await page.keyboard.up('KeyD');
+    await page.waitForFunction(()=>!WORKSHOP3D.state.walk.active);
+    const position=await page.evaluate(()=>WORKSHOP3D.state.walk.position);await page.waitForTimeout(160);
+    assert.deepEqual(await page.evaluate(()=>WORKSHOP3D.state.walk.position),position);
+    assert.deepEqual(await page.evaluate(()=>WORKSHOP3D.state.walk.keys),[]);
+    await page.locator('#crouch').click();await page.waitForFunction(()=>WORKSHOP3D.state.walk.height<24.3);
+    await page.locator('#walkHome').click();assert.deepEqual(await page.evaluate(()=>WORKSHOP3D.state.walk.position),{x:0,z:24});
+    await page.locator('[data-focus="panel"]').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.walk.mode),'orbit');
+    await page.locator('#walkMode').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.walk.mode),'walk');
+    assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+  } finally {await context.close();}
+});
+
+test('mobile walking controls release outside the button and focus loss cannot leave movement held', async () => {
+  const {page,context,errors}=await session({width:390,height:844},'workshop');
+  try {
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    const button=await page.locator('[data-walk="KeyA"]').boundingBox();
+    await page.mouse.move(button.x+button.width/2,button.y+button.height/2);await page.mouse.down();
+    await page.waitForFunction(()=>WORKSHOP3D.state.walk.position.x<-.5);
+    await page.mouse.move(350,100);await page.mouse.up();
+    await page.waitForFunction(()=>WORKSHOP3D.state.walk.keys.length===0);
+    const forward=await page.locator('[data-walk="KeyW"]').boundingBox();
+    await page.mouse.move(forward.x+forward.width/2,forward.y+forward.height/2);await page.mouse.down();
+    await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.mouse.up();
+    const paused=await page.evaluate(()=>WORKSHOP3D.state.walk);assert.equal(paused.active,false);assert.deepEqual(paused.keys,[]);
+    assert.deepEqual(errors,[]);
   } finally {await context.close();}
 });
