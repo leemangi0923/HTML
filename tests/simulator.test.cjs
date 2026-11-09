@@ -839,8 +839,9 @@ test('AC DC and conveyor wiring errors show persistent guidance without adding a
 
 
 
-test('home has five working modes after removing the quiz',async()=>{
-  assert.equal(await page.locator('.hm-card').count(),5);
+test('home has the existing modes and a separate 3D workbench without quizzes',async()=>{
+  assert.equal(await page.locator('.hm-card').count(),6);
+  assert.equal(await page.locator('[data-home="lab3d"]').count(),1);
   assert.equal(await page.locator('[data-home="quiz"]').count(),0);
   assert.equal(await page.evaluate(()=>typeof QUIZ_BANK),'undefined');
   for(const route of ['help','strip','prac']){
