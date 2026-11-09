@@ -8,7 +8,7 @@ let circuit, browser, server, origin;
 before(async () => {
   circuit = await import('../lab-3d/circuit.mjs');
   const root = path.resolve(__dirname, '..');
-  const types = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css' };
+  const types = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.json': 'application/json' };
   server = createServer(async (req, res) => {
     try {
       const file = path.resolve(root, '.' + new URL(req.url, 'http://localhost').pathname);
@@ -49,7 +49,7 @@ async function session(viewport = { width: 1440, height: 1000 }) {
     external.push(route.request().url()); return route.abort();
   });
   const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`${origin}/lab-3d.html`); await page.waitForFunction(() => window.LAB3D);
+  await page.goto(`${origin}/lab-3d.html?mode=circuit`); await page.waitForFunction(() => window.LAB3D);
   return { page, context, errors, external };
 }
 async function state(page) { return page.evaluate(() => LAB3D.state); }
@@ -117,8 +117,33 @@ test('3D workbench fits a narrow screen and remains reachable from the main menu
     await topView(page); await clickTerminal(page, 'DC.+');
     assert.equal((await state(page)).selected, 'DC.+');
     await page.locator('.back').click(); await page.waitForFunction(() => window.SIM);
-    await page.locator('[data-home="lab3d"]').click(); await page.waitForFunction(() => window.LAB3D);
-    assert.equal((await state(page)).wires.length, 6);
+    await page.locator('[data-home="lab3d"]').click(); await page.waitForFunction(() => window.WORKSHOP3D);
+    assert.equal(await page.evaluate(() => WORKSHOP3D.layout.devices.length), 19);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
+});
+
+test('original 3D workshop matches source dimensions and device positions and exposes front/back views', async () => {
+  const { page, context, errors, external } = await session();
+  try {
+    await page.goto(`${origin}/lab-3d.html`); await page.waitForFunction(() => window.WORKSHOP3D?.ready);
+    const layout = await page.evaluate(() => WORKSHOP3D.layout);
+    const source = await context.newPage(); await source.goto(`${origin}/index.html`); await source.waitForFunction(() => window.SIM);
+    const expected = await source.evaluate(() => {
+      clearInterval(LIVE.timer); setMode('free', pClone(pracRef())); const nm=names();
+      return {panel:PANEL,op:{...OPW,w:OP.w,h:OP.h}, devices:[...S.inst.map(i=>({name:nm[i.id],type:i.type,x:i.x,y:devY(i),w:DEV[i.type].w,h:DEV[i.type].h})),{name:'SERVO',type:'servo',x:SERVO.x,y:SERVO.y,w:SERVO.w,h:SERVO.h}]};
+    });
+    await source.close();
+    assert.deepEqual(layout.panel,expected.panel);assert.deepEqual(layout.op,expected.op);assert.deepEqual(layout.devices,expected.devices);
+    assert.equal(layout.frames,9);assert.equal(layout.conveyor.L,500);
+    await page.locator('#flipOp').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.back),true);
+    await page.locator('#showWires').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.wireVisible),true);
+    await page.locator('[data-focus="panel"]').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.focus),'panel');
+    await page.locator('[data-focus="conveyor"]').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.focus),'conveyor');
+    await page.locator('#flipOp').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.back),false);
+    await page.locator('.circuit-link').click();await page.waitForFunction(()=>window.LAB3D);assert.equal((await state(page)).wires.length,6);
+    assert.deepEqual(errors,[]);
+    // Only the original simulator's optional fonts can request external assets.
+    assert.ok(external.every(url=>/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(url)));
+  } finally {await context.close();}
 });

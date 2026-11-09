@@ -50,7 +50,7 @@
     if (location.protocol === 'file:') {
       document.querySelector('#loading').textContent = '3D 화면은 웹 주소에서 열어주세요. 로컬에서는 python3 -m http.server 8000 실행 후 localhost:8000/lab-3d.html로 접속하세요.';
     } else {
-      import('./lab-3d/main.mjs').catch(() => {
+      import(new URLSearchParams(location.search).get('mode') === 'circuit' ? './lab-3d/main.mjs' : './lab-3d/workshop.mjs').catch(() => {
         document.querySelector('#loading').hidden = false;
         document.querySelector('#loading').textContent = '3D 화면을 열지 못했어요. WebGL을 지원하는 최신 브라우저에서 다시 열어주세요.';
       });
