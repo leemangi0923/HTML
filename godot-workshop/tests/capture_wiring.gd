@@ -16,9 +16,9 @@ func _run() -> void:
 	app.password_input.text = "0923"
 	app._submit_password()
 	Input.action_press("crouch")
-	app.player.position = Vector3(1.12, 0.02, 0.88)
+	app.player.position = Vector3(1.60, 0.02, 0.36)
 	await settle()
-	aim(Vector3(1.12, 0.98, 0.36))
+	aim(Vector3(1.10, 0.98, 0.36))
 	await settle()
 	app._inspect(app.player.camera)
 	if app.wiring.held.is_empty():

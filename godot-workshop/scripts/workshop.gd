@@ -15,6 +15,7 @@ var logged_in := false
 var wiring: WorkshopWiring
 var work_view: WorkshopWorkView
 var target_label: Label
+var inventory_label: Label
 var probe_mode := false
 var probe_start := -1
 var hover_timer := 0.0
@@ -34,10 +35,19 @@ func _ready() -> void:
 	wiring = WorkshopWiring.new()
 	wiring.player = player
 	add_child(wiring)
+	wiring.changed.connect(_inventory_changed)
+	_inventory_changed()
 	work_view = WorkshopWorkView.new()
 	work_view.player = player
 	add_child(work_view)
 	work_view.clicked.connect(_inspect)
+	work_view.drag_started.connect(func(camera: Camera3D): hint_label.text = wiring.begin_drag(camera))
+	work_view.drag_moved.connect(wiring.move_drag)
+	work_view.drag_ended.connect(func():
+		if wiring.dragged_rope != null:
+			wiring.release_drag()
+			hint_label.text = "놓았어요. 전선은 중력으로 내려앉아요. Z로 정리 전 모양을 되돌릴 수 있어요."
+	)
 	work_view.mode_changed.connect(_work_mode_changed)
 
 func _install_inputs() -> void:
@@ -168,7 +178,15 @@ func _build_interface() -> void:
 	title.position = Vector2(16, 5)
 	title.size = Vector2(650, 24)
 	ui.add_child(title)
-	var controls := _label("Tab 작업보기 · 휠 확대 · 중클릭 이동 · 1~4 위치 · 클릭/E 배선 · F 조임 · Q 반납 · X 분리 · Z 취소 · M 배선추적", 16)
+	inventory_label = _label("", 16)
+	inventory_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	inventory_label.offset_left = -330
+	inventory_label.offset_right = -16
+	inventory_label.offset_top = 7
+	inventory_label.offset_bottom = 30
+	inventory_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ui.add_child(inventory_label)
+	var controls := _label("Tab 보기 · 휠 확대 · 중클릭 이동 · 1~4 위치 · 클릭/E 삽입 · Shift+끌기 정리 · F 조임 · Q 반납 · X 분리 · Z 취소 · M 추적", 16)
 	controls.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	controls.offset_left = 24
 	controls.offset_top = -30
@@ -226,7 +244,7 @@ func _build_interface() -> void:
 	menu.add_child(_button("계속하기", _resume))
 	menu.add_child(_button("작업대 앞으로 돌아오기", _reset))
 	menu.add_child(_button("조작법", _toggle_help))
-	help_label = _label("WASD / 방향키로 이동, 마우스로 둘러보기\nTab 작업보기 · 휠 확대 · 가운데 버튼 이동\n1 제어판 · 2 조작판 · 3 컨베이어 · 4 재료대\n클릭/E 삽입 · F 조임 · M 배선추적\nQ 반납 · X 분리 · Z 되돌리기 · Esc 메뉴", 16)
+	help_label = _label("WASD / 방향키로 이동, 마우스로 둘러보기\nTab 작업보기 · 휠 확대 · 가운데 버튼 이동\n1 제어판 · 2 조작판 · 3 컨베이어 · 4 재료대\n클릭/E 삽입 · Shift+끌기 정리 · F 조임 · M 배선추적\nQ 반납 · X 분리 · Z 되돌리기 · Esc 메뉴", 16)
 	help_label.visible = false
 	menu.add_child(help_label)
 	menu.add_child(_button("종료", func(): get_tree().quit()))
@@ -254,6 +272,8 @@ func _resume() -> void:
 func _show_pause() -> void:
 	if not logged_in:
 		return
+	work_view.cancel_drag()
+	wiring.save_physics()
 	player.set_active(false)
 	crosshair.hide()
 	pause_menu.show()
@@ -317,7 +337,7 @@ func _aim(camera: Camera3D) -> Dictionary:
 
 func _reachable(point: Vector3) -> bool:
 	if work_view.enabled:
-		return work_view.camera.global_position.distance_to(point) < 1.4
+		return true
 	var rig := player.avatar.skeleton
 	var shoulder := rig.to_global(rig.get_bone_global_pose(rig.find_bone("UpperArm.R")).origin)
 	return shoulder.distance_to(point) < 0.60
@@ -362,3 +382,6 @@ func _trace(id: int) -> void:
 	else:
 		hint_label.text = wiring.terminal_labels[probe_start] + " ↔ " + wiring.terminal_labels[id] + (" : 조인 전선으로 이어져 있어요." if wiring.connected(probe_start, id) else " : 조인 전선 경로가 없어요.")
 		probe_start = -1
+
+func _inventory_changed() -> void:
+	inventory_label.text = "일반선 %d / 120 · 긴 선 %d / 9" % [wiring.available("standard"),wiring.available("long")]

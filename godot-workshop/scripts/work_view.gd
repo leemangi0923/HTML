@@ -3,12 +3,16 @@ extends Node3D
 
 signal clicked(camera: Camera3D)
 signal mode_changed(enabled: bool)
+signal drag_started(camera: Camera3D)
+signal drag_moved(camera: Camera3D)
+signal drag_ended
+var wire_dragging := false
 var player: WorkshopPlayer
 var camera: Camera3D
 var enabled := false
 var section := 0
-const CENTERS := [Vector3(-0.24, 1.8, -0.16), Vector3(0.345, 1.8, 0.055), Vector3(-0.24, 1.8, 0.355), Vector3(1.12, 1.8, 0.46)]
-const SIZES := [0.75, 0.40, 0.32, 0.48]
+const CENTERS := [Vector3(-0.24, 1.8, -0.16), Vector3(0.345, 1.8, 0.055), Vector3(-0.24, 1.8, 0.355), Vector3(1.12, 1.8, -0.35)]
+const SIZES := [0.75, 0.40, 0.32, 4.8]
 
 func _ready() -> void:
 	camera = Camera3D.new()
@@ -22,6 +26,7 @@ func _ready() -> void:
 	camera.current = false
 
 func set_enabled(value: bool) -> void:
+	cancel_drag()
 	enabled = value
 	player.work_view = value
 	player.velocity.x = 0
@@ -40,14 +45,14 @@ func focus_section(index: int) -> void:
 	camera.size = SIZES[section]
 
 func zoom(factor: float) -> void:
-	camera.size = clampf(camera.size * factor, 0.08, 1.3)
+	camera.size = clampf(camera.size * factor, 0.08, 4.8 if section == 3 else 1.3)
 
 func pan(pixels: Vector2) -> void:
 	var scale_m := camera.size / maxf(1.0, get_viewport().get_visible_rect().size.y)
 	camera.position.x -= pixels.x * scale_m
 	camera.position.z -= pixels.y * scale_m
 	camera.position.x = clampf(camera.position.x, -0.85, 1.5)
-	camera.position.z = clampf(camera.position.z, -0.75, 0.8)
+	camera.position.z = clampf(camera.position.z, -2.5, 2.1)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not player.active:
@@ -62,6 +67,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 	if not enabled:
 		return
+	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT and wire_dragging:
+		cancel_drag()
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseMotion and wire_dragging:
+		drag_moved.emit(camera)
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 		pan(event.relative)
 		get_viewport().set_input_as_handled()
@@ -71,7 +84,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			zoom(1.0 / 0.82)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
-			clicked.emit(camera)
+			if event.shift_pressed:
+				wire_dragging = true
+				drag_started.emit(camera)
+			else:
+				clicked.emit(camera)
 		else:
 			return
 		get_viewport().set_input_as_handled()
+
+func cancel_drag() -> void:
+	if wire_dragging:
+		wire_dragging = false
+		drag_ended.emit()

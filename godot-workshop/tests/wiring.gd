@@ -41,11 +41,11 @@ func _run() -> void:
 	bad.installed.append(bad.installed[0].duplicate(true))
 	check(not w.restore(bad) and w.installed.size() == 1, "Reject overlapping corrupt save without changing work")
 	for kind in ["standard", "long"]:
-		var p := WorkshopWiring.wire_points(Vector3(0, 0.8, 0), Vector3(0.2, 0.8, 0.1), WorkshopWiring.LENGTH[kind])
-		var distance := 0.0
-		for i in range(1, p.size()):
-			distance += p[i].distance_to(p[i - 1])
-		check(absf(distance - WorkshopWiring.LENGTH[kind]) < 0.002, "Wire arc length stays fixed: " + kind)
+		var multi: MultiMesh = w.stock_meshes[kind]
+		check(multi.instance_count == WorkshopWiring.TOTAL[kind], "All prepared stock is drawn")
+		# Dummy headless RenderingServer does not retain MultiMesh transforms.
+		var ends: Array = w.stock_endpoints[kind][0]
+		check(absf(ends[0].distance_to(ends[1])-WorkshopWiring.LENGTH[kind]) < 0.0001 and absf(ends[0].y-ends[1].y)<0.00001, "Stock is straight and full length: " + kind)
 	w.take("long"); w.return_held()
 	check(w.available("long") == 9, "Long wire stock independent")
 	var migrated := WorkshopWiring.new()
@@ -60,6 +60,7 @@ func _run() -> void:
 	check(migrated.installed.size() == 1 and migrated.available("standard") == 119, "Migrate existing disk save automatically")
 	check(FileAccess.file_exists(migrated.save_path), "Write migrated state to a new file")
 	check(FileAccess.get_file_as_string(migrated.legacy_save_path) == old_text, "Retain original v1 save for rollback")
+	migrated.persistence = false
 	DirAccess.remove_absolute(migrated.save_path)
 	DirAccess.remove_absolute(migrated.legacy_save_path)
 	migrated.queue_free()
