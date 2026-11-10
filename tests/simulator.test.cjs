@@ -842,12 +842,12 @@ test('AC DC and conveyor wiring errors show persistent guidance without adding a
 
 
 
-test('home keeps the five 2D modes without the retired 3D workshop or quizzes',async()=>{
-  assert.equal(await page.locator('.hm-card').count(),5);
+test('home adds practical fault drills without the retired 3D workshop or quizzes',async()=>{
+  assert.equal(await page.locator('.hm-card').count(),6);
   assert.equal(await page.locator('[data-home="lab3d"]').count(),0);
   assert.equal(await page.locator('[data-home="quiz"]').count(),0);
   assert.equal(await page.evaluate(()=>typeof QUIZ_BANK),'undefined');
-  for(const route of ['help','strip','prac']){
+  for(const route of ['help','strip','prac','fault']){
     await page.locator(`[data-home="${route}"]`).click();
     assert.equal(await page.locator('.hm-top h1').count(),1);
     await page.locator('.hm-back[data-home="main"]').click();
@@ -872,10 +872,152 @@ test('old workshop bookmarks return to 2D without loading 3D assets or changing 
     await page.waitForFunction(() => window.SIM);
     await page.evaluate(() => clearInterval(LIVE.timer));
     assert.equal(await page.locator('#home').isVisible(), true);
-    assert.equal(await page.locator('.hm-card').count(), 5);
+    assert.equal(await page.locator('.hm-card').count(), 6);
     assert.deepEqual(await page.evaluate(() => [STORE, STORE_EXAM, STORE_PRAC].map(key => localStorage.getItem(key))), saved);
   }
   assert.deepEqual(threeRequests, []);
   await page.locator('[data-home="free"]').click();
   assert.equal(await page.evaluate(() => scoreSheet().total), 30);
+});
+
+test('all 10 fault cases and 19 challenge pairs are observable, repairable, and require both repairs', async () => {
+  const results = await page.evaluate(() => {
+    const keep = S, cases = [...fdPool(1), ...fdPool(2)], rows = [];
+    try {
+      for (const ids of cases) {
+        const st = fdBuild(ids);
+        if (!st) { rows.push({ ids, valid: false }); continue; }
+        S = pClone(st); buildTerms();
+        const initial = fdReport(), broken = initial.bad.length;
+        const failing = JUDGE.filter(c => !initial.judge.res[c.id].ok).map(c => c.id);
+        const partial = ids.length === 2 ? ids.map(id => {
+          S = pClone(st); FD_SOURCE[id].fix(); buildTerms();
+          const report = fdReport();
+          return {bad:report.bad.length, failing:JUDGE.filter(c=>!report.judge.res[c.id].ok).map(c=>c.id)};
+        }) : [];
+        S = pClone(st); for (const id of ids) FD_SOURCE[id].fix(); buildTerms();
+        rows.push({ ids, valid: true, broken, failing, partial, repaired: fdReport().bad.length });
+      }
+    } finally { S = keep; buildTerms(); }
+    return rows;
+  });
+  assert.equal(results.length, 29);
+  for (const r of results) {
+    assert.equal(r.valid, true, `generated ${r.ids}`);
+    assert.ok(r.broken > 0, `fault must affect real operation: ${r.ids}`);
+    assert.ok(r.partial.every(p => p.bad > 0), `both faults must be fixed: ${r.ids}`);
+    if (r.partial.length) for (const [i,p] of r.partial.entries()) {
+      assert.ok(p.failing.some(k => !r.partial[1-i].failing.includes(k)), `each fault must have a distinct observable failure: ${r.ids}`);
+      assert.ok(p.failing.every(k => r.failing.includes(k)), `both-fault symptoms must include each fault's failures: ${r.ids}`);
+    }
+    assert.equal(r.repaired, 0, `full repair must work: ${r.ids}`);
+  }
+});
+
+test('random fault bags cover every case before repeating and avoid a repeated boundary case', async () => {
+  const results = await page.evaluate(() => [1,2].map(level => {
+    const n = fdPool(level).length, draws = Array.from({length: n}, () => fdKey(fdDraw(level))), next = fdKey(fdDraw(level));
+    return { n, draws, next, bagSaved: !!localStorage.getItem(STORE_FAULT + '.deck') };
+  }));
+  for (const r of results) {
+    assert.equal(new Set(r.draws).size, r.n);
+    assert.notEqual(r.next, r.draws.at(-1));
+    assert.equal(r.bagSaved, true);
+  }
+});
+
+test('fault practice shows symptoms first, reveals hints in stages, and resumes without changing other modes', async () => {
+  await fullState();
+  await page.evaluate(() => {
+    save(); const ex = pClone(S); ex.exam = {on:true}; ex.elapsed = 123000;
+    localStorage.setItem(STORE_EXAM, JSON.stringify(ex));
+    localStorage.setItem(STORE_PRAC, JSON.stringify({done:{'1-1':12000}}));
+    localStorage.setItem(STORE_FAULT + '.deck', JSON.stringify({'1':['1']}));
+    setMode('exam', ex);
+  });
+  await page.locator('#btnHome').click();
+  const saved = await page.evaluate(() => [STORE,STORE_EXAM,STORE_PRAC].map(k => localStorage.getItem(k)));
+  await page.locator('[data-home="fault"]').click();
+  await page.locator('[data-fd="start"][data-level="1"]').click();
+  assert.equal(await page.evaluate(() => MODE), 'fault');
+  assert.equal(await page.locator('#home').isHidden(), true);
+  assert.equal(await page.locator('#btnDemo').isHidden(), true);
+  assert.equal(await page.locator('#btnGuide').isHidden(), true);
+  assert.equal(await page.locator('#faultHintMarks').count(), 0);
+  assert.ok(await page.locator('#steps .todo').count() > 0);
+  assert.equal(await page.evaluate(() => document.querySelector('#nextWrap').textContent.includes(FD_SOURCE[1].reveal)), false);
+  const hint = page.locator('#nextWrap [data-fd="hint"]');
+  await hint.click(); assert.deepEqual(await page.evaluate(() => S.fault.hints), [1]);
+  assert.equal(await page.locator('[data-fd="locate"]').count(), 0);
+  await hint.click(); await page.locator('[data-fd="locate"]').click();
+  assert.equal(await page.locator('#faultHintMarks circle').count(), 2);
+  await hint.click();
+  assert.equal(await page.evaluate(() => document.querySelector('#nextWrap').textContent.includes(FD_SOURCE[1].reveal)), true);
+  await page.locator('#pracCap [data-fd="judge"]').click();
+  assert.match(await page.locator('#modalCard h2').textContent(), /아직/);
+  await page.locator('#modal [data-act="close"]').click();
+  assert.equal(await page.evaluate(() => S.fault.status), 'run');
+  await page.locator('#btnHome').click();
+  await page.reload(); await page.waitForFunction(() => window.SIM);
+  await page.evaluate(() => clearInterval(LIVE.timer));
+  await page.locator('[data-home="fault"]').click();
+  await page.locator('[data-fd="resume"]').click();
+  assert.deepEqual(await page.evaluate(() => ({ids:S.fault.ids,hints:S.fault.hints,attempts:S.fault.attempts,status:S.fault.status})),{ids:[1],hints:[3],attempts:1,status:'run'});
+  assert.deepEqual(await page.evaluate(() => [STORE,STORE_EXAM,STORE_PRAC].map(k => localStorage.getItem(k))), saved);
+});
+
+async function faultClickTerminal(id) {
+  const point = await page.evaluate(id => {
+    const t = TERM[id], r = svg.getBoundingClientRect(), c = UI.cam;
+    return {x:r.left + (t.x-c.x)/c.w*r.width, y:r.top + (t.y-c.y)/c.h*r.height};
+  }, id);
+  await page.mouse.click(point.x, point.y);
+}
+
+test('physical terminal clicks repair a fault and complete practice through real operation checks', async () => {
+  await page.evaluate(() => localStorage.setItem(STORE_FAULT+'.deck', JSON.stringify({'1':['5']})));
+  await page.locator('[data-home="fault"]').click();
+  await page.locator('[data-fd="start"][data-level="1"]').click();
+  await page.evaluate(() => { setTool('meter'); fitAvoid(span2('R4.14','TB.14.t')); });
+  await faultClickTerminal('R4.14'); await faultClickTerminal('TB.14.t');
+  assert.equal(await page.evaluate(() => UI.meter.b), 'TB.14.t');
+  assert.match(await page.evaluate(() => meterRead(UI.meter.a, UI.meter.b).txt), /∞/);
+  await page.locator('[data-tool="wire"]').click();
+  await faultClickTerminal('R4.14'); await faultClickTerminal('TB.14.t');
+  assert.equal(await page.evaluate(() => S.wires.some(w => pairKey(w.a,w.b)===pairKey('R4.14','TB.14.t'))), true);
+  await page.locator('#pracCap [data-fd="judge"]').click();
+  assert.equal(await page.evaluate(() => S.fault.status), 'win');
+  assert.match(await page.locator('#modalCard h2').textContent(), /고장을 해결/);
+  await page.locator('#modal [data-fd="next"]').click();
+  assert.equal(await page.evaluate(() => S.fault.status), 'run');
+  assert.notDeepEqual(await page.evaluate(() => S.fault.ids), [5]);
+});
+
+test('fault inspection accepts equivalent terminal relocation and undo cannot reset hint or check counts', async () => {
+  await page.evaluate(() => fdEnter(fdBuild([1])));
+  await page.evaluate(() => { snap(); FD_SOURCE[1].fix(); commit(); fdHint(0); });
+  await remapTB({'18':19,'19':18});
+  await page.locator('#pracCap [data-fd="judge"]').click();
+  assert.equal(await page.evaluate(() => S.fault.status), 'win');
+  assert.equal(await page.evaluate(() => S.convLeads['S+']), 'TB.18.b');
+  await page.evaluate(() => { closeModal(); undo(); });
+  assert.deepEqual(await page.evaluate(() => ({hints:S.fault.hints,attempts:S.fault.attempts,status:S.fault.status})), {hints:[1],attempts:1,status:'run'});
+});
+
+test('fault practice menu and staged hints fit narrow dark screens; retry preserves the selected faults', async () => {
+  await page.setViewportSize({width:390,height:844}); await page.emulateMedia({colorScheme:'dark'});
+  await page.locator('[data-home="fault"]').click();
+  assert.ok(await page.evaluate(() => document.querySelector('#home').scrollWidth <= innerWidth));
+  await page.locator('[data-fd="start"][data-level="2"]').click();
+  const ids = await page.evaluate(() => S.fault.ids);
+  await page.evaluate(() => fdJudge());
+  assert.ok(await page.locator('#modalCard .pr-jr li span').first().evaluate(el => el.getBoundingClientRect().width > 100));
+  await page.locator('#modal [data-act="close"]').click();
+  await page.evaluate(() => { fdHint(0);fdHint(0);fdHint(0); });
+  assert.ok(await page.locator('#nextWrap').evaluate(el => el.scrollWidth<=el.clientWidth));
+  await page.locator('#btnReset').click();
+  await page.locator('#modal [data-act="ok"]').click();
+  assert.deepEqual(await page.evaluate(() => S.fault.ids),ids);
+  assert.deepEqual(await page.evaluate(() => S.fault.hints),[0,0]);
+  assert.equal(await page.evaluate(() => S.fault.attempts),0);
 });

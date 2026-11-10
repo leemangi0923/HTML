@@ -615,6 +615,17 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
 .tb-label-editor { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:10px; margin:12px 0; }
 .tb-label-editor label { font-size:12px; }
 .tb-label-editor input { display:block; box-sizing:border-box; width:100%; padding:8px; margin-top:4px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:5px; font:inherit; }
+body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
+.hm-card.fault { --c: #66d5d0; }
+.fault-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+.fault-levels h2, .fault-resume h2 { margin-top: 0; }
+.fault-levels p, .fault-resume p, .fault-resume li { line-height: 1.7; color: #a8b5bc; }
+.fault-resume { margin: 18px 0; }
+.fault-resume ol { padding-left: 24px; }
+.fault-levels .hm-go, .fault-resume .hm-go { color: #261f00; }
+.fault-hint { margin-top: 12px; }
+.fault-hint button { margin: 4px 8px 4px 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; color: inherit; background: var(--panel); cursor: pointer; }
+.fault-hint button:disabled { opacity: .5; cursor: default; }
 </style>
 </head>
 <body>
@@ -1740,7 +1751,8 @@ function judgeSteps() {
     return [...cs, ...JUDGE.map(c => ({ no: c.no, title: c.title, n: 0, m: 1, done: false, tip, why: '' }))]; }
   const J = getJudge(); return [...cs, ...JUDGE.map(c => { const r = J.res[c.id]; return { no: c.no, title: c.title, n: r.ok ? 1 : 0, m: 1, done: r.ok, tip: '', why: r.ok ? '' : (r.why[0] || '') }; })];
 }
-function takeJudge() {   // 실제 대회처럼 1~5 작업을 끝낸 뒤에 심사를 받는다
+function takeJudge() {
+  if (MODE === 'fault') return fdJudge();   // 실제 대회처럼 1~5 작업을 끝낸 뒤에 심사를 받는다
   if (!prevDone()) return say('1~4 작업(조작판, 덕트·찬넬, 기구 설치, 배선)을 다 끝내야 동작 검사를 받을 수 있어요', 'info');
   if (!cablesIn()) return say('전원 케이블을 꽂고, 컨베이어를 내려놓아 선 6가닥을 단자대에 결선해요', 'info');
   const pf=powerFault(S.cables,staticLinks(S.wires));if(pf)return say(pf,'err');
@@ -2065,13 +2077,13 @@ const DEMO = { on: false, steps: [], i: -1, cur: null, play: false, speed: 1, ti
 const UI = { cam: { x: 0, y: 0, w: 800, h: 600 }, ckPop: {}, carry: null, pointer: null, hoverTerm: null, pending: null, detail: false, gesture: null,
   ptrs: new Map(), flash: null, peek: false, peekKey: '', press: null, lastDone: null, chooserZone: null, onOk: null, modalClosable: true, nm: {}, trayOpen: new Set() };
 let S = null, undoStack = [];
-const STORE = 't1sim', STORE_EXAM = STORE + '.exam', STORE_PRAC = STORE + '.prac';   // 자유 모드, 시험 모드 작업, 연습 통과 기록
+const STORE = 't1sim', STORE_EXAM = STORE + '.exam', STORE_PRAC = STORE + '.prac', STORE_FAULT = STORE + '.fault';   // 자유·시험 작업, 연습 기록, 실전 고장 실습을 분리 저장
 const SET_DEF = { recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, bigLab: true, termName: true, lens: true, autoDress: false, prepTime: true, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
 let SET = (() => { try { return { ...SET_DEF, ...(JSON.parse(localStorage.getItem(STORE + '.set') || '{}') || {}) }; } catch (e) { return { ...SET_DEF }; } })();
 const setSave = () => { try { localStorage.setItem(STORE + '.set', JSON.stringify(SET)); } catch (e) { /* 저장할 수 없는 환경 */ } };
 const applyTheme = () => { const r = document.documentElement; if (SET.theme === 'light' || SET.theme === 'dark') r.dataset.theme = SET.theme; else r.removeAttribute('data-theme'); };
 applyTheme();
-let MODE = 'free';   // free: 자유, exam: 시험, prac: 연습
+let MODE = 'free';   // free: 자유, exam: 시험, prac: 연습, fault: 실전 고장 실습
 const EXAM_LIMIT = 3.5 * 3600 * 1000;   // 경기 시간 3.5시간 (ms)
 const TOOL_HELP = {
   inspect: '기구를 눌러 단자 결선도, 코일과 접점의 현재 상태를 확인해요',
@@ -2091,14 +2103,14 @@ function newState(guide = true) {
     op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
     inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, plug: {}, tset: {}, dressV: 2, dbreak: {}, extV: 2, hgath: [], hcov: 0 };
 }
-function save() { if (DEMO.on || MODE === 'prac') return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
+function save() { if (DEMO.on || MODE === 'prac') return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : MODE === 'fault' ? STORE_FAULT : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
 function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; }
 function snap() { undoStack.push(JSON.stringify(S)); if (undoStack.length > 80) undoStack.shift(); }
 function undo() {
   closeDevicePanel();
   if (!undoStack.length) return say('되돌릴 작업이 없어요', 'info');
   clearInspection();
-  const keep = { mistakes: S.mistakes, mlog: S.mlog, violations: S.violations, hints: S.hints, guide: S.guide, elapsed: S.elapsed, stageEl: S.stageEl, exam: S.exam, usedFill: S.usedFill, selfChk: S.selfChk, finished: S.finished, prepN: S.prepN, prepMs: S.prepMs };
+  const keep = { mistakes: S.mistakes, mlog: S.mlog, violations: S.violations, hints: S.hints, guide: S.guide, elapsed: S.elapsed, stageEl: S.stageEl, exam: S.exam, usedFill: S.usedFill, selfChk: S.selfChk, finished: S.finished, prepN: S.prepN, prepMs: S.prepMs, fault: S.fault };
   S = JSON.parse(undoStack.pop()); Object.assign(S, keep); UI.carry = null; UI.pending = null; say('되돌렸어요', 'info'); commit();
 }
 
@@ -2129,7 +2141,7 @@ $('#wiringFocus').addEventListener('click',()=>{
 });
 function mistake(msg) {
   S.mistakes[0]++; say(msg, 'err');
-  (S.mlog = S.mlog || []).push({ t: S.elapsed, msg, at: MODE === 'prac' && PRAC.L ? `연습 ${PRAC.L.id}` : (k => k === undefined ? '마무리 뒤' : GROUP_TITLE[k])(STAGES.find(k => !stageDone(k))) }); if (S.mlog.length > 200) S.mlog.shift();   // 실수 기록 (실수 버튼으로 본다)
+  (S.mlog = S.mlog || []).push({ t: S.elapsed, msg, at: MODE === 'fault' ? '실전 고장 실습' : MODE === 'prac' && PRAC.L ? `연습 ${PRAC.L.id}` : (k => k === undefined ? '마무리 뒤' : GROUP_TITLE[k])(STAGES.find(k => !stageDone(k))) }); if (S.mlog.length > 200) S.mlog.shift();   // 실수 기록 (실수 버튼으로 본다)
   const w = $('#boardWrap'); w.classList.remove('shake'); void w.offsetWidth; w.classList.add('shake');
   renderHeader(); save(); if (MODE === 'prac' && !(PRAC.L && PRAC.L.lenient)) pracFail(msg);   // 연습: 틀린 자리, 틀린 동작은 바로 실패 (고장 찾기는 실패 없음)
 }
@@ -2706,7 +2718,7 @@ function effects() {
   if (S.gloves) S.gloveOnDone = true;
   if (S.gloveOnDone && !S.gloveOffDone && nHoles() === 29 && !S.gloves) S.gloveOffDone = true;
 }
-function commit() { invalidateWireGeometry(); closeDevicePanel(); clearInspection(); effects(); buildTerms(); if (MODE === 'free' && SET.autoDress) autoDressNew(); if (MODE === 'prac') pracAfter(); renderAll(); save(); if (MODE !== 'prac') stepToasts(); if (UI.tieLost) { say(`전선 길이 바뀌어서 케이블 타이 ${UI.tieLost}개가 풀렸어요. 다시 묶어요`, 'info'); UI.tieLost = 0; } if (MODE !== 'prac') maybeComplete(); }
+function commit() { if (MODE === 'fault' && S.fault.status === 'win' && S.fault.lastCheck?.key !== judgeKey()) { S.fault.status = 'run'; S.finished = false; } invalidateWireGeometry(); closeDevicePanel(); clearInspection(); effects(); buildTerms(); if (MODE === 'free' && SET.autoDress) autoDressNew(); if (MODE === 'prac') pracAfter(); renderAll(); save(); if (MODE === 'free' || MODE === 'exam') stepToasts(); if (UI.tieLost) { say(`전선 길이 바뀌어서 케이블 타이 ${UI.tieLost}개가 풀렸어요. 다시 묶어요`, 'info'); UI.tieLost = 0; } if (MODE === 'free' || MODE === 'exam') maybeComplete(); }
 function stepToasts() {
   const st = STAGES.flatMap(k => stepsFor(k)), d = st.map(s => s.done);
   if (S.exam && S.exam.on) { UI.lastDone = d; return; }
@@ -2770,6 +2782,7 @@ function fillGroup(k) {
   if (k === 5) { if (!stageDone(4)) fillGroup(4); fillStage(5); }
 }
 function askFill(k) {
+  if (MODE === 'fault') return say('고장 실습에서는 직접 고쳐요. 막히면 힌트를 열어 봐요.', 'info');
   if (S.exam && S.exam.on) return say('시험 모드에서는 예시 채우기를 쓸 수 없어요', 'info');
   confirmBox(`'${GROUP_TITLE[k]}' 작업을 예시대로 채울까요? 그 작업은 건너뛰고 다른 작업만 연습할 때 써요. 예시 채우기를 쓰면 시간점수는 없어요.`, () => { snap(); fillGroup(k); S.usedFill = true; UI.carry = null; UI.pending = null; commit(); });
 }
@@ -3726,12 +3739,12 @@ function addWire(a, b) {
 /* ---------- 그리기 ---------- */
 function renderAll() { if (MODE === 'prac') pracNext(); renderHeader(); renderTools(); renderTray(); renderSteps(); renderWorld(); renderOver(); opChkUI(); pracCapUI(); pracDia(); }
 function renderHeader() {
-  const exOn = !!(S.exam && S.exam.on), pr = MODE === 'prac' && PRAC.L;
-  $('#stages').innerHTML = pr ? `<span class="exam-badge prac">연습 ${PRAC.L.id} · ${esc(PRAC.L.t)}</span>` : exOn ? '<span class="exam-badge">시험 모드 · 3시간 30분</span>' : GROUP_TITLE.map((n, i) => { const st = stepsFor(i), d = st.filter(s => s.done).length, ok = d === st.length;
+  const exOn = !!(S.exam && S.exam.on), pr = MODE === 'prac' && PRAC.L, fd = MODE === 'fault';
+  $('#stages').innerHTML = fd ? '<span class="exam-badge prac">실전 고장 실습</span>' : pr ? `<span class="exam-badge prac">연습 ${PRAC.L.id} · ${esc(PRAC.L.t)}</span>` : exOn ? '<span class="exam-badge">시험 모드 · 3시간 30분</span>' : GROUP_TITLE.map((n, i) => { const st = stepsFor(i), d = st.filter(s => s.done).length, ok = d === st.length;
     return `<button class="stg${ok ? ' ok' : ''}" data-sec="${i}" title="누르면 이 작업을 바로 해요"><span class="sn">${ok ? '✓' : i + 1}</span>${n} <span class="sc">${d}/${st.length}</span></button>`; }).join('');
   const be = $('#btnExam'); be.hidden = !exOn; be.classList.toggle('on', exOn);
-  $('#btnScore').hidden = exOn || !!pr; $('#btnDemo').hidden = exOn || !!pr; $('#btnGuide').hidden = !!pr; $('#circHead [data-c="xp"]').hidden = exOn;   // 시험 중에는 회로 해설 없음
-  $('#btnReset').textContent = pr ? '다시 하기' : exOn ? '새 시험' : '처음부터';
+  $('#btnScore').hidden = exOn || !!pr || fd; $('#btnDemo').hidden = exOn || !!pr || fd; $('#btnGuide').hidden = !!pr || fd; $('#circHead [data-c="xp"]').hidden = exOn;   // 시험 중에는 회로 해설 없음
+  $('#btnReset').textContent = fd ? '같은 고장 다시' : pr ? '다시 하기' : exOn ? '새 시험' : '처음부터';
   $('#miss').textContent = `실수 ${S.mistakes.reduce((a, b) => a + b, 0)}`;
   const g = $('#btnGuide'); g.textContent = S.guide ? '가이드 켬' : '가이드 끔'; g.classList.toggle('on', S.guide); g.setAttribute('aria-pressed', S.guide); g.disabled = exOn;
   const fl = $('#btnFlip'); fl.textContent = S.opBack ? '조작판: 뒷면' : '조작판: 앞면'; fl.classList.toggle('on', S.opBack);
@@ -3740,7 +3753,7 @@ function renderHeader() {
 function renderClock() {
   const exOn = !!(S.exam && S.exam.on), left = EXAM_LIMIT - S.elapsed, el = $('#clock');
   el.textContent = exOn ? '남은 ' + fmt(Math.max(0, left)) : fmt(S.elapsed); el.classList.toggle('late', exOn && left < 30 * 60000);
-  el.title = exOn ? '시험 모드 남은 시간 (끝나기 30분 전까지 끝내면 시간점수 0.1점)' : MODE === 'prac' ? '이번 연습 시간' : '작업 시간';
+  el.title = exOn ? '시험 모드 남은 시간 (끝나기 30분 전까지 끝내면 시간점수 0.1점)' : MODE === 'fault' ? '이번 고장 실습 시간' : MODE === 'prac' ? '이번 연습 시간' : '작업 시간';
 }
 function renderTools() {
   const rec = S.guide ? recommendedTool() : '';
@@ -3800,6 +3813,7 @@ function renderDemoSteps() {   // 시연 보기: 할 일을 체크박스로. 시
 function renderSteps() {
   if (DEMO.on) return renderDemoSteps();
   if (MODE === 'prac' && PRAC.L) return renderPracSide();
+  if (MODE === 'fault') return renderFaultSide();
   if (S.exam && S.exam.on) {
     $('#stepsTitle').textContent = '시험 모드';
     $('#steps').innerHTML = '<li class="examcard"><b>할 일 목록과 정답 확인은 숨겨요.</b> 과제지대로 조립하고, 작업판의 MCB, 조작판, 컨베이어로 직접 동작을 확인해요. 다 끝나면 위의 <b>제출하고 채점</b>을 눌러요. 3시간 30분이 지나면 자동으로 제출돼요.</li>';
@@ -4057,6 +4071,7 @@ function renderOver() {
   if (MODE === 'prac' && PRAC.L && PRAC.L.wg !== undefined) pracDia();   // 단자 하나를 누르면 그 선이 빨강
   if(UI.wiringError){const {a,b}=UI.wiringError,A=TERM[a],B=TERM[b];s+='<g id="wiringErrorMarks" pointer-events="none">';for(const t of [A,B].filter(Boolean))s+=C(t.x,t.y,Math.max(7,8*px1),`fill="none" stroke="#ff6666" stroke-width="${2*px1}"`);if(A&&B)s+=LN(A.x,A.y,B.x,B.y,'stroke="#ff6666" stroke-width="2" stroke-dasharray="5 4"');s+='</g>';}
   s += inspectionOverlay();
+  s += fdOverlay();
   s += bigLabels(px1);   // 멀리서도 단자 이름
   if (SET.termName && p && UI.overBoard && !(UI.gesture && UI.gesture.moved)) { const t = termNear(p, tolMM(12)); if (t) s += hoverTag(p, wireName(t.id), px1); }
   setMarkup(gOver,s); lensUpdate();
@@ -4080,7 +4095,8 @@ function statusText() {
 
 
 /* ---------- 채점 위치 찾기 · 설치된 단자 검색 · 실제 배선 추적 ---------- */
-function clearInspection() { UI.inspection = null; }
+function clearInspection() {
+  UI.faultFocus = null; UI.inspection = null; }
 function closeTermSearch() { $('#termSearch').hidden = true; $('#btnFind').setAttribute('aria-expanded', 'false'); }
 function termCatalog() {
   return withAllTerms(() => TERMS.map(t => {
@@ -4474,7 +4490,7 @@ function showWireList() {
   const rows = wireRows();
   let h = `<h2>배선 목록</h2><p class="muted">꽂은 순서대로 총 ${rows.length}개예요. 예시와 다른 연결도 실제 동작이 맞으면 통과해요. 옮겨 꽂은 선은 처음 순서 자리에 바뀐 위치로 나와요.</p>`;
   h += rows.length ? `<ol class="wl">${rows.map(r => `<li><span class="wl-n">${r.n}</span><span class="wl-t">${esc(r.an)} → ${esc(r.bn)}</span><span class="wl-m">${r.t !== undefined ? fmt(r.t) : ''}</span></li>`).join('')}</ol>` : '<p>아직 꽂은 전선이 없어요.</p>';
-  h += `<div class="actions">${rows.length ? `<button class="primary" data-act="wl-copy">글자 복사</button>${DL ? '<button data-act="wl-txt">TXT 저장</button><button data-act="wl-csv">CSV 저장</button>' : ''}` : ''}<button data-act="wl-import">불러오기</button><button data-act="close">닫기</button></div>`;
+  h += `<div class="actions">${rows.length ? `<button class="primary" data-act="wl-copy">글자 복사</button>${DL ? '<button data-act="wl-txt">TXT 저장</button><button data-act="wl-csv">CSV 저장</button>' : ''}` : ''}${MODE === 'fault' ? '' : '<button data-act="wl-import">불러오기</button>'}<button data-act="close">닫기</button></div>`;
   openModal(h);
 }
 async function copyText(txt) {
@@ -4483,6 +4499,7 @@ async function copyText(txt) {
   let ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; } ta.remove(); return ok;
 }
 async function wireAct(a) {
+  if (MODE === 'fault' && ['wl-import', 'wl-go'].includes(a)) return;
   if (a === 'wl-copy') {
     const txt = wireText(wireRows());
     if (await copyText(txt)) return say('배선 목록을 복사했어요. 메모장이나 카톡에 붙여 넣어요', 'ok');
@@ -4778,6 +4795,7 @@ $('#zOp').addEventListener('click', () => fitOp());
 $('#zConv').addEventListener('click', () => fitConv());
 $('#tray').addEventListener('toggle', e => { const d = e.target; if (!d.dataset || !d.dataset.g) return; if (d.open) UI.trayOpen.add(d.dataset.g); else UI.trayOpen.delete(d.dataset.g); }, true);
 document.querySelector('.side').addEventListener('click', e => {
+  const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd);
   const b = e.target.closest('[data-act]'); if (!b) return;
   if (b.dataset.act === 'fill') return askFill(+b.dataset.k);
   if (b.dataset.act.startsWith('pr-')) {   // 연습 칸 버튼
@@ -4815,13 +4833,14 @@ $('#btnWires').addEventListener('click', showWireList);
 $('#modal').addEventListener('change', e => { const c = e.target.closest && e.target.closest('[data-self]'); if (!c) return; S.selfChk = S.selfChk || {}; S.selfChk[c.dataset.self] = c.checked; save(); const card = $('#modalCard'), top = card.scrollTop; showScore(); card.scrollTop = top; });
 $('#btnGuide').addEventListener('click', () => { if (S.exam && S.exam.on) return say('시험 모드에서는 가이드를 켤 수 없어요', 'info'); S.guide = !S.guide; save(); say(S.guide ? '가이드를 켰어요. 자리와 순서를 알려줘요' : '가이드를 껐어요. 순서와 자리를 스스로 기억해서 해봐요', 'info'); renderAll(); });
 $('#btnUndo').addEventListener('click', undo);
-$('#btnReset').addEventListener('click', () => MODE === 'prac' && PRAC.L ? pracStart(PRAC.L.id) : S.exam && S.exam.on ? startExam() : confirmBox('처음부터 다시 할까요? 지금 작업은 지워져요.', () => jumpTo(0)));
+$('#btnReset').addEventListener('click', () => MODE === 'fault' ? fdRetry() : MODE === 'prac' && PRAC.L ? pracStart(PRAC.L.id) : S.exam && S.exam.on ? startExam() : confirmBox('처음부터 다시 할까요? 지금 작업은 지워져요.', () => jumpTo(0)));
 $('#zIn').addEventListener('click', () => zoomCenter(1 / 1.35));
 $('#zOut').addEventListener('click', () => zoomCenter(1.35));
 $('#zFit').addEventListener('click', fit);
 $('#chooser').addEventListener('click', e => { const b = e.target.closest('[data-lab]'); if (b && UI.chooserZone) applyLabel(UI.chooserZone, b.dataset.lab); });
 document.addEventListener('pointerdown', e => { if (!$('#chooser').hidden && !e.target.closest('#chooser')) closeChooser(); }, true);
 $('#modal').addEventListener('click', e => {
+  const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd);
   const b = e.target.closest('[data-act]');
   if (!b) { if (e.target === $('#modal') && UI.modalClosable) closeModal(); return; }
   const a = b.dataset.act;
@@ -5065,7 +5084,7 @@ function meterTap(p) {
   say(`테스터 ${v.txt} (${LIVE.inp.mcb ? '전압' : '도통, MCB OFF'}): ${wireName(M.a)} ↔ ${wireName(M.b)}`, v.k === 'off' || v.k === 'zero' ? 'info' : 'ok'); renderOver();
 }
 const wD = pts => 'M' + pts.map(q => F(q[0]) + ' ' + F(q[1])).join('L');
-const recentOn = () => (MODE === 'free' || MODE === 'exam') && !DEMO.on && ['wire', 'cut', 'meter'].includes(S.tool);
+const recentOn = () => (MODE === 'free' || MODE === 'exam' || MODE === 'fault') && !DEMO.on && ['wire', 'cut', 'meter'].includes(S.tool);
 function recentWires() {   // 꽂은 순번(k)이 가장 큰 두 선 [방금, 그 전]. 설정에서 끈 쪽은 null
   if (!recentOn()) return [];
   const ws = S.wires.filter(w => w.k).sort((p, q) => q.k - p.k).slice(0, 2);
@@ -5278,6 +5297,7 @@ function demoUI() {   // 자막: 지금 몇 단계 몇 번째, 무엇을 어디�
   const b = $('#btnDemo'); b.textContent = DEMO.on ? '시연 닫기' : '시연 보기'; b.classList.toggle('on', DEMO.on);
 }
 function demoOpen() {
+  if (MODE === 'fault') return say('고장 실습은 직접 측정하고 고쳐요.', 'info');
   if (S.exam && S.exam.on) return say('시험 모드에서는 시연을 볼 수 없어요', 'info');
   if (TZ.id) tzClose();
   UI.carry = null; UI.pending = null; UI.replug = null;
@@ -5408,7 +5428,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.13.0', date: '2026.11.10', notes: ['3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.14.0', date: '2026.11.10', notes: ['실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -5472,13 +5492,13 @@ function setMode(m, st) {   // 모드와 그 모드의 작업 상태로 바꾼�
   if (DEMO.on) demoClose(); if (TZ.id) tzClose();
   closeDevicePanel(); clearInspection(); closeTermSearch();
   clearWiringIssue();MODE = m; S = st; fixState(); document.body.dataset.mode = m; if (m !== 'prac') PRAC.L = null;
-  undoStack = []; UI.carry = null; UI.pending = null; UI.replug = null; UI.peek = false; UI.pickKey = null; UI.meter = null; liveReset(); closeModal();
+  undoStack = []; UI.carry = null; UI.pending = null; UI.replug = null; UI.peek = false; UI.faultFocus = null; UI.pickKey = null; UI.meter = null; liveReset(); closeModal();
   buildTerms(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(x => x.done); renderAll(); hideHome();
   requestAnimationFrame(() => { fit(); renderOver(); });
 }
 function goFree() {
   if (MODE === 'free') return hideHome();
-  if (MODE === 'exam') save();
+  if (MODE !== 'prac') save();
   setMode('free', loadKey(STORE) || newState()); say('자유 모드: 순서는 자유예요. 하던 작업을 이어서 해요', 'info');
 }
 function goExam() {
@@ -5933,7 +5953,8 @@ function pracWin() {
       + (N ? `<p class="muted">${prev === undefined ? '새로 열렸어요' : '다음'}: ${N.id} ${esc(N.t)}${N.ch !== L.ch ? ` · 새 챕터 ${N.ch + 1}. ${esc(PR_CH[N.ch])}` : ''}</p>` : '<p class="muted">모든 연습을 마쳤어요! 이제 자유 모드나 시험 모드로 처음부터 끝까지 해 봐요.</p>')
       + `<div class="actions">${N ? '<button class="primary" data-act="p-next">다음 연습</button>' : '<button class="primary" data-act="p-home">메인으로</button>'}<button data-act="p-retry">다시 하기</button><button data-act="p-list">연습 목록</button></div></div>`, false); }, 700);
 }
-function pracCapUI() {   // 판 위 안내: 연습 번호, 진행, 다음에 할 것
+function pracCapUI() {
+  if (MODE === 'fault' && !DEMO.on) return faultCapUI();   // 판 위 안내: 연습 번호, 진행, 다음에 할 것
   const el = $('#pracCap'), L = PRAC.L;
   if (MODE !== 'prac' || !L || DEMO.on) { el.hidden = true; $('#boardWrap').style.removeProperty('--toast-top'); return; }
   const [n, m] = L.prog(), c = PRAC.cur || (PRAC.state === 'win' ? { tx: '성공!' } : PRAC.state === 'fail' ? { tx: '실패' } : {});
@@ -5949,6 +5970,155 @@ function renderPracSide() {   // 오른쪽 칸: 이 챕터의 레슨, 다음에 
     + `<div class="pr-btns">${L.btn && PRAC.state === 'run' ? `<button class="primary" data-act="pr-${L.btn[0]}">${L.btn[1]}</button>` : ''}${L.side ? L.side() : ''}${L.wg !== undefined ? '<button data-act="pr-xp">회로 해설</button>' : ''}<button data-act="pr-see">자리 보기</button><button data-act="pr-retry">다시 하기</button><button data-act="pr-list">연습 목록</button></div>`;
 }
 
+/* --- 실전 고장 실습: 예시 정답 대신 실제 회로 동작으로 판정 --- */
+const FD_SOURCE = LESSONS.filter(l => l.fault).map(l => l.fault);
+// Each pair has independently observable failures; a power loss must not mask
+// the other fault. Regression tests execute every pair and both partial repairs.
+const FD_PAIRS = [[1,2],[1,5],[1,6],[1,7],[1,8],[1,9],[2,3],[2,4],[3,5],[3,6],[3,7],[3,8],[3,9],[4,5],[4,6],[4,7],[4,8],[4,9],[6,9]];
+const FD_HINTS = [
+  ['교류 전원에서 SMPS까지 전기가 오는지 확인해요.', 'MCB를 내리고 FS1 위 T1–아래 B1의 도통을 재요. 정상 퓨즈라면 이어져 있어야 해요.'],
+  ['PLC 자체 전원이 들어오는 경로를 확인해요.', 'SS 자동에서 PB1로 켠 뒤 PLC L–N 전압을 재요. 전원을 내린 뒤 R3 5번–PLC N의 연결을 확인해요.'],
+  ['조작판의 +24V 공통 전원 경로를 확인해요.', 'MCB를 내리고 조작판 뒷면 SS 4번–2번의 도통을 재요. 이 둘을 잇는 공통선이 있는지 확인해요.'],
+  ['버튼에서 손을 떼도 릴레이를 유지하는 경로를 확인해요.', 'MCB를 내리고 R1 6번–R3 6번의 도통을 재요. 자기유지 접점 윗단까지 선이 이어져야 해요.'],
+  ['자동 운전을 끄는 R2 릴레이의 코일 경로를 확인해요.', 'PB1로 켠 뒤 다시 누르는 동안 R2 14번–13번 전압을 재요. R2가 붙어야 유지 회로가 풀려요.'],
+  ['모터 운전 신호와 GL 표시등으로 갈라지는 경로를 확인해요.', 'MCB를 내리고 R4 14번–TB 14번 위의 도통을 재요. 모터가 돌아도 표시등으로 가는 선은 따로 필요해요.'],
+  ['수동 정회전의 센서 신호가 T1까지 오는지 확인해요.', '수동에서 팩을 S1에 놓고 T1 7번–2번 전압을 재요. 전원을 내리고 R6 12번–T1 7번 연결을 확인해요.'],
+  ['컨베이어의 정회전·역회전 명령선이 어디에 꽂혔는지 확인해요.', 'MCB를 내리고 FR·BR 선 끝을 따라가요. 이 실습의 내부 배선은 TB 24번 정회전, 25번 역회전이에요. 다른 번호를 써도 실제 신호가 맞으면 돼요.'],
+  ['반대쪽 센서에 닿았을 때 운전을 끊는 경로를 확인해요.', 'MCB를 내리고 R5 10번–T3 1번의 도통을 재요. 정지 신호가 T3·R6 쪽으로 이어져야 해요.'],
+  ['센서에 닿은 뒤 정지하기까지의 타이머 설정을 확인해요.', 'T3에 마우스를 올리고 Tab으로 다이얼을 열어요. 정지 지연 t2는 0초 초과, 1초 이내예요.']
+];
+const fdPool = level => level === 2 ? FD_PAIRS : FD_SOURCE.map((_, i) => [i]);
+const fdKey = ids => ids.join('-');
+let FD_DECK = null;   // Keep the current bag usable even if browser storage is blocked.
+function fdRead() {
+  const st = MODE === 'fault' ? S : loadKey(STORE_FAULT), f = st && st.fault;
+  if (!f || f.v !== 1 || ![1,2].includes(f.level) || !Array.isArray(f.ids) || !fdPool(f.level).some(ids => fdKey(ids) === fdKey(f.ids)) || !Array.isArray(f.hints) || f.hints.length !== f.ids.length || !f.hints.every(n => Number.isInteger(n) && n >= 0 && n <= 3) || !['run','win'].includes(f.status) || !Array.isArray(f.symptoms) || !f.symptoms.every(t => typeof t === 'string') || !Number.isInteger(f.attempts) || f.attempts < 0 || (f.lastCheck && (!Array.isArray(f.lastCheck.bad) || typeof f.lastCheck.key !== 'string')) || !Array.isArray(st.wires) || !Array.isArray(st.inst) || !st.op || !st.fr || !st.cables) return null;
+  return st;
+}
+function fdDraw(level) {
+  const pool = fdPool(level), allowed = pool.map(fdKey);
+  if (!FD_DECK) {
+    try { FD_DECK = JSON.parse(localStorage.getItem(STORE_FAULT + '.deck') || '{}'); } catch (_) { /* Start a fresh bag. */ }
+    if (!FD_DECK || typeof FD_DECK !== 'object' || Array.isArray(FD_DECK)) FD_DECK = {};
+  }
+  const deck = FD_DECK;
+  const key = String(level), last = deck['last' + key];
+  let bag = deck[key];
+  if (!Array.isArray(bag) || new Set(bag).size !== bag.length || !bag.every(k => allowed.includes(k))) bag = [];
+  if (!bag.length) {
+    bag = allowed.slice();
+    for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+    if (bag[0] === last) [bag[0], bag[1]] = [bag[1], bag[0]];
+  }
+  const next = bag.shift(); deck[key] = bag; deck['last' + key] = next;
+  try { localStorage.setItem(STORE_FAULT + '.deck', JSON.stringify(deck)); } catch (_) { /* Practice still works without storage. */ }
+  return pool.find(ids => fdKey(ids) === next).slice();
+}
+function fdReport() {
+  const checks = getChecks(), judge = getJudge();
+  return { bad: [...CHECKS.filter(c => !checks.res[c.id].ok).map(c => ({ title: c.title, why: checks.res[c.id].why[0] || '' })), ...JUDGE.filter(c => !judge.res[c.id].ok).map(c => ({ title: c.title, why: judge.res[c.id].why[0] || '' }))], judge };
+}
+function fdBuild(ids) {
+  const keep = S;
+  try {
+    S = newState(false);
+    for (let k = 0; k < 5; k++) { fillStage(k); buildTerms(); }
+    for (const id of ids) FD_SOURCE[id].apply();
+    S.judge = null; S.usedFill = true; S.opBack = false; buildTerms();
+    const broken = pClone(S), report = fdReport();
+    const symptoms = [...new Set(JUDGE.filter(c => !report.judge.res[c.id].ok).map(c => report.judge.res[c.id].why[0]).filter(t => t && !t.startsWith('앞 항목')))];
+    if (!report.bad.length || !symptoms.length) return null;
+    // Verify the generated case can be repaired before presenting it.
+    for (const id of ids) FD_SOURCE[id].fix();
+    buildTerms();
+    if (fdReport().bad.length) return null;
+    broken.fault = { v: 1, level: ids.length, ids: ids.slice(), hints: ids.map(() => 0), status: 'run', attempts: 0, symptoms: symptoms.slice(0, 5), lastCheck: null };
+    return broken;
+  } finally { S = keep; buildTerms(); }
+}
+function fdEnter(st) {
+  if (MODE !== 'prac') save();
+  setMode('fault', pClone(st));
+  UI.trayOpen.add('cable'); renderTray(); save();
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (MODE === 'fault') fitAvoid(P_V.live); }));
+  say('실전 고장 실습: MCB를 올려 증상을 확인하고, 테스터(M)와 회로도로 원인을 찾아요.', 'info');
+}
+function fdStart(level, confirmed = false) {
+  if (![1,2].includes(level)) return;
+  const old = fdRead();
+  if (!confirmed && old && old.fault.status === 'run') return confirmBox('진행 중인 고장 실습을 새 실습으로 바꿀까요? 자유·시험 작업과 연습 기록은 그대로예요.', () => fdStart(level, true));
+  const st = fdBuild(fdDraw(level));
+  if (!st) return say('실습을 준비하지 못했어요. 다시 시작해 주세요.', 'err');
+  fdEnter(st);
+}
+function fdResume() {
+  const st = fdRead();
+  if (!st) return say('이어 할 실습이 없어요. 입문 또는 도전을 골라 시작해요.', 'info');
+  if (MODE === 'fault') { hideHome(); return; }
+  fdEnter(st);
+}
+function fdRetry(confirmed = false) {
+  if (MODE !== 'fault') return;
+  if (!confirmed) return confirmBox('같은 고장을 처음 상태로 되돌릴까요? 이번 실습에서 고친 내용은 초기화돼요.', () => fdRetry(true));
+  const st = fdBuild(S.fault.ids);
+  if (st) fdEnter(st);
+}
+function fdHint(index) {
+  if (MODE !== 'fault' || S.fault.status !== 'run' || !Number.isInteger(index) || index < 0 || index >= S.fault.ids.length) return;
+  S.fault.hints[index] = Math.min(3, S.fault.hints[index] + 1); save(); renderSteps();
+}
+function fdLocate(index) {
+  if (MODE !== 'fault' || !Number.isInteger(index) || !(S.fault.hints[index] >= 2)) return;
+  const f = FD_SOURCE[S.fault.ids[index]];
+  if (f.op && !S.opBack) { S.opBack = true; buildTerms(); renderWorld(); }
+  UI.faultFocus = index; renderOver();
+  const box = f.box ? f.box() : f.where && span2(...f.where);
+  if (box) fitAvoid(box);
+  save();
+}
+function fdOverlay() {
+  if (MODE !== 'fault' || UI.faultFocus == null || !(S.fault.hints[UI.faultFocus] >= 2)) return '';
+  const f = FD_SOURCE[S.fault.ids[UI.faultFocus]];
+  return '<g id="faultHintMarks">' + pracHL(f.box ? { box: f.box() } : { rings: f.where.map(id => tRing(id, 6)).filter(Boolean) }) + '</g>';
+}
+function fdJudge() {
+  if (MODE !== 'fault' || DEMO.on || S.fault.status !== 'run') return;
+  const report = fdReport(), f = S.fault;
+  f.attempts++; f.lastCheck = { key: judgeKey(), bad: report.bad }; S.judge = { key: judgeKey() };
+  if (!report.bad.length) { f.status = 'win'; S.finished = true; UI.faultFocus = null; }
+  save(); renderAll();
+  if (report.bad.length) return openModal(`<h2>아직 안 되는 동작이 있어요</h2><p>틀려도 실습은 계속돼요. 고장 하나 때문에 여러 동작이 함께 안 될 수 있어요. 결과를 확인하고 다시 측정해 봐요.</p><ul class="pr-jr">${report.bad.map(c => `<li><b>미통과</b><span>${esc(c.title)}${c.why ? `<small>${esc(c.why)}</small>` : ''}</span></li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">계속 찾기</button></div>`);
+  openModal(`<div class="pr-res win"><div class="big">✓</div><h2>고장을 해결했어요!</h2><p>실제 배선·동작 검사 통과 · ${fmt(S.elapsed)} · 검사 ${f.attempts}회${f.hints.some(n => n > 0) ? ' · 힌트 사용' : ' · 힌트 없이 해결'}</p>${f.ids.map(id => `<p class="pr-reveal">${esc(FD_SOURCE[id].reveal)}</p>`).join('')}<div class="actions"><button class="primary" data-fd="next">다른 고장 풀기</button><button data-fd="menu">실습 메뉴</button></div></div>`, false);
+}
+function fdAction(button) {
+  const action = button.dataset.fd;
+  if (action === 'start') return fdStart(Number(button.dataset.level));
+  if (action === 'resume') return fdResume();
+  if (action === 'menu') return showHome('fault');
+  if (action === 'judge') return fdJudge();
+  if (action === 'hint') return fdHint(Number(button.dataset.index));
+  if (action === 'locate') return fdLocate(Number(button.dataset.index));
+  if (action === 'retry') return fdRetry();
+  if (action === 'next' && MODE === 'fault') return fdStart(S.fault.level);
+}
+function renderFaultSide() {
+  const f = S.fault, checked = f.lastCheck && f.lastCheck.key === judgeKey();
+  $('#stepsTitle').textContent = '실전 고장 실습';
+  $('#steps').innerHTML = `<li class="examcard"><b>${f.level === 1 ? '입문 · 고장 1개' : '도전 · 고장 2개'}</b><p>처음 확인된 증상이에요. 어디가 고장인지 직접 찾아요.</p></li>` + f.symptoms.map((t,i) => `<li class="todo"><span class="no">증상 ${i+1}</span><span class="tt">${esc(t)}</span></li>`).join('');
+  $('#nextWrap').innerHTML = `<div class="pr-card"><b>${f.status === 'win' ? '해결 완료' : '측정 → 수리 → 동작 검사'}</b><p>MCB와 조작판·팩으로 동작을 확인해요. 테스터(M)는 단자 두 곳을 차례로 눌러요. MCB ON은 전압, OFF는 도통이에요.</p><p>틀려도 실패하지 않아요. 전선을 고칠 때는 MCB를 내리고 작업해요.</p>${f.lastCheck ? `<p>${f.status === 'win' ? '배선·동작 검사 통과' : checked ? `마지막 검사: ${f.lastCheck.bad.length}개 항목 미통과` : '배선을 수정했어요. 동작 검사를 다시 받아요.'} · 검사 ${f.attempts}회</p>` : ''}</div>`
+    + `<div class="pr-btns">${f.status === 'run' ? '<button class="primary" data-fd="judge">동작 검사 받기</button>' : '<button class="primary" data-fd="next">다른 고장 풀기</button>'}<button data-fd="retry">같은 고장 다시</button><button data-fd="menu">실습 메뉴</button></div>`
+    + (f.status === 'run' ? f.ids.map((id,i) => `<div class="pr-card fault-hint"><b>막힐 때만 힌트 ${f.ids.length > 1 ? i+1 : ''}</b><p>범위 → 측정할 곳 → 원인 순서로 열려요.</p>${f.hints[i] >= 1 ? `<p>${esc(FD_HINTS[id][0])}</p>` : ''}${f.hints[i] >= 2 ? `<p>${esc(FD_HINTS[id][1])}</p><button data-fd="locate" data-index="${i}">측정 위치 보기</button>` : ''}${f.hints[i] >= 3 ? `<p class="pr-reveal">${esc(FD_SOURCE[id].reveal)}</p>` : ''}<button data-fd="hint" data-index="${i}"${f.hints[i] >= 3 ? ' disabled' : ''}>${['범위 힌트 보기','측정 힌트 보기','원인 보기','모두 확인했어요'][f.hints[i]]}</button></div>`).join('') : '');
+}
+function faultCapUI() {
+  const el = $('#pracCap'), f = S.fault;
+  el.innerHTML = `<div class="dc-h"><b>실전 고장 실습</b><span>${f.level === 1 ? '입문 · 1개' : '도전 · 2개'}</span></div><div class="dc-t">${f.status === 'win' ? '해결 완료!' : '증상을 확인하고 원인을 찾아 고쳐요'}</div><div class="dc-s">오른쪽 증상 확인 · M 테스터 · 전선 수정 전 MCB OFF</div>${f.status === 'run' ? '<button data-fd="judge">동작 검사 받기</button>' : '<button data-fd="next">다른 고장 풀기</button>'}`;
+  el.hidden = false; $('#boardWrap').style.setProperty('--toast-top', (el.offsetHeight + 18) + 'px');
+}
+function homeFaultHTML() {
+  const st = fdRead();
+  return `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>실전 고장 실습</h1></div><p class="hm-sub">완성된 회로에 고장이 숨어 있어요. 증상을 보고, 테스터로 재고, 직접 고쳐요.</p>${st ? `<div class="st-card fault-resume"><b>${st.fault.status === 'win' ? '마지막 실습 해결 완료' : '이어 할 실습이 있어요'}</b><p>${st.fault.level === 1 ? '입문 · 고장 1개' : '도전 · 고장 2개'} · ${fmt(st.elapsed)} · 검사 ${st.fault.attempts}회</p><button class="hm-go" data-fd="resume">${st.fault.status === 'win' ? '해결한 작업 보기' : '실습 이어 하기'}</button></div>` : ''}<div class="fault-levels"><div class="st-card"><h2>입문 · 고장 1개</h2><p>10가지 고장 중 하나를 뽑아요.<br>처음이라면 여기서 시작해요.</p><button class="hm-go" data-fd="start" data-level="1">입문 시작</button></div><div class="st-card"><h2>도전 · 고장 2개</h2><p>서로 증상을 가리지 않는 두 고장을 뽑아요.<br>하나를 고쳐도 다른 고장이 남아 있을 수 있어요.</p><button class="hm-go" data-fd="start" data-level="2">도전 시작</button></div></div><div class="st-card fault-resume"><h2>이렇게 하면 돼요</h2><ol><li>오른쪽 증상을 읽고 MCB·조작판·팩으로 확인해요.</li><li>회로도를 보고 테스터(M)로 단자를 측정해요.</li><li>MCB를 내리고 배선·퓨즈·타이머를 고쳐요.</li><li>동작 검사를 받아요. 막히면 힌트를 한 단계씩 열어요.</li></ol><p>자유·시험 작업, 연습 통과 기록은 따로 보관해요. 실습은 이 브라우저에 자동 저장돼요.</p></div></div>`;
+}
+
 /* --- 메인 화면 --- */
 const HM_IC = {
   prac: '<path d="M3 20h5v-5h5v-5h5V5h3"/><path d="M17 3l4 2-4 2"/>',
@@ -5956,6 +6126,7 @@ const HM_IC = {
   exam: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 2.2M9.5 2.5h5M12 2.5V6M18.5 6.5l1.5-1.5"/>',
   strip: '<path d="M3 12h7"/><path d="M10 10.5h4.5v3H10z"/><path d="M14.5 12H21" stroke-dasharray="1.5 1.5"/><path d="M7 5l3 4M7 19l3-4"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.4 9.3a2.7 2.7 0 1 1 3.7 2.5c-.7.3-1.1.9-1.1 1.6v.7"/><circle cx="12" cy="17.3" r=".7" fill="currentColor"/>',
+  fault: '<circle cx="10" cy="10" r="6"/><path d="m14.5 14.5 6 6M10 6v5M10 13v1"/>',
   play: '<path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/>'
 };
 const LOCK_IC = '<svg class="lk" viewBox="0 0 24 24" aria-label="잠김"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -6051,6 +6222,7 @@ function homeMainHTML() {
     + `<button class="hm-card exam" data-home="exam">${hmIc('exam')}<b>시험 모드</b><p>가이드 없이 실제 시험처럼. 제출하면 과제지 기준 채점</p><small>${exTxt}</small></button>`
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
+    + `<button class="hm-card fault" data-home="fault">${hmIc('fault')}<b>실전 고장 실습</b><p>증상만 보고 테스터로 찾아 고쳐요. 무작위 고장 1개 또는 2개</p><small>측정 → 수리 → 동작 검사</small></button>`
     + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
@@ -6079,13 +6251,13 @@ function homeHelpHTML() {
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
     + sec('접점', '기구 해설', '<ul><li><b>기구 해설(I)</b> 도구를 들고 기구를 누르면 하는 일, 현재 상태, 쉬운 그림이 나와요. 창을 연 채 손 도구로 버튼·센서를 조작하면 상태가 바뀌어요.</li><li>릴레이는 길이 바뀌는 그림으로, 타이머는 기다리는 순서와 남은 시간으로 배워요. 번호가 필요할 때만 <b>단자 번호·자세한 정보</b>를 펴세요.</li><li>시험 중에는 기구 해설을 숨겨요. 제출 후 다시 볼 수 있어요.</li></ul>')
     + sec('찾기', '단자 검색과 채점 복습', '<ul><li>위의 <b>단자 검색</b>에서 R3, PLC P20, TB 1번 또는 부저 같은 이름을 찾아요. 설치한 기구의 단자만 나와요.</li><li><b>위치</b>를 누르면 그 단자를 확대해요. <b>연결 추적</b>은 꽂은 전선과 고정 공통선으로 이어진 단자들을 표시해요. 접점 상태와 전압은 테스터로 확인해요.</li><li>자유 모드나 시험 제출 뒤 <b>채점표 → 관련 위치 보기</b>로 감점된 항목의 부품·단자를 확인해요. 강조는 Esc 또는 단자 검색의 <b>강조 지우기</b>로 지워요.</li></ul>')
-    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>자유</b>: 순서 자유. 예시 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 예시 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
+    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>실전 고장 실습</b>: 메인에서 입문(1개)·도전(2개)을 골라요. 증상만 보고 직접 고치며, 힌트와 동작 검사를 쓸 수 있어요. 자유·시험과 따로 저장돼요.</li><li><b>자유</b>: 순서 자유. 예시 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 예시 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
 }
 function renderHome() {
   const p = UI.homePage || 'main', el = $('#home');
-  el.innerHTML = p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : p === 'strip' ? homeStripHTML() : homeMainHTML();
+  el.innerHTML = p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : p === 'strip' ? homeStripHTML() : p === 'fault' ? homeFaultHTML() : homeMainHTML();
   el.scrollTop = 0; stripTick();
 }
 function showHome(page = 'main') {
@@ -6098,10 +6270,11 @@ function showHome(page = 'main') {
 }
 function hideHome() { $('#home').hidden = true; }
 $('#home').addEventListener('click', e => {
+  const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd);
   const l = e.target.closest('[data-lesson]'); if (l) return pracStart(l.dataset.lesson);
   const b = e.target.closest('[data-home]'); if (!b) return;
   const a = b.dataset.home;
-  if (a === 'main' || a === 'prac' || a === 'help' || a === 'strip') { UI.homePage = a; UI.stripChk = null; renderHome(); return; }
+  if (a === 'main' || a === 'prac' || a === 'help' || a === 'strip' || a === 'fault') { UI.homePage = a; UI.stripChk = null; renderHome(); return; }
   if (a.startsWith('s-')) return stripAct(a, b);
   if (a === 'free') return goFree();
   if (a === 'exam') return goExam();
@@ -6110,7 +6283,7 @@ $('#home').addEventListener('click', e => {
   if (a === 'set') return showSettings();
   if (a === 'ver') openModal(`<h2>현재 버전 ${APP_VER.v}</h2><p class="muted">${APP_VER.date}</p><ul>${APP_VER.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">닫기</button></div>`);
 });
-$('#pracCap').addEventListener('click', e => { const b = e.target.closest('[data-pr]'); if (b && b.dataset.pr === 'judge') takeJudge(); if (b && b.dataset.pr === 'fjudge') faultJudge(); });
+$('#pracCap').addEventListener('click', e => { const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd); const b = e.target.closest('[data-pr]'); if (b && b.dataset.pr === 'judge') takeJudge(); if (b && b.dataset.pr === 'fjudge') faultJudge(); });
 $('#btnHome').addEventListener('click', () => showHome());
 $('#brand').addEventListener('click', () => showHome());
 $('#brand').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showHome(); } });
