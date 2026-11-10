@@ -38,6 +38,17 @@ function createWindow() {
   mainWindow.on('page-title-updated', event=>event.preventDefault());
   mainWindow.once('ready-to-show', ()=>{mainWindow.maximize();mainWindow.show();});
   mainWindow.loadURL(APP_URL).catch(error=>{dialog.showErrorBox('실행하지 못했어요',error.message);app.quit();});
+  // Native close/quit can otherwise end the renderer before beforeunload persists work.
+  const window = mainWindow; let closing = false, savedClose = false;
+  window.on('close',event=>{
+    if(savedClose)return;
+    event.preventDefault();if(closing)return;closing=true;
+    const save = window.webContents.executeJavaScript("typeof save === 'function' && save()").catch(()=>{});
+    Promise.race([save,new Promise(resolve=>{setTimeout(resolve,2000).unref();})])
+      .then(()=>session.defaultSession.flushStorageData()).catch(()=>{}).finally(()=>{
+        savedClose=true;if(!window.isDestroyed())window.close();
+      });
+  });
   mainWindow.on('closed', ()=>{mainWindow=null;});
   createMenu();
 }

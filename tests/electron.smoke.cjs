@@ -39,6 +39,7 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     await page.locator('#btnHome').click();await page.locator('[data-home="fault"]').click();await page.locator('[data-fd="start"][data-level="1"]').click();
     await page.locator('#nextWrap [data-fd="hint"]').click();
     const faultIds=await page.evaluate(()=>S.fault.ids);
+    await page.evaluate(()=>{localStorage.setItem(RANK_PROFILE,'앱랭킹');rankRecord({id:'native-rank',type:'fault',name:rankName(),t:123000});localStorage.setItem(STORE_FAULT+'.cleared',JSON.stringify({'0':true}));});
     await page.locator('#btnHome').click();await page.locator('[data-home="free"]').click();
     assert.equal(await page.evaluate(()=>S.tbLabels[0]),'앱 저장 확인');
     await app.evaluate(({app})=>{
@@ -73,6 +74,10 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     assert.deepEqual(await page.evaluate(()=>S.tbLabels.slice(0,2)),['앱 저장 확인','종료 직전 저장']);
     await page.locator('#btnHome').click();await page.locator('[data-home="fault"]').click();await page.locator('[data-fd="resume"]').click();
     assert.deepEqual(await page.evaluate(()=>S.fault.ids),faultIds);assert.deepEqual(await page.evaluate(()=>S.fault.hints),[1]);
+    await page.locator('#btnHome').click();await page.locator('[data-home="fault"]').click();
+    assert.equal(await page.locator('.fault-case[data-id="0"] b').textContent(),'퓨즈 고장');
+    await page.locator('[data-home="ranks"]').click();await page.locator('[data-rank="tab"][data-type="fault"]').click();
+    assert.match(await page.locator('.rank-table').textContent(),/앱랭킹/);
     if(process.env.TASK1_DESKTOP_SCREENSHOT)await page.screenshot({path:process.env.TASK1_DESKTOP_SCREENSHOT});
     assert.deepEqual(errors,[]);
   }finally{await app?.close();await rm(temp,{recursive:true,force:true,maxRetries:4,retryDelay:500});}

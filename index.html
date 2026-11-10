@@ -617,6 +617,16 @@ button:focus:not(:focus-visible), summary:focus:not(:focus-visible), [tabindex]:
 .tb-label-editor input { display:block; box-sizing:border-box; width:100%; padding:8px; margin-top:4px; background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:5px; font:inherit; }
 body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 .hm-card.fault { --c: #66d5d0; }
+.fault-catalog { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:12px; margin:18px 0; }
+.fault-case { text-align:left; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; cursor:pointer; }
+.fault-case b,.fault-case small { display:block; margin:7px 0; } .fault-case small { color:var(--muted); line-height:1.6; }
+.fault-case.done { border-color:#46d07a; } .fault-case:hover { border-color:var(--accent); }
+.rank-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; } .rank-tabs .on { outline:2px solid var(--accent); }
+.rank-profile { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:18px 0; }
+.rank-profile .hm-go,.rank-tabs .hm-go { color:#261f00; }
+.rank-profile input { min-width:0; width:180px; padding:10px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:var(--panel); }
+.rank-scroll { overflow-x:auto; } .rank-table { width:100%; border-collapse:collapse; text-align:left; white-space:nowrap; }
+.rank-table th,.rank-table td { padding:14px 12px; border-bottom:1px solid var(--line); } .rank-table th { color:var(--muted); font-size:13px; }
 .fault-levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; }
 .fault-levels h2, .fault-resume h2 { margin-top: 0; }
 .fault-levels p, .fault-resume p, .fault-resume li { line-height: 1.7; color: #a8b5bc; }
@@ -3758,7 +3768,7 @@ function renderHeader() {
     return `<button class="stg${ok ? ' ok' : ''}" data-sec="${i}" title="누르면 이 작업을 바로 해요"><span class="sn">${ok ? '✓' : i + 1}</span>${n} <span class="sc">${d}/${st.length}</span></button>`; }).join('');
   const be = $('#btnExam'); be.hidden = !exOn; be.classList.toggle('on', exOn);
   $('#btnScore').hidden = exOn || !!pr || fd; $('#btnDemo').hidden = exOn || !!pr || fd; $('#btnGuide').hidden = !!pr || fd; $('#circHead [data-c="xp"]').hidden = exOn;   // 시험 중에는 회로 해설 없음
-  $('#btnReset').textContent = fd ? '같은 고장 다시' : pr ? '다시 하기' : exOn ? '새 시험' : '처음부터';
+  $('#btnReset').textContent = fd ? fdKind(S.fault)==='rank'?'랭크 처음부터':'같은 고장 다시' : pr ? '다시 하기' : exOn ? '새 시험' : '처음부터';
   $('#miss').textContent = `실수 ${S.mistakes.reduce((a, b) => a + b, 0)}`;
   const g = $('#btnGuide'); g.textContent = S.guide ? '가이드 켬' : '가이드 끔'; g.classList.toggle('on', S.guide); g.setAttribute('aria-pressed', S.guide); g.disabled = exOn;
   const fl = $('#btnFlip'); fl.textContent = S.opBack ? '조작판: 뒷면' : '조작판: 앞면'; fl.classList.toggle('on', S.opBack);
@@ -3766,8 +3776,8 @@ function renderHeader() {
 }
 function renderClock() {
   const exOn = !!(S.exam && S.exam.on), left = EXAM_LIMIT - S.elapsed, el = $('#clock');
-  el.textContent = exOn ? '남은 ' + fmt(Math.max(0, left)) : fmt(S.elapsed); el.classList.toggle('late', exOn && left < 30 * 60000);
-  el.title = exOn ? '시험 모드 남은 시간 (끝나기 30분 전까지 끝내면 시간점수 0.1점)' : MODE === 'fault' ? '이번 고장 실습 시간' : MODE === 'prac' ? '이번 연습 시간' : '작업 시간';
+  el.textContent = MODE==='fault' && S.fault?.rank ? '총 ' + fmt(Math.max(0,(S.fault.rank.finishedAt || Date.now())-S.fault.rank.startedAt)) : exOn ? '남은 ' + fmt(Math.max(0, left)) : fmt(S.elapsed); el.classList.toggle('late', exOn && left < 30 * 60000);
+  el.title = exOn ? '시험 모드 남은 시간 (끝나기 30분 전까지 끝내면 시간점수 0.1점)' : MODE === 'fault' ? S.fault?.rank?'10개 해결까지 총시간 (메뉴·앱 종료 중에도 계속)':'이번 고장 실습 시간' : MODE === 'prac' ? '이번 연습 시간' : '작업 시간';
 }
 function renderTools() {
   const rec = S.guide ? recommendedTool() : '';
@@ -4501,13 +4511,14 @@ function showScore() {
     const cls = r.got >= r.max - 1e-9 ? 'ok' : r.got > 0 ? 'part' : 'zero';
     h += `<div class="sc-row ${cls}"><span class="sc-no">${r.no}</span><span class="sc-t">${esc(r.t)}${r.why && cls !== 'ok' || r.self || r.no === '3-2' || r.no === '4-1' ? `<small>${esc(r.why || '')}</small>` : ''}${!(S.exam && S.exam.on) && !r.self && r.no !== '4-1' && (r.cond === false || (r.max !== undefined && r.got < r.max)) ? `<button class="score-locate" data-act="score-locate" data-no="${esc(r.no)}">관련 위치 보기</button>` : ''}${r.self ? `<label class="sc-self"><input type="checkbox" data-self="${r.self}"${S.selfChk && S.selfChk[r.self] ? ' checked' : ''}> 했어요</label>` : ''}</span><span class="sc-pt">${fmtPt(r.got)}<small>/${fmtPt(r.max)}</small></span></div>`;
   }
-  h += `</div><div class="actions"><button class="primary" data-act="close">닫기</button>${done ? '<button data-act="exam">시험 다시</button>' : ''}</div>`;
+  h += `</div>${done && S.exam.rankId ? `<p>${esc(S.exam.rankName)} · ${S.exam.rankSaved?'기기 내 랭킹에 기록했어요.':'랭킹에 기록되지 않았어요.'}</p>` : ''}<div class="actions"><button class="primary" data-act="close">닫기</button>${done ? '<button data-act="exam">시험 다시</button>' : ''}</div>`;
   openModal(h);
 }
 function submitExam(timeout) {
   if (!S.exam || !S.exam.on) return;
   liveReset();
   S.exam.on = false; S.exam.done = true; S.exam.time = Math.min(S.elapsed, EXAM_LIMIT); S.finished = true; UI.carry = null; UI.pending = null;
+  if (!S.usedFill && S.exam.rankId) S.exam.rankSaved = rankRecord({id:S.exam.rankId,type:'exam',name:S.exam.rankName,t:S.exam.time,score:scoreSheet().total,prep:S.prepMs||0});
   save(); renderAll(); if (timeout) say('3시간 30분이 끝났어요. 지금 상태로 채점해요', 'err'); showScore();
 }
 
@@ -5493,7 +5504,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.17.0', date: '2026.11.10', notes: ['설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.18.0', date: '2026.11.10', notes: ['고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -5574,10 +5585,10 @@ function goExam() {
 }
 function startExam() {
   const prep = SET.prepTime ? Math.round(stripAvg()) : 0;
-  confirmBox('시험 모드를 시작할까요? 3시간 30분 타이머가 돌고, 가이드, 할 일 목록, 예시 채우기, 시연 보기가 꺼져요. 다 끝나면 위의 제출하고 채점을 눌러요. 자유 모드에서 하던 작업은 그대로 남아요.'
+  confirmBox(`${rankName()} 이름으로 기록해요. ` + '시험 모드를 시작할까요? 3시간 30분 타이머가 돌고, 가이드, 할 일 목록, 예시 채우기, 시연 보기가 꺼져요. 다 끝나면 위의 제출하고 채점을 눌러요. 자유 모드에서 하던 작업은 그대로 남아요.'
     + (prep ? ` 선 준비 시간: 선을 ${STRIP_N}가닥 꽂을 때마다 ${fmt(prep)}씩 더해요 (선 따기 연습 평균).` : SET.prepTime ? ' 선 따기 연습 기록이 없어서 선 준비 시간은 더하지 않아요.' : ''), () => {
     if (MODE !== 'prac') save();
-    const st = newState(false); st.exam = { on: true, prep }; st.selfChk = {}; setMode('exam', st); save(); say('시험 시작. 남은 시간 3:30:00', 'info');
+    const st = newState(false); st.exam = { on: true, prep, rankId:runId(), rankName:rankName() }; st.selfChk = {}; setMode('exam', st); save(); say('시험 시작. 남은 시간 3:30:00', 'info');
   });
 }
 
@@ -6035,11 +6046,59 @@ function renderPracSide() {   // 오른쪽 칸: 이 챕터의 레슨, 다음에 
     + `<div class="pr-btns">${L.btn && PRAC.state === 'run' ? `<button class="primary" data-act="pr-${L.btn[0]}">${L.btn[1]}</button>` : ''}${L.side ? L.side() : ''}${L.wg !== undefined ? '<button data-act="pr-xp">회로 해설</button>' : ''}<button data-act="pr-see">자리 보기</button><button data-act="pr-retry">다시 하기</button><button data-act="pr-list">연습 목록</button></div>`;
 }
 
+/* --- 기기 내 랭킹: 시작할 때의 이름과 종료 시점의 결과를 고정 저장 --- */
+const RANK_KEY = STORE + '.ranks', RANK_PROFILE = STORE + '.rank-name';
+const rankName = () => { try { return rankCleanName(localStorage.getItem(RANK_PROFILE)) || '게스트'; } catch (_) { return '게스트'; } };
+const rankCleanName = name => typeof name === 'string' ? name.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,16) : '';
+const runId = () => globalThis.crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2);
+function rankRead() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(RANK_KEY) || '[]');
+    if (Array.isArray(rows)) return rows.filter(r => r && typeof r.id === 'string' && ['exam','strip','fault'].includes(r.type) && rankCleanName(r.name) && Number.isFinite(r.t) && r.t > 0 && Number.isFinite(r.at) && (r.type !== 'exam' || Number.isFinite(r.score)) && (r.type !== 'strip' || Number.isFinite(r.bad))).slice(-1000);
+  } catch (_) { /* Damaged or unavailable storage. */ }
+  return [];
+}
+function rankRecord(row) {
+  const rows = rankRead();
+  if (rows.some(r => r.id === row.id)) return true;
+  if (!row.id || !['exam','strip','fault'].includes(row.type) || !(row.t > 0) || !Number.isFinite(row.t)) return false;
+  rows.push({ ...row, name: rankCleanName(row.name) || '게스트', at: Date.now(), version: APP_VER.v });
+  try { localStorage.setItem(RANK_KEY, JSON.stringify(rows.slice(-1000))); return true; }
+  catch (_) { say('랭킹을 저장하지 못했어요. 저장 공간을 확인해 주세요.', 'err'); return false; }
+}
+function rankCompare(type, a, b) {
+  return (type === 'exam' ? b.score - a.score : type === 'strip' ? a.bad - b.bad : 0) || a.t - b.t;
+}
+function rankBest(type) {
+  const best = new Map();
+  for (const r of rankRead().filter(r => r.type === type)) if (!best.has(r.name) || rankCompare(type,r,best.get(r.name)) < 0) best.set(r.name,r);
+  return [...best.values()].sort((a,b) => rankCompare(type,a,b) || a.at-b.at);
+}
+function homeRankHTML() {
+  const type = ['exam','strip','fault'].includes(UI.rankTab) ? UI.rankTab : 'exam', rows = rankBest(type);
+  const titles = {exam:'시험 모드',strip:'선 따기 연습',fault:'고장 랭크'};
+  const rule = {exam:'점수가 높은 순, 동점이면 시간이 짧은 순이에요. 제출 당시 채점 결과를 기록하며, 예시 채우기를 사용한 시험은 제외해요. 선 준비 시간 설정과 자기 점검 항목은 결과에 포함돼요.',strip:'20가닥 한 세트 기준이에요. 직접 점검한 불량 개수가 적은 순, 같으면 시간이 짧은 순이에요. 실제 작업을 스스로 확인한 기록이에요.',fault:'동일한 고장 10개를 무작위 순서로 모두 해결한 총시간이 짧은 순이에요. 힌트가 없으며 메뉴·결과 화면·앱을 꺼 둔 시간도 포함돼요.'};
+  let position = 1;
+  return `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>기기 내 랭킹</h1></div><p class="hm-sub">이 기기에 저장된 기록으로 경쟁해요. 닉네임마다 최고 기록 하나를 보여줘요. 다른 기기와 온라인으로 공유되지는 않아요.</p><div class="rank-profile"><label for="rankName">기록할 닉네임</label><input id="rankName" maxlength="16" value="${esc(rankName())}" autocomplete="off"><button class="hm-go" data-rank="name">이름 저장</button><span>시작할 때 이름으로 기록돼요.</span></div><p id="rankFeedback" role="status">${esc(UI.rankMessage||'')}</p><div class="rank-tabs" role="group" aria-label="랭킹 종류">${Object.entries(titles).map(([k,v]) => `<button class="hm-chip ${k===type?'on':''}" data-rank="tab" data-type="${k}" aria-pressed="${k===type}">${v}</button>`).join('')}</div><div class="st-card"><h2>${titles[type]} 랭킹</h2><p class="hm-rule">${rule[type]}</p>${rows.length ? `<div class="rank-scroll"><table class="rank-table"><thead><tr><th>순위</th><th>닉네임</th>${type==='exam'?'<th>점수</th>':type==='strip'?'<th>불량</th>':''}<th>시간</th><th>기록일</th></tr></thead><tbody>${rows.map((r,i) => { if(i && rankCompare(type,r,rows[i-1])) position=i+1; return `<tr><td>${position}</td><td>${esc(r.name)}</td>${type==='exam'?`<td>${fmtPt(r.score)} / 30</td>`:type==='strip'?`<td>${r.bad}개</td>`:''}<td>${fmt(r.t)}</td><td>${new Date(r.at).toLocaleDateString('ko-KR')}</td></tr>`; }).join('')}</tbody></table></div>` : '<p>아직 기록이 없어요. 첫 기록을 만들어 봐요!</p>'}<div class="rank-tabs">${type==='fault'?'<button class="hm-go" data-fd="rank">고장 랭크 시작</button>':`<button class="hm-go" data-home="${type==='exam'?'exam':'strip'}">${titles[type]} 시작</button>`}</div></div></div>`;
+}
+function rankAction(button) {
+  if (button.dataset.rank === 'tab') UI.rankTab = button.dataset.type;
+  else if (button.dataset.rank === 'name') {
+    const name = rankCleanName($('#rankName').value);
+    if (!name) { $('#rankFeedback').textContent='닉네임을 1~16자로 입력해 주세요.'; return; }
+    try { localStorage.setItem(RANK_PROFILE,name); UI.rankMessage=`${name} 이름으로 다음 기록을 남겨요.`; }
+    catch (_) { UI.rankMessage='이름을 저장하지 못했어요. 저장 공간을 확인해 주세요.'; }
+  }
+  renderHome();
+}
+
 /* --- 실전 고장 실습: 예시 정답 대신 실제 회로 동작으로 판정 --- */
 const FD_SOURCE = LESSONS.filter(l => l.fault).map(l => l.fault);
 // Each pair has independently observable failures; a power loss must not mask
 // the other fault. Regression tests execute every pair and both partial repairs.
 const FD_PAIRS = [[1,2],[1,5],[1,6],[1,7],[1,8],[1,9],[2,3],[2,4],[3,5],[3,6],[3,7],[3,8],[3,9],[4,5],[4,6],[4,7],[4,8],[4,9],[6,9]];
+const FD_NAMES = ['퓨즈 고장','PLC 전원선 단선','조작판 공통선 단선','자기유지 회로 단선','정지 릴레이 코일선 단선','GL 표시등 배선 단선','정회전 타이머 입력선 단선','정·역회전 명령선 뒤바뀜','정지 회로 단선','정지 타이머 설정 오류'];
+const FD_CORE = ['FS1 왼쪽 퓨즈가 끊어졌는지 확인하고 교체해요.', 'R3 a접점 출력에서 PLC N으로 가는 선이 끊어졌는지 확인해요.', 'SS 4번의 +24V가 SS 2번까지 이어지도록 공통선을 복구해요.', 'R3 자기유지 접점 윗단에 +24V가 공급되도록 끊긴 선을 복구해요.', 'R2 공통 접점과 R2 코일 + 사이의 연결을 복구해요.', 'R4 코일 +에서 GL로 갈라지는 전원선을 복구해요.', 'R6 공통 접점에서 T1 코일 +로 가는 선을 복구해요.', 'FR과 BR 명령선이 실제 정회전·역회전 신호에 각각 연결되도록 바로잡아요.', 'R5 접점에서 T3·R6 정지 회로로 가는 선을 복구해요.', 'T3의 정지 지연을 0초 초과 1초 이내로 조정해요.'];
 const FD_HINTS = [
   ['교류 전원에서 SMPS까지 전기가 오는지 확인해요.', 'MCB를 내리고 FS1 위 T1–아래 B1의 도통을 재요. 정상 퓨즈라면 이어져 있어야 해요.'],
   ['PLC 자체 전원이 들어오는 경로를 확인해요.', 'SS 자동에서 PB1로 켠 뒤 PLC L–N 전압을 재요. 전원을 내린 뒤 R3 5번–PLC N의 연결을 확인해요.'],
@@ -6052,12 +6111,32 @@ const FD_HINTS = [
   ['반대쪽 센서에 닿았을 때 운전을 끊는 경로를 확인해요.', 'MCB를 내리고 R5 10번–T3 1번의 도통을 재요. 정지 신호가 T3·R6 쪽으로 이어져야 해요.'],
   ['센서에 닿은 뒤 정지하기까지의 타이머 설정을 확인해요.', 'T3에 마우스를 올리고 Tab으로 다이얼을 열어요. 정지 지연 t2는 0초 초과, 1초 이내예요.']
 ];
+const fdKind = f => f.kind || (f.level === 2 ? 'challenge' : 'intro');
+const fdLimit = f => ({study:4,intro:3,challenge:2,rank:0})[fdKind(f)] ?? 0;
+const FD_HINT_LABELS = ['고장 종류','가벼운 해결 방법','핵심 해결 방법','정답'];
+const fdTitle = f => fdKind(f)==='rank' ? `랭크 · ${f.rank.index+1} / 10` : fdKind(f)==='study' ? `선택 학습 · 고장 ${f.ids[0]+1}` : f.level===2 ? '도전 · 고장 2개' : '입문 · 고장 1개';
+function fdProgress() {
+  try { const p = JSON.parse(localStorage.getItem(STORE_FAULT+'.cleared') || '{}'); if (p && typeof p === 'object' && !Array.isArray(p)) return p; } catch (_) { /* unavailable */ }
+  return {};
+}
+function fdRemember(f) {
+  const progress = fdProgress();
+  for (const id of f.ids) progress[id] = true;
+  try { localStorage.setItem(STORE_FAULT+'.cleared',JSON.stringify(progress)); }
+  catch (_) { say('클리어 기록을 저장하지 못했어요.', 'err'); }
+}
 const fdPool = level => level === 2 ? FD_PAIRS : FD_SOURCE.map((_, i) => [i]);
 const fdKey = ids => ids.join('-');
 let FD_DECK = null;   // Keep the current bag usable even if browser storage is blocked.
 function fdRead() {
   const st = MODE === 'fault' ? S : loadKey(STORE_FAULT), f = st && st.fault;
-  if (!f || f.v !== 1 || ![1,2].includes(f.level) || !Array.isArray(f.ids) || !fdPool(f.level).some(ids => fdKey(ids) === fdKey(f.ids)) || !Array.isArray(f.hints) || f.hints.length !== f.ids.length || !f.hints.every(n => Number.isInteger(n) && n >= 0 && n <= 3) || !['run','win'].includes(f.status) || !Array.isArray(f.symptoms) || !f.symptoms.every(t => typeof t === 'string') || !Number.isInteger(f.attempts) || f.attempts < 0 || (f.lastCheck && (!Array.isArray(f.lastCheck.bad) || typeof f.lastCheck.key !== 'string')) || !Array.isArray(st.wires) || !Array.isArray(st.inst) || !st.op || !st.fr || !st.cables) return null;
+  if (!f || f.v !== 1 || ![1,2].includes(f.level) || !Array.isArray(f.ids) || !fdPool(f.level).some(ids => fdKey(ids) === fdKey(f.ids)) || !Array.isArray(f.hints) || f.hints.length !== f.ids.length || !f.hints.every(n => Number.isInteger(n) && n >= 0 && n <= 4) || !['run','win'].includes(f.status) || !Array.isArray(f.symptoms) || !f.symptoms.every(t => typeof t === 'string') || !Number.isInteger(f.attempts) || f.attempts < 0 || (f.lastCheck && (!Array.isArray(f.lastCheck.bad) || typeof f.lastCheck.key !== 'string')) || !Array.isArray(st.wires) || !Array.isArray(st.inst) || !st.op || !st.fr || !st.cables) return null;
+  if (f.kind && !['study','intro','challenge','rank'].includes(f.kind)) return null;
+  if (f.rank && (fdKind(f) !== 'rank' || !Array.isArray(f.rank.order) || f.rank.order.length !== 10 || new Set(f.rank.order).size !== 10 || !f.rank.order.every(n => Number.isInteger(n) && n>=0 && n<10) || !Number.isInteger(f.rank.index) || f.rank.index<0 || f.rank.index>9 || f.ids.length!==1 || f.ids[0]!==f.rank.order[f.rank.index] || !Number.isFinite(f.rank.startedAt) || typeof f.rank.id!=='string' || !rankCleanName(f.rank.name))) return null;
+  if (fdKind(f)==='rank' && (!f.rank || f.hints.some(n=>n!==0))) return null;
+  // Older saves used a different three-step hint scale. Keep earned help, but obey new limits.
+  if (!f.kind) f.kind = f.level===2?'challenge':'intro';
+  f.hints = f.hints.map(n=>Math.min(n,fdLimit(f)));
   return st;
 }
 function fdDraw(level) {
@@ -6083,7 +6162,7 @@ function fdReport() {
   const checks = getChecks(), judge = getJudge();
   return { bad: [...CHECKS.filter(c => !checks.res[c.id].ok).map(c => ({ title: c.title, why: checks.res[c.id].why[0] || '' })), ...JUDGE.filter(c => !judge.res[c.id].ok).map(c => ({ title: c.title, why: judge.res[c.id].why[0] || '' }))], judge };
 }
-function fdBuild(ids) {
+function fdBuild(ids, kind = ids.length === 2 ? 'challenge' : 'intro') {
   const keep = S;
   try {
     S = newState(false);
@@ -6097,7 +6176,7 @@ function fdBuild(ids) {
     for (const id of ids) FD_SOURCE[id].fix();
     buildTerms();
     if (fdReport().bad.length) return null;
-    broken.fault = { v: 1, level: ids.length, ids: ids.slice(), hints: ids.map(() => 0), status: 'run', attempts: 0, symptoms: symptoms.slice(0, 5), lastCheck: null };
+    broken.fault = { v: 1, kind, level: ids.length, ids: ids.slice(), hints: ids.map(() => 0), status: 'run', attempts: 0, symptoms: symptoms.slice(0, 5), lastCheck: null };
     return broken;
   } finally { S = keep; buildTerms(); }
 }
@@ -6107,6 +6186,32 @@ function fdEnter(st) {
   UI.trayOpen.add('cable'); renderTray(); save();
   requestAnimationFrame(() => requestAnimationFrame(() => { if (MODE === 'fault') fitAvoid(P_V.live); }));
   say('실전 고장 실습: MCB를 올려 증상을 확인하고, 테스터(M)와 회로도로 원인을 찾아요.', 'info');
+}
+function fdSelect(id, confirmed = false) {
+  if (!Number.isInteger(id) || id<0 || id>=FD_SOURCE.length) return;
+  const old = fdRead();
+  if (!confirmed && old?.fault.status==='run') return confirmBox('진행 중인 실습을 선택한 고장으로 바꿀까요?',()=>fdSelect(id,true));
+  const st = fdBuild([id], 'study'); if (st) fdEnter(st);
+}
+function fdRankStart(confirmed = false) {
+  if (!confirmed) return confirmBox(`${rankName()} 이름으로 고장 10연속 랭크를 시작할까요? 힌트 없이 10개를 모두 해결해요. 메뉴·결과 화면·앱을 꺼 둔 시간도 총시간에 포함돼요. 진행 중인 고장 실습은 새로 시작해요.`,()=>fdRankStart(true));
+  const order = FD_SOURCE.map((_,i)=>i);
+  for (let i=order.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+  const st = fdBuild([order[0]],'rank');
+  if (!st) return say('랭크를 준비하지 못했어요.', 'err');
+  st.fault.rank = {id:runId(),name:rankName(),order,index:0,startedAt:Date.now()}; fdEnter(st);
+}
+function fdNext() {
+  if (MODE!=='fault' || S.fault.status!=='win') return;
+  const f=S.fault;
+  if (fdKind(f)==='rank') {
+    if (f.rank.index===9) { UI.rankTab='fault'; return showHome('ranks'); }
+    const rank={...f.rank,index:f.rank.index+1}, st=fdBuild([rank.order[rank.index]],'rank');
+    if (!st) return say('다음 고장을 준비하지 못했어요.', 'err');
+    st.fault.rank=rank; return fdEnter(st);
+  }
+  if (fdKind(f)==='study') return fdSelect((f.ids[0]+1)%10);
+  return fdStart(f.level);
 }
 function fdStart(level, confirmed = false) {
   if (![1,2].includes(level)) return;
@@ -6124,16 +6229,17 @@ function fdResume() {
 }
 function fdRetry(confirmed = false) {
   if (MODE !== 'fault') return;
+  if (fdKind(S.fault)==='rank') return fdRankStart();
   if (!confirmed) return confirmBox('같은 고장을 처음 상태로 되돌릴까요? 이번 실습에서 고친 내용은 초기화돼요.', () => fdRetry(true));
-  const st = fdBuild(S.fault.ids);
+  const st = fdBuild(S.fault.ids, fdKind(S.fault));
   if (st) fdEnter(st);
 }
 function fdHint(index) {
   if (MODE !== 'fault' || S.fault.status !== 'run' || !Number.isInteger(index) || index < 0 || index >= S.fault.ids.length) return;
-  S.fault.hints[index] = Math.min(3, S.fault.hints[index] + 1); save(); renderSteps();
+  S.fault.hints[index] = Math.min(fdLimit(S.fault), S.fault.hints[index] + 1); save(); renderSteps();
 }
 function fdLocate(index) {
-  if (MODE !== 'fault' || !Number.isInteger(index) || !(S.fault.hints[index] >= 2)) return;
+  if (MODE !== 'fault' || !fdLimit(S.fault) || !Number.isInteger(index) || !(S.fault.hints[index] >= 3)) return;
   const f = FD_SOURCE[S.fault.ids[index]];
   if (f.op && !S.opBack) { S.opBack = true; buildTerms(); renderWorld(); }
   UI.faultFocus = index; renderOver();
@@ -6142,7 +6248,7 @@ function fdLocate(index) {
   save();
 }
 function fdOverlay() {
-  if (MODE !== 'fault' || UI.faultFocus == null || !(S.fault.hints[UI.faultFocus] >= 2)) return '';
+  if (MODE !== 'fault' || !fdLimit(S.fault) || UI.faultFocus == null || !(S.fault.hints[UI.faultFocus] >= 3)) return '';
   const f = FD_SOURCE[S.fault.ids[UI.faultFocus]];
   return '<g id="faultHintMarks">' + pracHL(f.box ? { box: f.box() } : { rings: f.where.map(id => tRing(id, 6)).filter(Boolean) }) + '</g>';
 }
@@ -6150,13 +6256,21 @@ function fdJudge() {
   if (MODE !== 'fault' || DEMO.on || S.fault.status !== 'run') return;
   const report = fdReport(), f = S.fault;
   f.attempts++; f.lastCheck = { key: judgeKey(), bad: report.bad }; S.judge = { key: judgeKey() };
-  if (!report.bad.length) { f.status = 'win'; S.finished = true; UI.faultFocus = null; }
+  if (!report.bad.length) {
+    f.status = 'win'; S.finished = true; UI.faultFocus = null; fdRemember(f);
+    if (fdKind(f)==='rank' && f.rank.index===9) {
+      f.rank.finishedAt ||= Date.now();
+      f.rank.saved = rankRecord({id:f.rank.id,type:'fault',name:f.rank.name,t:Math.max(1,f.rank.finishedAt-f.rank.startedAt)});
+    }
+  }
   save(); renderAll();
-  if (report.bad.length) return openModal(`<h2>아직 안 되는 동작이 있어요</h2><p>틀려도 실습은 계속돼요. 고장 하나 때문에 여러 동작이 함께 안 될 수 있어요. 결과를 확인하고 다시 측정해 봐요.</p><ul class="pr-jr">${report.bad.map(c => `<li><b>미통과</b><span>${esc(c.title)}${c.why ? `<small>${esc(c.why)}</small>` : ''}</span></li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">계속 찾기</button></div>`);
-  openModal(`<div class="pr-res win"><div class="big">✓</div><h2>고장을 해결했어요!</h2><p>실제 배선·동작 검사 통과 · ${fmt(S.elapsed)} · 검사 ${f.attempts}회${f.hints.some(n => n > 0) ? ' · 힌트 사용' : ' · 힌트 없이 해결'}</p>${f.ids.map(id => `<p class="pr-reveal">${esc(FD_SOURCE[id].reveal)}</p>`).join('')}<div class="actions"><button class="primary" data-fd="next">다른 고장 풀기</button><button data-fd="menu">실습 메뉴</button></div></div>`, false);
+  if (report.bad.length) return openModal(`<h2>아직 안 되는 동작이 있어요</h2><p>틀려도 실습은 계속돼요. 고장 하나 때문에 여러 동작이 함께 안 될 수 있어요. 결과를 확인하고 다시 측정해 봐요.</p><ul class="pr-jr">${report.bad.map(c => `<li><b>미통과</b><span>${esc(c.title)}${c.why && fdKind(f)!=='rank' ? `<small>${esc(c.why)}</small>` : ''}</span></li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">계속 찾기</button></div>`);
+  openModal(`<div class="pr-res win"><div class="big">✓</div><h2>고장을 해결했어요!</h2><p>실제 배선·동작 검사 통과 · ${fmt(S.elapsed)} · 검사 ${f.attempts}회${f.hints.some(n => n > 0) ? ' · 힌트 사용' : ' · 힌트 없이 해결'}</p>${fdKind(f)==='rank' ? `<p>${f.rank.index===9 ? `10개 모두 해결! 총 ${fmt(f.rank.finishedAt-f.rank.startedAt)} · ${f.rank.saved?'기기 내 랭킹 저장 완료':'랭킹 저장 실패'}` : `${f.rank.index+1} / 10 해결 · 다음 고장으로 계속해요`}</p>` : ''}${f.ids.map(id => `<p class="pr-reveal"><b>${esc(FD_NAMES[id])}</b><br>${esc(FD_SOURCE[id].reveal)}</p>`).join('')}<div class="actions"><button class="primary" data-fd="next">${fdKind(f)==='rank' ? f.rank.index===9?'랭킹 보기':'다음 고장' : '다른 고장 풀기'}</button><button data-fd="menu">실습 메뉴</button></div></div>`, false);
 }
 function fdAction(button) {
   const action = button.dataset.fd;
+  if (action === 'select') return fdSelect(Number(button.dataset.id));
+  if (action === 'rank') return fdRankStart();
   if (action === 'start') return fdStart(Number(button.dataset.level));
   if (action === 'resume') return fdResume();
   if (action === 'menu') return showHome('fault');
@@ -6164,24 +6278,24 @@ function fdAction(button) {
   if (action === 'hint') return fdHint(Number(button.dataset.index));
   if (action === 'locate') return fdLocate(Number(button.dataset.index));
   if (action === 'retry') return fdRetry();
-  if (action === 'next' && MODE === 'fault') return fdStart(S.fault.level);
+  if (action === 'next') return fdNext();
 }
 function renderFaultSide() {
   const f = S.fault, checked = f.lastCheck && f.lastCheck.key === judgeKey();
   $('#stepsTitle').textContent = '실전 고장 실습';
-  $('#steps').innerHTML = `<li class="examcard"><b>${f.level === 1 ? '입문 · 고장 1개' : '도전 · 고장 2개'}</b><p>처음 확인된 증상이에요. 어디가 고장인지 직접 찾아요.</p></li>` + f.symptoms.map((t,i) => `<li class="todo"><span class="no">증상 ${i+1}</span><span class="tt">${esc(t)}</span></li>`).join('');
+  $('#steps').innerHTML = `<li class="examcard"><b>${esc(fdTitle(f))}</b><p>처음 확인된 증상이에요. 어디가 고장인지 직접 찾아요.</p></li>` + f.symptoms.map((t,i) => `<li class="todo"><span class="no">증상 ${i+1}</span><span class="tt">${esc(t)}</span></li>`).join('');
   $('#nextWrap').innerHTML = `<div class="pr-card"><b>${f.status === 'win' ? '해결 완료' : '측정 → 수리 → 동작 검사'}</b><p>MCB와 조작판·팩으로 동작을 확인해요. 테스터(M)는 단자 두 곳을 차례로 눌러요. MCB ON은 전압, OFF는 도통이에요.</p><p>틀려도 실패하지 않아요. 전선을 고칠 때는 MCB를 내리고 작업해요.</p>${f.lastCheck ? `<p>${f.status === 'win' ? '배선·동작 검사 통과' : checked ? `마지막 검사: ${f.lastCheck.bad.length}개 항목 미통과` : '배선을 수정했어요. 동작 검사를 다시 받아요.'} · 검사 ${f.attempts}회</p>` : ''}</div>`
-    + `<div class="pr-btns">${f.status === 'run' ? '<button class="primary" data-fd="judge">동작 검사 받기</button>' : '<button class="primary" data-fd="next">다른 고장 풀기</button>'}<button data-fd="retry">같은 고장 다시</button><button data-fd="menu">실습 메뉴</button></div>`
-    + (f.status === 'run' ? f.ids.map((id,i) => `<div class="pr-card fault-hint"><b>막힐 때만 힌트 ${f.ids.length > 1 ? i+1 : ''}</b><p>범위 → 측정할 곳 → 원인 순서로 열려요.</p>${f.hints[i] >= 1 ? `<p>${esc(FD_HINTS[id][0])}</p>` : ''}${f.hints[i] >= 2 ? `<p>${esc(FD_HINTS[id][1])}</p><button data-fd="locate" data-index="${i}">측정 위치 보기</button>` : ''}${f.hints[i] >= 3 ? `<p class="pr-reveal">${esc(FD_SOURCE[id].reveal)}</p>` : ''}<button data-fd="hint" data-index="${i}"${f.hints[i] >= 3 ? ' disabled' : ''}>${['범위 힌트 보기','측정 힌트 보기','원인 보기','모두 확인했어요'][f.hints[i]]}</button></div>`).join('') : '');
+    + `<div class="pr-btns">${f.status === 'run' ? '<button class="primary" data-fd="judge">동작 검사 받기</button>' : '<button class="primary" data-fd="next">다른 고장 풀기</button>'}<button data-fd="retry">${fdKind(f)==='rank'?'랭크 처음부터':'같은 고장 다시'}</button><button data-fd="menu">실습 메뉴</button></div>`
+    + (f.status === 'run' && fdLimit(f) ? f.ids.map((id,i) => `<div class="pr-card fault-hint"><b>단계별 힌트 ${f.ids.length > 1 ? i+1 : ''}</b><p>${fdKind(f)==='study'?'학습: 정답까지 4단계':fdKind(f)==='intro'?'입문: 핵심 해결 방법까지 3단계':'도전: 가벼운 해결 방법까지 2단계'}</p>${[FD_NAMES[id], FD_HINTS[id][0], FD_CORE[id], FD_SOURCE[id].reveal].slice(0,f.hints[i]).map((text,n)=>`<p><b>${n+1}. ${FD_HINT_LABELS[n]}</b><br>${esc(text)}</p>`).join('')}${f.hints[i]>=3?`<button data-fd="locate" data-index="${i}">핵심 위치 보기</button>`:''}<button data-fd="hint" data-index="${i}"${f.hints[i]>=fdLimit(f)?' disabled':''}>${f.hints[i]>=fdLimit(f)?'이 모드의 힌트를 모두 봤어요':`${f.hints[i]+1}단계 · ${FD_HINT_LABELS[f.hints[i]]} 보기`}</button></div>`).join('') : fdKind(f)==='rank' ? '<div class="pr-card"><b>무힌트 랭크</b><p>10개를 모두 해결하면 총시간이 기록돼요. 메뉴에서도 시간은 계속 흘러요.</p></div>' : '');
 }
 function faultCapUI() {
   const el = $('#pracCap'), f = S.fault;
-  el.innerHTML = `<div class="dc-h"><b>실전 고장 실습</b><span>${f.level === 1 ? '입문 · 1개' : '도전 · 2개'}</span></div><div class="dc-t">${f.status === 'win' ? '해결 완료!' : '증상을 확인하고 원인을 찾아 고쳐요'}</div><div class="dc-s">오른쪽 증상 확인 · M 테스터 · 전선 수정 전 MCB OFF</div>${f.status === 'run' ? '<button data-fd="judge">동작 검사 받기</button>' : '<button data-fd="next">다른 고장 풀기</button>'}`;
+  el.innerHTML = `<div class="dc-h"><b>실전 고장 실습</b><span>${esc(fdTitle(f))}</span></div><div class="dc-t">${f.status === 'win' ? '해결 완료!' : '증상을 확인하고 원인을 찾아 고쳐요'}</div><div class="dc-s">오른쪽 증상 확인 · M 테스터 · 전선 수정 전 MCB OFF</div>${f.status === 'run' ? '<button data-fd="judge">동작 검사 받기</button>' : '<button data-fd="next">다른 고장 풀기</button>'}`;
   el.hidden = false; $('#boardWrap').style.setProperty('--toast-top', (el.offsetHeight + 18) + 'px');
 }
 function homeFaultHTML() {
-  const st = fdRead();
-  return `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>실전 고장 실습</h1></div><p class="hm-sub">완성된 회로에 고장이 숨어 있어요. 증상을 보고, 테스터로 재고, 직접 고쳐요.</p>${st ? `<div class="st-card fault-resume"><b>${st.fault.status === 'win' ? '마지막 실습 해결 완료' : '이어 할 실습이 있어요'}</b><p>${st.fault.level === 1 ? '입문 · 고장 1개' : '도전 · 고장 2개'} · ${fmt(st.elapsed)} · 검사 ${st.fault.attempts}회</p><button class="hm-go" data-fd="resume">${st.fault.status === 'win' ? '해결한 작업 보기' : '실습 이어 하기'}</button></div>` : ''}<div class="fault-levels"><div class="st-card"><h2>입문 · 고장 1개</h2><p>10가지 고장 중 하나를 뽑아요.<br>처음이라면 여기서 시작해요.</p><button class="hm-go" data-fd="start" data-level="1">입문 시작</button></div><div class="st-card"><h2>도전 · 고장 2개</h2><p>서로 증상을 가리지 않는 두 고장을 뽑아요.<br>하나를 고쳐도 다른 고장이 남아 있을 수 있어요.</p><button class="hm-go" data-fd="start" data-level="2">도전 시작</button></div></div><div class="st-card fault-resume"><h2>이렇게 하면 돼요</h2><ol><li>오른쪽 증상을 읽고 MCB·조작판·팩으로 확인해요.</li><li>회로도를 보고 테스터(M)로 단자를 측정해요.</li><li>MCB를 내리고 배선·퓨즈·타이머를 고쳐요.</li><li>동작 검사를 받아요. 막히면 힌트를 한 단계씩 열어요.</li></ol><p>자유·시험 작업, 연습 통과 기록은 따로 보관해요. 실습은 이 브라우저에 자동 저장돼요.</p></div></div>`;
+  const st = fdRead(), progress = fdProgress(), count = FD_SOURCE.filter((_,i)=>progress[i]===true).length;
+  return `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>실전 고장 실습</h1><span class="hm-prog">${count} / 10 해결</span><button class="hm-chip" data-home="ranks">랭킹 보기</button></div><p class="hm-sub">완성된 회로에 고장이 숨어 있어요. 증상을 보고, 테스터로 재고, 직접 고쳐요.</p>${st ? `<div class="st-card fault-resume"><b>${st.fault.status === 'win' ? '마지막 고장 해결 완료' : '이어 할 실습이 있어요'}</b><p>${esc(fdTitle(st.fault))} · ${fmt(st.elapsed)} · 검사 ${st.fault.attempts}회</p><button class="hm-go" data-fd="resume">${st.fault.status === 'win' ? '해결한 작업 보기' : '실습 이어 하기'}</button></div>` : ''}<h2>10개 고장 골라 풀기</h2><p class="hm-rule">학습 모드에서는 힌트를 4단계까지 볼 수 있어요. 이름은 처음 해결한 뒤에 공개돼요. 힌트로 원인을 봐도 직접 고치고 동작 검사를 통과해야 이름이 열려요.</p><div class="fault-catalog">${FD_SOURCE.map((_,i)=>`<button class="fault-case ${progress[i]===true?'done':''}" data-fd="select" data-id="${i}"><span>사례 ${String(i+1).padStart(2,'0')} ${progress[i]===true?'✓':''}</span><b>${progress[i]===true?esc(FD_NAMES[i]):`고장 ${i+1}`}</b><small>${progress[i]===true?'해결 완료 · 다시 연습하기':'미해결 · 증상을 보고 원인 찾기'}</small></button>`).join('')}</div><div class="fault-levels"><div class="st-card"><h2>입문 · 고장 1개</h2><p>10가지 중 하나를 무작위로 뽑아요.<br>힌트는 핵심 해결 방법까지 3단계예요.</p><button class="hm-go" data-fd="start" data-level="1">입문 시작</button></div><div class="st-card"><h2>도전 · 고장 2개</h2><p>증상을 가리지 않는 두 고장을 뽑아요.<br>힌트는 가벼운 해결 방법까지 2단계예요.</p><button class="hm-go" data-fd="start" data-level="2">도전 시작</button></div><div class="st-card"><h2>랭크 · 고장 10연속</h2><p>힌트 없이 고장 10개를 모두 해결해요.<br>동일한 10개를 무작위 순서로 풀며, 총시간으로 경쟁해요. 메뉴·앱 종료 중에도 시간이 흘러요.</p><p>기록할 이름: <b>${esc(rankName())}</b></p><button class="hm-go" data-fd="rank">랭크 시작</button></div></div><div class="st-card fault-resume"><h2>측정 → 수리 → 동작 검사</h2><ol><li>증상을 읽고 MCB·조작판·팩으로 확인해요.</li><li>회로도와 테스터(M)로 단자를 측정해요.</li><li>MCB를 내리고 배선·퓨즈·타이머를 고쳐요.</li><li>동작 검사를 받아요. 틀려도 계속 찾을 수 있어요.</li></ol><p>힌트는 고장 종류 → 가벼운 해결 방법 → 핵심 해결 방법 → 정답 순서예요. 자유·시험 작업, 연습 기록과 따로 저장돼요.</p></div></div>`;
 }
 
 /* --- 메인 화면 --- */
@@ -6199,7 +6313,7 @@ const LOCK_IC = '<svg class="lk" viewBox="0 0 24 24" aria-label="잠김"><rect x
 const STRIP_KEY = STORE + '.strip', STRIP_N = 20, STRIP_SETS = 6;
 const STRIP_CK = [['len', '벗긴 길이가 단자(8mm)와 안 맞음'], ['cut', '심선이 잘리거나 흩어짐'], ['crimp', '압착 뒤 구리선이 보이거나 피복이 물림'], ['pull', '당기면 빠짐']];
 function stripData() { try { const o = JSON.parse(localStorage.getItem(STRIP_KEY) || 'null'); if (o && Array.isArray(o.runs)) return o; } catch (e) { /* 무시 */ } return { runs: [], cur: null }; }
-function stripSave(d) { try { localStorage.setItem(STRIP_KEY, JSON.stringify(d)); } catch (e) { /* 저장할 수 없는 환경 */ } }
+function stripSave(d) { try { localStorage.setItem(STRIP_KEY, JSON.stringify(d)); UI.stripError=''; return true; } catch (_) { UI.stripError='선 따기 기록을 저장하지 못했어요. 저장 공간을 확인해 주세요.'; return false; } }
 const stripAvg = (d = stripData()) => { const r = d.runs.slice(-5); return r.length ? r.reduce((a, x) => a + x.t, 0) / r.length : 0; };   // 최근 5세트 평균 (ms)
 const stripBad = r => r.bad ? Object.values(r.bad).reduce((a, b) => a + b, 0) : 0;
 const perWire = t => (t / STRIP_N / 1000).toFixed(1) + '초';
@@ -6210,9 +6324,9 @@ function stripChart(runs) {   // 세트 시간 꺾은선 (최근 20세트, 위�
     + `<path d="M${t.map((v, i) => F(X(i)) + ' ' + F(Y(v))).join('L')}" fill="none" stroke="#f3c11b" stroke-width="2" stroke-linejoin="round"/>${t.map((v, i) => `<circle cx="${F(X(i))}" cy="${F(Y(v))}" r="3" fill="${stripBad(r[i]) ? '#ff6b6b' : '#f3c11b'}"><title>${fmt(v * 1000)}, 불량 ${stripBad(r[i])}</title></circle>`).join('')}</svg>`;
 }
 function homeStripHTML() {
-  const d = stripData(), avg = stripAvg(d), best = d.runs.length ? Math.min(...d.runs.map(r => r.t)) : 0, cur = d.cur, ck = UI.stripChk, rec = d.runs.slice(-5), badR = rec.length ? rec.reduce((a, r) => a + stripBad(r), 0) / (rec.length * STRIP_N) : 0;
-  let h = `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>선 따기 연습</h1><span class="hm-prog">${d.runs.length}세트 · ${d.runs.length * STRIP_N}가닥</span></div>`
-    + `<p class="hm-rule">실제 전선과 공구로 해요. 한 세트는 ${STRIP_N}가닥: 자르기 → 피복 벗기기 → 페룰 단자 압착. 시험에서는 ${STRIP_SETS}세트(${STRIP_N * STRIP_SETS}가닥)를 만들어요. <b>시작</b>을 누르고 ${STRIP_N}가닥을 다 만들면 <b>끝</b>을 눌러요. 끝나면 한 가닥씩 점검해서 불량 개수를 적어요.</p><div class="st-grid"><div class="st-card">`;
+  const d = stripData(), avg = stripAvg(d), best = d.runs.length ? Math.min(...d.runs.map(r => r.t)) : 0, cur = d.cur, ck = UI.stripChk || d.pending, rec = d.runs.slice(-5), badR = rec.length ? rec.reduce((a, r) => a + stripBad(r), 0) / (rec.length * STRIP_N) : 0;
+  let h = `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>선 따기 연습</h1><button class="hm-chip" data-home="ranks">랭킹·닉네임</button><span class="hm-prog">${d.runs.length}세트 · ${d.runs.length * STRIP_N}가닥</span></div>`
+    + `<p class="hm-rule">기록할 이름: <b>${esc(ck?.name || (cur ? d.rankName : rankName()) || '게스트')}</b>. 실제 전선과 공구로 해요. 한 세트는 ${STRIP_N}가닥: 자르기 → 피복 벗기기 → 페룰 단자 압착. 시험에서는 ${STRIP_SETS}세트(${STRIP_N * STRIP_SETS}가닥)를 만들어요. <b>시작</b>을 누르고 ${STRIP_N}가닥을 다 만들면 <b>끝</b>을 눌러요. 끝나면 한 가닥씩 점검해서 불량 개수를 적어요.</p>${UI.stripError?`<p role="alert">${esc(UI.stripError)}</p>`:''}<div class="st-grid"><div class="st-card">`;
   if (ck) {
     h += `<div class="st-clock">${fmt(ck.t)}</div><p class="st-sub">가닥당 ${perWire(ck.t)} · 한 가닥씩 점검해서 불량 개수를 적어요</p><div class="st-ck">`
       + STRIP_CK.map(([k, t]) => `<div class="st-row"><span>${t}</span><button data-home="s-ck" data-k="${k}" data-d="-1" aria-label="줄이기">−</button><b>${ck.bad[k] || 0}</b><button data-home="s-ck" data-k="${k}" data-d="1" aria-label="늘리기">+</button></div>`).join('')
@@ -6226,13 +6340,13 @@ function homeStripHTML() {
   return h + '</div>';
 }
 function stripAct(a, b) {
-  const d = stripData();
-  if (a === 's-start') { d.cur = Date.now(); stripSave(d); }
+  const d = stripData(); UI.stripChk ||= d.pending;
+  if (a === 's-start') { d.cur = Date.now(); d.rankName=rankName(); d.rankId=runId(); stripSave(d); }
   else if (a === 's-cancel') { d.cur = null; stripSave(d); }
-  else if (a === 's-stop' && d.cur) { UI.stripChk = { t: Date.now() - d.cur, bad: {} }; d.cur = null; stripSave(d); }
-  else if (a === 's-ck' && UI.stripChk) { const k = b.dataset.k, c = UI.stripChk.bad; c[k] = clamp((c[k] || 0) + +b.dataset.d, 0, STRIP_N); }
-  else if (a === 's-save' && UI.stripChk) { d.runs.push({ t: UI.stripChk.t, at: Date.now(), bad: UI.stripChk.bad }); UI.stripChk = null; stripSave(d); say(`${STRIP_N}가닥 기록을 저장했어요`, 'ok'); }
-  else if (a === 's-discard') UI.stripChk = null;
+  else if (a === 's-stop' && d.cur) { UI.stripChk = { t: Date.now() - d.cur, bad: {}, name:d.rankName||rankName(), id:d.rankId||runId() }; d.pending=UI.stripChk; d.cur = null; stripSave(d); }
+  else if (a === 's-ck' && UI.stripChk) { const k = b.dataset.k, c = UI.stripChk.bad; c[k] = clamp((c[k] || 0) + +b.dataset.d, 0, STRIP_N); d.pending=UI.stripChk; stripSave(d); }
+  else if (a === 's-save' && UI.stripChk) { const ck=UI.stripChk; d.runs.push({ t: ck.t, at: Date.now(), bad: ck.bad, name:ck.name }); d.pending=null; if (!stripSave(d)) { renderHome(); return; } const ranked=rankRecord({id:ck.id,type:'strip',name:ck.name,t:ck.t,bad:stripBad(ck)}); UI.stripChk = null; if (ranked) say(`${STRIP_N}가닥 기록과 랭킹을 저장했어요`, 'ok'); else UI.stripError='연습 기록은 저장했지만 랭킹 저장에 실패했어요. 저장 공간을 확인해 주세요.'; }
+  else if (a === 's-discard') { UI.stripChk = null; d.pending=null; stripSave(d); }
   else if (a === 's-del') { if (!confirm(`${+b.dataset.i + 1}세트 기록을 지울까요?`)) return; d.runs.splice(+b.dataset.i, 1); stripSave(d); }
   renderHome();
 }
@@ -6287,8 +6401,8 @@ function homeMainHTML() {
     + `<button class="hm-card exam" data-home="exam">${hmIc('exam')}<b>시험 모드</b><p>가이드 없이 실제 시험처럼. 제출하면 과제지 기준 채점</p><small>${exTxt}</small></button>`
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
-    + `<button class="hm-card fault" data-home="fault">${hmIc('fault')}<b>실전 고장 실습</b><p>증상만 보고 테스터로 찾아 고쳐요. 무작위 고장 1개 또는 2개</p><small>측정 → 수리 → 동작 검사</small></button>`
-    + '</div><div class="hm-foot"><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
+    + `<button class="hm-card fault" data-home="fault">${hmIc('fault')}<b>실전 고장 실습</b><p>증상만 보고 테스터로 찾아 고쳐요. 10개 선택 학습부터 무힌트 랭크까지</p><small>측정 → 수리 → 동작 검사</small></button>`
+    + '</div><div class="hm-foot"><button class="hm-chip" data-home="ranks">🏆 기기 내 랭킹</button><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
 }
@@ -6316,13 +6430,13 @@ function homeHelpHTML() {
     + sec('6', '동작 검사와 마무리', '<ul><li>전원 케이블, 컨베이어 선, <b>퓨즈</b>, 릴레이·타이머를 꽂고 <b>MCB</b>를 올리면 실제로 동작해요</li><li>조작판 앞면에서 PB1, PB0, SS를 누르고, 빨간 사각팩을 벨트에 올려요. 오른쪽 위 <b>1과제 동작 체크</b>가 하나씩 차요</li><li>조건 (7) 팩 잡기: 벨트 위 팩을 마우스로 <b>꾹 누른 채 3초</b>. 팩을 S1(역회전은 S2)에 놓자마자 눌러 두고 기다려도 돼요. 살짝 누르면 팩을 집어 들어요</li><li>마무리: <span class="y">헬리컬 밴드를 먼저</span> 감아 덕트에 넣고, 덕트 커버, 단자대 커버, 케이블 타이</li></ul>')
     + sec('접점', '기구 해설', '<ul><li><b>기구 해설(I)</b> 도구를 들고 기구를 누르면 하는 일, 현재 상태, 쉬운 그림이 나와요. 창을 연 채 손 도구로 버튼·센서를 조작하면 상태가 바뀌어요.</li><li>릴레이는 길이 바뀌는 그림으로, 타이머는 기다리는 순서와 남은 시간으로 배워요. 번호가 필요할 때만 <b>단자 번호·자세한 정보</b>를 펴세요.</li><li>시험 중에는 기구 해설을 숨겨요. 제출 후 다시 볼 수 있어요.</li></ul>')
     + sec('찾기', '단자 검색과 채점 복습', '<ul><li>위의 <b>단자 검색</b>에서 R3, PLC P20, TB 1번 또는 부저 같은 이름을 찾아요. 설치한 기구의 단자만 나와요.</li><li><b>위치</b>를 누르면 그 단자를 확대해요. <b>연결 추적</b>은 꽂은 전선과 고정 공통선으로 이어진 단자들을 표시해요. 접점 상태와 전압은 테스터로 확인해요.</li><li>자유 모드나 시험 제출 뒤 <b>채점표 → 관련 위치 보기</b>로 감점된 항목의 부품·단자를 확인해요. 강조는 Esc 또는 단자 검색의 <b>강조 지우기</b>로 지워요.</li></ul>')
-    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>실전 고장 실습</b>: 메인에서 입문(1개)·도전(2개)을 골라요. 증상만 보고 직접 고치며, 힌트와 동작 검사를 쓸 수 있어요. 자유·시험과 따로 저장돼요.</li><li><b>자유</b>: 순서 자유. 예시 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 예시 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
+    + sec('7', '모드 규칙', '<ul><li><b>연습</b>: 빨간 테두리 자리에, 그 레슨에서 할 것만. <span class="r">다른 곳에 하거나 다른 걸 하면 실패</span>. 실패하면 <b>이어서 하기</b>로 틀리기 바로 전부터 계속해요</li><li><b>고장 찾기</b> (연습 7): 증상을 보고 원인을 찾아 고쳐요. <b>테스터</b>(M)를 단자에 대면 같은 줄의 선이 모두 초록으로 보이고, 두 단자를 재면 MCB ON은 전압, OFF는 도통이 나와요</li><li>전선·니퍼·테스터를 들면 방금 꽂은 선은 주황, 그 전에 꽂은 선은 하늘색으로 보여요</li><li>위의 <b>설정</b>에서 표시 기능(방금 꽂은 선 색, 같은 줄, 동작 체크 창, 팩 잡기 진행, 도구 그림)을 켜고 끄고, 화면 테마를 바꿔요</li><li><b>실전 고장 실습</b>: 10개 선택 학습은 힌트 4단계, 무작위 입문(1개)은 3단계, 도전(2개)은 2단계예요. 무힌트 랭크는 10개를 모두 해결한 총시간을 기록해요. 이름은 클리어 뒤에 공개돼요. 자유·시험과 따로 저장돼요.</li><li><b>자유</b>: 순서 자유. 예시 채우기로 앞 작업을 건너뛸 수 있어요 (시간점수 없음). 작업은 자동 저장</li><li><b>시험</b>: 3시간 30분. 가이드, 할 일, 예시 채우기, 시연 보기가 꺼져요. 제출하면 채점표</li></ul>')
     + sec('키', '단축키', '<ul><li><kbd>Ctrl</kbd>+<kbd>Z</kbd> 되돌리기 · <kbd>Esc</kbd> 내려놓기 · <kbd>+</kbd> <kbd>−</kbd> 확대 · <kbd>0</kbd> 전체</li><li>타이머 위에서 <kbd>Tab</kbd> 다이얼 · 시연 중 <kbd>Space</kbd> 재생/멈춤, <kbd>←</kbd> <kbd>→</kbd> 한 동작씩</li></ul>')
     + '</div></div>';
 }
 function renderHome() {
   const p = UI.homePage || 'main', el = $('#home');
-  el.innerHTML = p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : p === 'strip' ? homeStripHTML() : p === 'fault' ? homeFaultHTML() : homeMainHTML();
+  el.innerHTML = p === 'prac' ? homePracHTML() : p === 'help' ? homeHelpHTML() : p === 'strip' ? homeStripHTML() : p === 'fault' ? homeFaultHTML() : p === 'ranks' ? homeRankHTML() : homeMainHTML();
   el.scrollTop = 0; stripTick();
 }
 function showHome(page = 'main') {
@@ -6335,11 +6449,12 @@ function showHome(page = 'main') {
 }
 function hideHome() { $('#home').hidden = true; }
 $('#home').addEventListener('click', e => {
+  const rank = e.target.closest('[data-rank]'); if (rank) return rankAction(rank);
   const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd);
   const l = e.target.closest('[data-lesson]'); if (l) return pracStart(l.dataset.lesson);
   const b = e.target.closest('[data-home]'); if (!b) return;
   const a = b.dataset.home;
-  if (a === 'main' || a === 'prac' || a === 'help' || a === 'strip' || a === 'fault') { UI.homePage = a; UI.stripChk = null; renderHome(); return; }
+  if (a === 'main' || a === 'prac' || a === 'help' || a === 'strip' || a === 'fault' || a === 'ranks') { UI.homePage = a; UI.stripChk = null; renderHome(); return; }
   if (a.startsWith('s-')) return stripAct(a, b);
   if (a === 'free') return goFree();
   if (a === 'exam') return goExam();

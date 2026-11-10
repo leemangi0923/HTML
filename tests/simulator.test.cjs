@@ -140,7 +140,8 @@ test('empty work has no searchable terminals; highlights clear on mode changes',
 
 test('free and exam work survive reload independently, including electrical state and grading', async () => {
   await fullState();
-  const saved = await page.evaluate(() => { save(); return { state: JSON.parse(localStorage.getItem(STORE)), score: scoreSheet().total }; });
+  // Freeze work time in the menu before taking the snapshot; beforeunload saves again.
+  const saved = await page.evaluate(() => { showHome(); save(); return { state: JSON.parse(localStorage.getItem(STORE)), score: scoreSheet().total }; });
   await page.reload(); await page.waitForFunction(() => window.SIM);
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem(STORE))), saved.state);
   assert.equal(await page.evaluate(() => scoreSheet().total), saved.score);
@@ -949,10 +950,12 @@ test('fault practice shows symptoms first, reveals hints in stages, and resumes 
   const hint = page.locator('#nextWrap [data-fd="hint"]');
   await hint.click(); assert.deepEqual(await page.evaluate(() => S.fault.hints), [1]);
   assert.equal(await page.locator('[data-fd="locate"]').count(), 0);
+  await hint.click();
+  assert.equal(await page.locator('[data-fd="locate"]').count(), 0);
   await hint.click(); await page.locator('[data-fd="locate"]').click();
   assert.equal(await page.locator('#faultHintMarks circle').count(), 2);
-  await hint.click();
-  assert.equal(await page.evaluate(() => document.querySelector('#nextWrap').textContent.includes(FD_SOURCE[1].reveal)), true);
+  assert.equal(await page.evaluate(() => document.querySelector('#nextWrap').textContent.includes(FD_SOURCE[1].reveal)), false);
+  assert.equal(await hint.isDisabled(), true);
   await page.locator('#pracCap [data-fd="judge"]').click();
   assert.match(await page.locator('#modalCard h2').textContent(), /아직/);
   await page.locator('#modal [data-act="close"]').click();
@@ -1080,4 +1083,132 @@ test('tie release, cancellation, lost capture and focus loss flush pending motio
     assert.deepEqual(result.after,result.expected,end);assert.deepEqual(result.saved,result.expected,end);
     assert.equal(result.gesture,null,end);assert.equal(result.pending,0,end);assert.equal(result.stable,true,end);
   }
+});
+
+test('fault catalog hides all names until an actual repair passes and keeps reveals after reload', async () => {
+  await page.locator('[data-home="fault"]').click();
+  assert.equal(await page.locator('.fault-case').count(),10);
+  assert.deepEqual(await page.locator('.fault-case b').allTextContents(),Array.from({length:10},(_,i)=>`고장 ${i+1}`));
+  await page.locator('[data-fd="select"][data-id="0"]').click();
+  for(let i=0;i<4;i++) await page.locator('#nextWrap [data-fd="hint"]').click();
+  assert.equal(await page.evaluate(()=>fdProgress()[0]),undefined);
+  assert.equal(await page.evaluate(()=>document.querySelector('#nextWrap').textContent.includes(FD_SOURCE[0].reveal)),true);
+  await page.locator('#pracCap [data-fd="judge"]').click();
+  assert.equal(await page.evaluate(()=>fdProgress()[0]),undefined);
+  await page.evaluate(()=>{closeModal();FD_SOURCE[0].fix();buildTerms();fdJudge();});
+  await page.locator('#modal [data-fd="menu"]').click();
+  assert.equal(await page.locator('.fault-case[data-id="0"] b').textContent(),'퓨즈 고장');
+  assert.equal(await page.locator('.fault-case.done').count(),1);
+  await page.reload();await page.waitForFunction(()=>window.SIM);await page.evaluate(()=>clearInterval(LIVE.timer));
+  await page.locator('[data-home="fault"]').click();
+  assert.equal(await page.locator('.fault-case[data-id="0"] b').textContent(),'퓨즈 고장');
+  assert.equal(await page.locator('.fault-case[data-id="1"] b').textContent(),'고장 2');
+});
+
+test('four hint levels obey study, introductory and challenge limits, including direct action guards', async () => {
+  const result=await page.evaluate(()=>['study','intro','challenge'].map(kind=>{
+    const ids=kind==='challenge'?[1,2]:[1];fdEnter(fdBuild(ids,kind));
+    for(let i=0;i<6;i++) fdHint(0);
+    fdLocate(0);
+    return {kind,hints:S.fault.hints[0],answer:$('#nextWrap').textContent.includes(FD_SOURCE[1].reveal),marks:!!$('#faultHintMarks'),disabled:$('#nextWrap [data-fd="hint"]').disabled};
+  }));
+  assert.deepEqual(result,[{kind:'study',hints:4,answer:true,marks:true,disabled:true},{kind:'intro',hints:3,answer:false,marks:true,disabled:true},{kind:'challenge',hints:2,answer:false,marks:false,disabled:true}]);
+});
+
+test('ranked faults require all ten repairs, cannot skip or request hints, and resume one timed run', async () => {
+  await page.locator('[data-home="ranks"]').click();
+  await page.locator('#rankName').fill('만기');await page.locator('[data-rank="name"]').click();
+  await page.locator('[data-rank="tab"][data-type="fault"]').click();
+  await page.locator('[data-fd="rank"]').click();await page.locator('#modal [data-act="ok"]').click();
+  const initial=await page.evaluate(()=>{S.fault.rank.startedAt-=60000;save();return pClone(S.fault.rank);});
+  assert.equal(new Set(initial.order).size,10);
+  await page.evaluate(()=>{fdHint(0);fdLocate(0);fdNext();});
+  assert.equal(await page.locator('[data-fd="hint"]').count(),0);
+  assert.equal(await page.locator('#faultHintMarks').count(),0);
+  assert.equal(await page.evaluate(()=>S.fault.rank.index),0);
+  assert.deepEqual(await page.evaluate(()=>S.fault.hints),[0]);
+  await page.evaluate(()=>fdJudge());
+  assert.equal(await page.locator('#modalCard .pr-jr small').count(),0,'rank inspection must not reveal repair clues');
+  await page.evaluate(()=>{closeModal();FD_SOURCE[S.fault.ids[0]].fix();buildTerms();fdJudge();fdNext();});
+  assert.equal(await page.evaluate(()=>rankRead().length),0,'partial clear is not ranked');
+  await page.locator('#btnHome').click();await page.reload();await page.waitForFunction(()=>window.SIM);
+  await page.evaluate(()=>clearInterval(LIVE.timer));
+  await page.locator('[data-home="fault"]').click();await page.locator('[data-fd="resume"]').click();
+  const resumed=await page.evaluate(()=>pClone(S.fault.rank));
+  assert.equal(resumed.id,initial.id);assert.equal(resumed.startedAt,initial.startedAt);assert.deepEqual(resumed.order,initial.order);assert.equal(resumed.index,1);
+  const complete=await page.evaluate(()=>{
+    localStorage.setItem(RANK_PROFILE,'후배');
+    for(let i=1;i<10;i++){
+      closeModal();FD_SOURCE[S.fault.ids[0]].fix();buildTerms();fdJudge();
+      if(i<9)fdNext();
+    }
+    const row=rankRead()[0],count=rankRead().length;
+    fdJudge();return {row,count,countAgain:rankRead().length,progress:Object.keys(fdProgress()).length};
+  });
+  assert.equal(complete.count,1);assert.equal(complete.countAgain,1);assert.equal(complete.row.name,'만기');assert.equal(complete.row.type,'fault');assert.ok(complete.row.t>=60000);assert.equal(complete.progress,10);
+  await page.locator('#modal [data-fd="next"]').click();
+  assert.equal(await page.locator('[data-rank="tab"][data-type="fault"]').getAttribute('aria-pressed'),'true');
+  assert.match(await page.locator('.rank-table').textContent(),/만기/);
+});
+
+test('exam ranking snapshots submitted score and starting nickname and excludes example-filled work', async () => {
+  await page.evaluate(()=>localStorage.setItem(RANK_PROFILE,'시험생'));
+  await page.locator('[data-home="exam"]').click();await page.locator('#modal [data-act="ok"]').click();
+  const record=await page.evaluate(()=>{
+    const ex=S.exam;S=pClone(pracRef());S.exam=ex;S.usedFill=false;S.elapsed=65000;S.selfChk={'1-4':true};buildTerms();
+    localStorage.setItem(RANK_PROFILE,'바뀐이름');submitExam(false);
+    const row=rankRead()[0];S.selfChk={};submitExam(false);return {row,count:rankRead().length,score:row.score};
+  });
+  assert.equal(record.row.name,'시험생');assert.equal(record.row.type,'exam');assert.equal(record.row.t,65000);assert.equal(record.count,1);assert.equal(record.score,30);
+  await page.evaluate(()=>{closeModal();S.exam={on:true,rankId:runId(),rankName:'예시사용'};S.usedFill=true;submitExam(false);});
+  assert.equal(await page.evaluate(()=>rankRead().length),1);
+});
+
+test('strip ranking records only saved inspected sets with the starting nickname and ranks quality first', async () => {
+  await page.evaluate(()=>localStorage.setItem(RANK_PROFILE,'선따기'));
+  await page.locator('[data-home="strip"]').click();await page.locator('[data-home="s-start"]').click();
+  await page.evaluate(()=>{const d=stripData();d.cur-=25000;stripSave(d);localStorage.setItem(RANK_PROFILE,'다른이름');});
+  await page.locator('[data-home="s-stop"]').click();
+  await page.reload();await page.waitForFunction(()=>window.SIM);await page.evaluate(()=>clearInterval(LIVE.timer));
+  await page.locator('[data-home="strip"]').click();
+  assert.equal(await page.evaluate(()=>rankRead().length),0);
+  await page.locator('[data-home="s-ck"][data-k="cut"][data-d="1"]').click();
+  await page.locator('[data-home="s-save"]').click();
+  const rows=await page.evaluate(()=>{
+    rankRecord({id:'clean',type:'strip',name:'천천히정확히',t:90000,bad:0});
+    rankRecord({id:'faster',type:'strip',name:'선따기',t:10000,bad:2});
+    rankRecord({id:'repeat',type:'strip',name:'더빠름',t:20000,bad:1});
+    rankRecord({id:'repeat',type:'strip',name:'중복',t:1,bad:0});
+    return {raw:rankRead(),best:rankBest('strip')};
+  });
+  assert.equal(rows.raw[0].name,'선따기');assert.equal(rows.raw[0].bad,1);assert.ok(rows.raw[0].t>=25000);
+  assert.deepEqual(rows.best.map(r=>r.name),['천천히정확히','더빠름','선따기']);assert.equal(rows.raw.length,4);
+});
+
+test('local rank UI escapes nicknames, uses shared positions for ties, fits mobile and reports storage failures', async () => {
+  await page.setViewportSize({width:390,height:844});
+  await page.evaluate(()=>{
+    rankRecord({id:'a',type:'exam',name:'<img src=x>',score:29,t:10000});
+    rankRecord({id:'b',type:'exam',name:'공동',score:29,t:10000});
+    rankRecord({id:'c',type:'exam',name:'삼등',score:28,t:1000});
+    showHome('ranks');
+  });
+  assert.equal(await page.locator('.rank-table img').count(),0);
+  assert.deepEqual(await page.locator('.rank-table tbody tr td:first-child').allTextContents(),['1','1','3']);
+  assert.ok(await page.evaluate(()=>$('#home').scrollWidth<=innerWidth));
+  assert.equal(await page.evaluate(()=>{
+    const original=Storage.prototype.setItem;
+    Storage.prototype.setItem=()=>{throw new Error('full');};
+    try{return rankRecord({id:'fail',type:'fault',name:'실패',t:1000});}finally{Storage.prototype.setItem=original;}
+  }),false);
+  assert.match(await page.locator('#toast').textContent(),/저장하지 못/);
+  await page.evaluate(()=>{localStorage.setItem(RANK_KEY,'{bad');localStorage.setItem(STORE_FAULT+'.cleared','[]');renderHome();});
+  assert.equal(await page.locator('.rank-table').count(),0);
+  await page.locator('#rankName').fill('');await page.locator('[data-rank="name"]').click();
+  assert.match(await page.locator('#rankFeedback').textContent(),/닉네임/);
+  await page.locator('#rankName').fill('저장오류');
+  await page.evaluate(()=>{window.originalRankSet=Storage.prototype.setItem;Storage.prototype.setItem=()=>{throw new Error('full');};});
+  await page.locator('[data-rank="name"]').click();
+  assert.match(await page.locator('#rankFeedback').textContent(),/저장하지 못/);
+  await page.evaluate(()=>Storage.prototype.setItem=window.originalRankSet);
 });
