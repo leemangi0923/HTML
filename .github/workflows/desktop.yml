@@ -14,7 +14,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.sha }}
+  group: desktop-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   windows:

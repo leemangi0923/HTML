@@ -1,10 +1,10 @@
-# 설치형 1과제 제작 시뮬레이터 · v2.16.0
+# 설치형 1과제 제작 시뮬레이터 · v2.16.1
 
 ## 사용자: 설치하고 실행하기
 
 Windows 10/11 64비트(x64)를 대상으로 합니다. Node.js·Godot·별도 브라우저 설치가 필요 없습니다.
 
-1. [버전별 다운로드](https://github.com/leemangi0923/HTML/releases)에서 `task1-simulator-setup-v2.16.0-x64.exe`를 받습니다.
+1. [버전별 다운로드](https://github.com/leemangi0923/HTML/releases)에서 `task1-simulator-setup-v2.16.1-x64.exe`를 받습니다.
 2. 설치 파일을 실행하고 설치 위치를 선택합니다. 현재 Windows 사용자에게 설치하며 관리자 권한을 요청하지 않습니다.
 3. 바탕화면 또는 시작 메뉴의 **1과제 제작 시뮬레이터**를 실행합니다.
 4. **F11**로 전체 화면을 켜고 끕니다. 게임 안에서 확대·이동하는 조작은 웹 버전과 같습니다.
@@ -36,7 +36,7 @@ npm run dist:dir
 npm run dist:win
 ```
 
-결과는 `dist/task1-simulator-setup-v2.16.0-x64.exe`입니다. `dist`와 자동 생성 HTML은 Git에 넣지 않습니다. 패키지에는 게임 HTML·Electron 실행 코드·앱 아이콘만 포함합니다. 보관 중인 Godot 프로젝트·모델·이전 ZIP·개발 테스트는 설치 파일에 포함하지 않습니다.
+결과는 `dist/task1-simulator-setup-v2.16.1-x64.exe`입니다. `dist`와 자동 생성 HTML은 Git에 넣지 않습니다. 패키지에는 게임 HTML·Electron 실행 코드·앱 아이콘만 포함합니다. 보관 중인 Godot 프로젝트·모델·이전 ZIP·개발 테스트는 설치 파일에 포함하지 않습니다.
 
 `desktop/prepare.cjs`가 `index.html`에서 데스크톱 전용 오프라인 HTML을 만듭니다. 외부 글꼴 링크를 제거하고 실제 인라인 게임 스크립트의 SHA-256 해시를 사용한 CSP를 추가합니다. 원본 웹 HTML은 그대로 사용할 수 있습니다.
 
@@ -48,4 +48,4 @@ npm run dist:win
 
 `.github/workflows/desktop.yml`은 `main`의 게임/데스크톱 코드 변경 및 수동 실행 때 Windows에서 앱 검사를 실행한 뒤 NSIS 설치 파일을 만듭니다. Actions의 **Windows installer → task1-windows-installer** 아티팩트에서 설치 파일과 SHA-256을 받을 수 있습니다. 일반 빌드 아티팩트는 14일 동안 보관합니다.
 
-태그 `v2.16.0`처럼 패키지와 같은 버전의 태그를 푸시하면 Windows 검사·빌드가 성공한 뒤 GitHub Releases에 설치 파일과 해시를 올립니다. 릴리스 자산은 일반 빌드 아티팩트의 14일 보관 기간과 별도로 유지됩니다. 버전 업데이트 시 `package.json`·`package-lock.json`·`APP_VER`을 함께 올립니다.
+태그 `v2.16.1`처럼 패키지와 같은 버전의 태그를 푸시하면 Windows 검사·빌드가 성공한 뒤 GitHub Releases에 설치 파일과 해시를 올립니다. 릴리스 자산은 일반 빌드 아티팩트의 14일 보관 기간과 별도로 유지됩니다. 버전 업데이트 시 `package.json`·`package-lock.json`·`APP_VER`을 함께 올립니다.

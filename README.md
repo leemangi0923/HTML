@@ -6,7 +6,7 @@
 python3 -m http.server 8000 --directory .
 ```
 
-## 2.16.0 · Windows 설치형 게임
+## 2.16.1 · Windows 설치형 게임
 
 **Electron + electron-builder**로 Windows 10/11 64비트용 설치형 앱을 추가했습니다. [설치 파일 다운로드](https://github.com/leemangi0923/HTML/releases) · [설치·저장·빌드 설명](docs/desktop.md)
 
