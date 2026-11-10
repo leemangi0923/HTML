@@ -49,3 +49,10 @@ test('desktop network policy and CSP allow only the configured ranking origin an
  for(const url of [origin+'/rest/v1/anything',origin+'/auth/v1/admin/users',origin+'.evil.test/rest/v1/rpc/task1_submit_record','https://example.com'])assert.equal(allow(url,'POST'),false);
  assert.equal(allow(origin+'/auth/v1/token?grant_type=refresh_token','POST'),true);assert.equal(allow(origin+'/auth/v1/token?grant_type=password','POST'),false);assert.equal(allow(origin+'/auth/v1/signup','GET'),false);assert.ok(html.includes("url:'"+origin+"'"));
 });
+
+
+test('opting out stops transmission even when storage writes fail',async()=>{
+ const store=storage();let calls=0;const c=factory({...config,storage:store,fetcher:async()=>{calls++;return response(auth);}});
+ c.enable(true);c.enqueue(row);store.setItem=()=>{throw new Error('full');};
+ c.enable(false);await c.sync();c.stop();assert.equal(c.snapshot().enabled,false);assert.equal(calls,0);assert.equal(c.snapshot().pending,1);
+});
