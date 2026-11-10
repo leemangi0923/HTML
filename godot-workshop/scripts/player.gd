@@ -96,7 +96,7 @@ func _physics_process(delta: float) -> void:
 	head.position.x = camera_bob.x
 	head.position.y = lerpf(head.position.y, desired_height + camera_bob.y, 1.0 - exp(-14.0 * delta))
 	avatar.look_pitch = head.rotation.x
-	working_pose = active and actual_speed < 0.08 and _near_workbench()
+	working_pose = false # Empty left hand stays relaxed; right-arm reach is object-driven.
 	avatar.set_motion(actual_speed, crouched, global_basis.inverse() * velocity, delta, working_pose)
 	if position.y < -2:
 		reset_position()

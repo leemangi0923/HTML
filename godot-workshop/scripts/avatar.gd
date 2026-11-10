@@ -14,6 +14,7 @@ var cloth_materials: Dictionary = {}
 var look_pitch := 0.0
 var head_bone := -1
 var head_base_rotation := Quaternion.IDENTITY
+var arm_reach: WorkshopArmReach
 
 func _ready() -> void:
 	name = "SchoolUniform"
@@ -38,6 +39,9 @@ func _ready() -> void:
 	var bones := model.find_children("*", "Skeleton3D", true, false)
 	assert(not bones.is_empty(), "Skinned character must have a skeleton")
 	skeleton = bones[0]
+	arm_reach = WorkshopArmReach.new()
+	arm_reach.influence = 0
+	skeleton.add_child(arm_reach)
 	head_bone = skeleton.find_bone("Head")
 	if head_bone >= 0:
 		head_base_rotation = skeleton.get_bone_pose_rotation(head_bone)
@@ -108,3 +112,7 @@ func set_motion(speed: float, crouched: bool, local_velocity := Vector3.ZERO, de
 	var blend := 1.0 - exp(-8.0 * delta)
 	model.rotation.z = lerpf(model.rotation.z, -local_velocity.x * 0.018, blend)
 	model.rotation.x = lerpf(model.rotation.x, local_velocity.z * 0.012, blend)
+
+func reach_to(point: Vector3) -> void:
+	arm_reach.target = point
+	arm_reach.remaining = 0.7

@@ -67,12 +67,12 @@ func _run() -> void:
 	Input.action_press("crouch")
 	await wait_ticks(25)
 	check(app.player.head.position.y < 1.2, "Crouch must lower the eye height")
-	check(app.player.working_pose and avatar.current_clip == "CrouchWorkIdle", "Stopping near the bench must select a bent-arm work pose")
-	check(arm_flex(avatar, "R") > relaxed_flex + deg_to_rad(20), "Working pose must bend the elbow farther than relaxed idle")
+	check(not app.player.working_pose and avatar.current_clip == "CrouchIdle", "Empty hands must remain relaxed near the bench")
+	check(arm_flex(avatar, "R") > deg_to_rad(20), "Crouched elbows must remain relaxed")
 	var elbow: Vector3 = avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Forearm.R")).origin
 	var wrist: Vector3 = avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Hand.R")).origin
-	check(wrist.z < elbow.z - 0.12, "Working forearms must point forward, not backward or sideways")
-	check(wrist.y > 0.80, "Crouched working hands must stay above the tabletop")
+	check(wrist.z < elbow.z - 0.04, "Relaxed forearms must bend forward")
+
 	var crouch_hip: Vector3 = avatar.skeleton.get_bone_global_pose(hip_index).origin
 	check(crouch_hip.y < standing_hip - 0.20, "Crouch animation must lower the character, not just the camera")
 	var knee: Vector3 = avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Shin.L")).origin
