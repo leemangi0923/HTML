@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://sqler57cvtls"
-path="res://.godot/imported/student-uniform.glb-6b3c972ab034d980e49d0834c64dc091.scn"
+uid="uid://chjl4774x0ncc"
+path="res://.godot/imported/workwear-character-rigged.glb-76243c4a77e495e633cbbfc69dc285da.scn"
 
 [deps]
 
-source_file="res://assets/character/student-uniform.glb"
-dest_files=["res://.godot/imported/student-uniform.glb-6b3c972ab034d980e49d0834c64dc091.scn"]
+source_file="res://assets/character/workwear-character-rigged.glb"
+dest_files=["res://.godot/imported/workwear-character-rigged.glb-76243c4a77e495e633cbbfc69dc285da.scn"]
 
 [params]
 

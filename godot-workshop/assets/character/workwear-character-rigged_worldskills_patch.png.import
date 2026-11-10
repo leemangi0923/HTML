@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://puvnyb53jrfk"
-path="res://.godot/imported/cloth-normal.png-d120fedcf56ef6df5c6407873f20525e.ctex"
+uid="uid://desf45fcdffc0"
+path="res://.godot/imported/workwear-character-rigged_worldskills_patch.png-79ed565c18bdc61357b7b091aea8723f.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "7d705ea3bdb64c054564cf23bcce83ff"
 }
 
 [deps]
 
-source_file="res://assets/character/cloth-normal.png"
-dest_files=["res://.godot/imported/cloth-normal.png-d120fedcf56ef6df5c6407873f20525e.ctex"]
+source_file="res://assets/character/workwear-character-rigged_worldskills_patch.png"
+dest_files=["res://.godot/imported/workwear-character-rigged_worldskills_patch.png-79ed565c18bdc61357b7b091aea8723f.ctex"]
 
 [params]
 
@@ -21,7 +24,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

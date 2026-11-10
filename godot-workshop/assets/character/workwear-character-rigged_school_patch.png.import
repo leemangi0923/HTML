@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://kv3rppv7ky88"
-path="res://.godot/imported/cloth-roughness.png-7649ecefe10ae7e0eb28b7906f0a61b9.ctex"
+uid="uid://cv5b3gk184idg"
+path="res://.godot/imported/workwear-character-rigged_school_patch.png-83b9bb52f6e4506bef78e8fbc8084ca6.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "3f97a79702f4e6890b40ccf54677aef3"
 }
 
 [deps]
 
-source_file="res://assets/character/cloth-roughness.png"
-dest_files=["res://.godot/imported/cloth-roughness.png-7649ecefe10ae7e0eb28b7906f0a61b9.ctex"]
+source_file="res://assets/character/workwear-character-rigged_school_patch.png"
+dest_files=["res://.godot/imported/workwear-character-rigged_school_patch.png-83b9bb52f6e4506bef78e8fbc8084ca6.ctex"]
 
 [params]
 

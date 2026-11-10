@@ -1,7 +1,7 @@
 class_name WorkshopAvatar
 extends Node3D
 
-const ASSET_PATH := "res://assets/character/student-uniform.glb"
+const ASSET_PATH := "res://assets/character/workwear-character-rigged.glb"
 var model: Node3D
 var animation_player: AnimationPlayer
 var skeleton: Skeleton3D
@@ -21,7 +21,7 @@ func _ready() -> void:
 	var asset := load(ASSET_PATH) as PackedScene
 	assert(asset != null, "School character must be imported before running")
 	model = asset.instantiate()
-	model.position.y = -0.008
+	model.position.y = -0.0155
 	add_child(model)
 	for child in model.find_children("*", "MeshInstance3D", true, false):
 		var mesh := child as MeshInstance3D
@@ -34,7 +34,7 @@ func _ready() -> void:
 		else:
 			mesh.layers = 1
 			body_meshes.append(mesh)
-			_apply_fabric(mesh)
+			# Supplied material resources are retained without procedural overrides.
 	animation_player = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	var bones := model.find_children("*", "Skeleton3D", true, false)
 	assert(not bones.is_empty(), "Skinned character must have a skeleton")
@@ -47,7 +47,7 @@ func _ready() -> void:
 		head_base_rotation = skeleton.get_bone_pose_rotation(head_bone)
 	assert(animation_player != null, "Character must contain animation clips")
 	animation_player.mixer_applied.connect(_apply_head_look)
-	for wanted in ["Idle", "Walk", "CrouchIdle", "CrouchWalk", "WorkIdle", "CrouchWorkIdle"]:
+	for wanted in ["Idle", "Walk", "CrouchIdle", "CrouchWalk"]:
 		for clip in animation_player.get_animation_list():
 			if clip == wanted or clip.ends_with("/" + wanted) or clip.ends_with("|" + wanted):
 				clips[wanted] = clip
@@ -70,25 +70,6 @@ func _add_head_shadow(source: MeshInstance3D) -> void:
 	source.get_parent().add_child(shadow)
 	head_shadow_meshes.append(shadow)
 
-func _apply_fabric(mesh: MeshInstance3D) -> void:
-	for surface in range(mesh.mesh.get_surface_count()):
-		var original := mesh.get_active_material(surface) as StandardMaterial3D
-		if original == null or original.resource_name not in ["Navy", "Gray", "Pants", "Cuff"]:
-			continue
-		var key := original.resource_name
-		if not cloth_materials.has(key):
-			var cloth := original.duplicate() as StandardMaterial3D
-			cloth.uv1_triplanar = true
-			cloth.uv1_scale = Vector3.ONE * 12.0
-			cloth.normal_enabled = true
-			cloth.normal_texture = load("res://assets/character/cloth-normal.png")
-			cloth.normal_scale = 0.32
-			cloth.roughness = 1.0
-			cloth.roughness_texture = load("res://assets/character/cloth-roughness.png")
-			cloth.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-			cloth_materials[key] = cloth
-		mesh.set_surface_override_material(surface, cloth_materials[key])
-
 func _apply_head_look() -> void:
 	if head_bone < 0:
 		return
@@ -101,8 +82,7 @@ func set_motion(speed: float, crouched: bool, local_velocity := Vector3.ZERO, de
 		return
 	var moving := speed > 0.08
 	var desired := "CrouchWalk" if crouched and moving else "CrouchIdle" if crouched else "Walk" if moving else "Idle"
-	if working and not moving:
-		desired = "CrouchWorkIdle" if crouched else "WorkIdle"
+
 	if current_clip != desired:
 		current_clip = desired
 		animation_player.play(clips[desired], 0.16)

@@ -58,6 +58,12 @@ func _capture() -> void:
 		await process_frame
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(prefix + "-crouch.png")
+	camera.position = Vector3(0.45, 0.30, -0.65)
+	camera.look_at(Vector3(0, 0.08, -0.02))
+	avatar.set_motion(0, false)
+	await create_timer(0.4).timeout
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png(prefix + "-shoes.png")
 	stage.queue_free()
 	await process_frame
 	quit()

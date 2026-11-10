@@ -1,0 +1,765 @@
+{
+  "source_sha256": "f422bd6fe10fbfbadcd4e01a152521643c090dcbc7006a297ca151fbd6e89eef",
+  "source_meshes": {
+    "Face / expressive eyebrow": {
+      "vertices": 330,
+      "materials": [
+        "Hair | dark chocolate"
+      ]
+    },
+    "Face / expressive eyebrow.001": {
+      "vertices": 330,
+      "materials": [
+        "Hair | dark chocolate"
+      ]
+    },
+    "Face / gentle smile": {
+      "vertices": 650,
+      "materials": [
+        "Face | eyes and smile"
+      ]
+    },
+    "Face / oval eye": {
+      "vertices": 610,
+      "materials": [
+        "Face | eyes and smile"
+      ]
+    },
+    "Face / oval eye.001": {
+      "vertices": 610,
+      "materials": [
+        "Face | eyes and smile"
+      ]
+    },
+    "Face / subtle button nose": {
+      "vertices": 610,
+      "materials": [
+        "Skin | warm peach"
+      ]
+    },
+    "Hair / fitted cap": {
+      "vertices": 897,
+      "materials": [
+        "Hair | dark chocolate"
+      ]
+    },
+    "Hair / swept lock 01": {
+      "vertices": 264,
+      "materials": [
+        "Hair | dark chocolate"
+      ]
+    },
+    "Hair / swept lock 02": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Hair / swept lock 03": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Hair / swept lock 04": {
+      "vertices": 264,
+      "materials": [
+        "Hair | dark chocolate"
+      ]
+    },
+    "Hair / swept lock 05": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Hair / swept lock 06": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Hair / swept lock 07": {
+      "vertices": 264,
+      "materials": [
+        "Hair | dark chocolate"
+      ]
+    },
+    "Hair / swept lock 08": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Hair / swept lock 09": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Hair / swept lock 10": {
+      "vertices": 264,
+      "materials": [
+        "Hair | dark chocolate"
+      ]
+    },
+    "Hair / swept lock 11": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Hair / swept lock 12": {
+      "vertices": 264,
+      "materials": [
+        "Hair | swept locks"
+      ]
+    },
+    "Head / ear": {
+      "vertices": 610,
+      "materials": [
+        "Skin | warm peach"
+      ]
+    },
+    "Head / ear.001": {
+      "vertices": 610,
+      "materials": [
+        "Skin | warm peach"
+      ]
+    },
+    "Head / inner ear": {
+      "vertices": 610,
+      "materials": [
+        "Skin | ear inset"
+      ]
+    },
+    "Head / inner ear.001": {
+      "vertices": 610,
+      "materials": [
+        "Skin | ear inset"
+      ]
+    },
+    "Head / rounded stylized face": {
+      "vertices": 216,
+      "materials": [
+        "Skin | warm peach"
+      ]
+    },
+    "Jacket / angled pocket opening": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / angled pocket opening.001": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / back reflective stripe": {
+      "vertices": 122,
+      "materials": [
+        "Uniform | reflective tape"
+      ]
+    },
+    "Jacket / chest reflective stripe": {
+      "vertices": 122,
+      "materials": [
+        "Uniform | reflective tape"
+      ]
+    },
+    "Jacket / chest reflective stripe.001": {
+      "vertices": 122,
+      "materials": [
+        "Uniform | reflective tape"
+      ]
+    },
+    "Jacket / collar button": {
+      "vertices": 610,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / folded collar": {
+      "vertices": 96,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Jacket / folded collar.001": {
+      "vertices": 96,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Jacket / front button placket": {
+      "vertices": 216,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Jacket / lower reflective stripe": {
+      "vertices": 122,
+      "materials": [
+        "Uniform | reflective tape"
+      ]
+    },
+    "Jacket / lower reflective stripe.001": {
+      "vertices": 122,
+      "materials": [
+        "Uniform | reflective tape"
+      ]
+    },
+    "Jacket / placket stitching": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / placket stitching.001": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / pocket topstitch": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / pocket topstitch.001": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / ribbed waistband": {
+      "vertices": 2690,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Jacket / shaped torso": {
+      "vertices": 6530,
+      "materials": [
+        "Uniform | navy twill",
+        "Uniform | gray shoulder and sleeves"
+      ]
+    },
+    "Jacket / side seam": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / side seam.001": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Jacket / silver nameplate": {
+      "vertices": 216,
+      "materials": [
+        "Uniform | reflective tape"
+      ]
+    },
+    "Jacket / standing collar": {
+      "vertices": 2690,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Left glove / back stitch": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left glove / back stitch.001": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left glove / back stitch.002": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left glove / dark palm": {
+      "vertices": 610,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Left glove / dipped fingertip 1": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Left glove / dipped fingertip 2": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Left glove / dipped fingertip 3": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Left glove / dipped fingertip 4": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Left glove / dipped thumb": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Left glove / finger 1": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Left glove / finger 2": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Left glove / finger 3": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Left glove / finger 4": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Left glove / finger seam 1": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left glove / finger seam 2": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left glove / finger seam 3": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left glove / finger seam 4": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left glove / knit back": {
+      "vertices": 610,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Left glove / thumb": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Left shoe / ankle": {
+      "vertices": 610,
+      "materials": [
+        "Shoes | dark navy canvas"
+      ]
+    },
+    "Left shoe / canvas upper": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | dark navy canvas"
+      ]
+    },
+    "Left shoe / lace 1": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Left shoe / lace 2": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Left shoe / lace 3": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Left shoe / lace 4": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Left shoe / lace 5": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Left shoe / navy welt": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Left shoe / off-white outsole": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | warm white outsole"
+      ]
+    },
+    "Left shoe / sole stitching": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | warm white outsole"
+      ]
+    },
+    "Left shoe / toe seam": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Left shoe / tongue": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | dark navy canvas"
+      ]
+    },
+    "Left sleeve / gray work cloth": {
+      "vertices": 5762,
+      "materials": [
+        "Uniform | gray shoulder and sleeves"
+      ]
+    },
+    "Left sleeve / longitudinal seam": {
+      "vertices": 490,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Left sleeve / navy knitted cuff": {
+      "vertices": 2690,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Left sleeve / school patch": {
+      "vertices": 361,
+      "materials": [
+        "Left sleeve / school patch"
+      ]
+    },
+    "Left trouser leg": {
+      "vertices": 8834,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Left trousers / front pocket": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Left trousers / hem stitching": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Left trousers / outside stitched seam": {
+      "vertices": 490,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Neck": {
+      "vertices": 610,
+      "materials": [
+        "Skin | warm peach"
+      ]
+    },
+    "Right glove / back stitch": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right glove / back stitch.001": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right glove / back stitch.002": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right glove / dark palm": {
+      "vertices": 610,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Right glove / dipped fingertip 1": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Right glove / dipped fingertip 2": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Right glove / dipped fingertip 3": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Right glove / dipped fingertip 4": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Right glove / dipped thumb": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | charcoal rubber"
+      ]
+    },
+    "Right glove / finger 1": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Right glove / finger 2": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Right glove / finger 3": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Right glove / finger 4": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Right glove / finger seam 1": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right glove / finger seam 2": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right glove / finger seam 3": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right glove / finger seam 4": {
+      "vertices": 170,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right glove / knit back": {
+      "vertices": 610,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Right glove / thumb": {
+      "vertices": 362,
+      "materials": [
+        "Gloves | gray knit"
+      ]
+    },
+    "Right shoe / ankle": {
+      "vertices": 610,
+      "materials": [
+        "Shoes | dark navy canvas"
+      ]
+    },
+    "Right shoe / canvas upper": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | dark navy canvas"
+      ]
+    },
+    "Right shoe / lace 1": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Right shoe / lace 2": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Right shoe / lace 3": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Right shoe / lace 4": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Right shoe / lace 5": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Right shoe / navy welt": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Right shoe / off-white outsole": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | warm white outsole"
+      ]
+    },
+    "Right shoe / sole stitching": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | warm white outsole"
+      ]
+    },
+    "Right shoe / toe seam": {
+      "vertices": 330,
+      "materials": [
+        "Shoes | laces and seams"
+      ]
+    },
+    "Right shoe / tongue": {
+      "vertices": 216,
+      "materials": [
+        "Shoes | dark navy canvas"
+      ]
+    },
+    "Right sleeve / gray work cloth": {
+      "vertices": 5762,
+      "materials": [
+        "Uniform | gray shoulder and sleeves"
+      ]
+    },
+    "Right sleeve / longitudinal seam": {
+      "vertices": 490,
+      "materials": [
+        "Uniform | gray stitching"
+      ]
+    },
+    "Right sleeve / navy knitted cuff": {
+      "vertices": 2690,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Right sleeve / WorldSkills patch": {
+      "vertices": 361,
+      "materials": [
+        "Right sleeve / WorldSkills patch"
+      ]
+    },
+    "Right trouser leg": {
+      "vertices": 8834,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    },
+    "Right trousers / front pocket": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Right trousers / hem stitching": {
+      "vertices": 330,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Right trousers / outside stitched seam": {
+      "vertices": 490,
+      "materials": [
+        "Uniform | raised navy seams"
+      ]
+    },
+    "Trousers / hip": {
+      "vertices": 2690,
+      "materials": [
+        "Uniform | navy twill"
+      ]
+    }
+  },
+  "shoe_refinement": "Rounded toe, instep, padded ankle, arch, sole and laces; supplied shoe materials retained",
+  "deform_bones": 20,
+  "coordinate_change": "180 degrees around Z; meters preserved",
+  "animations": [
+    "Idle",
+    "Walk",
+    "CrouchIdle",
+    "CrouchWalk"
+  ]
+}
