@@ -2,101 +2,11 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#152b2c">
-  <title>3D 작업대 · 산업용로봇 1과제</title>
-  <link rel="stylesheet" href="lab-3d/style.css">
-  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0; url=./index.html">
+  <title>1과제 시뮬레이터로 이동</title>
 </head>
 <body>
-  <section id="labGate" class="lab-gate" aria-labelledby="gateTitle">
-    <form id="gateForm" class="gate-card">
-      <span class="eyebrow">산업용로봇 1과제 · 3D 작업실</span>
-      <h1 id="gateTitle">작업실 입장</h1>
-      <p>비밀번호를 입력해 주세요.</p>
-      <label for="gatePassword">비밀번호</label>
-      <input id="gatePassword" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="4" aria-describedby="gateError" autofocus>
-      <p id="gateError" role="alert"></p>
-      <button type="submit">입장하기</button>
-      <a href="index.html">← 1과제 메인으로</a>
-      <noscript><p>작업실을 열려면 JavaScript를 켜 주세요.</p></noscript>
-    </form>
-  </section>
-  <div id="labApp" hidden inert>
-  <header>
-    <a class="back" href="index.html" aria-label="1과제 메인 메뉴로 돌아가기">← 1과제</a>
-    <div class="brand"><span class="eyebrow">작은 회로부터, 입체적으로</span><h1>3D 작업대 <span>미리보기</span></h1></div>
-    <button id="helpToggle" aria-expanded="false" aria-controls="help">조작법 ?</button>
-    <button id="lockLab" title="이 탭의 입장 확인을 해제합니다">잠그기</button>
-  </header>
-  <main>
-    <section id="viewport" aria-label="마우스로 회전하고 단자를 눌러 배선하는 3D 작업대">
-      <canvas id="scene" aria-label="3D 제어판" tabindex="0"></canvas>
-      <div class="scene-title"><span class="dot"></span> WORKBENCH / 01 <small>24V 릴레이 회로</small></div>
-      <div class="views" role="group" aria-label="시점">
-        <button data-view="iso">입체</button><button data-view="top">위에서</button><button data-view="close">가까이</button>
-      </div>
-      <div id="hover" hidden></div>
-      <div id="loading" role="status">작업대를 준비하고 있어요…</div>
-      <div class="scene-hint">드래그로 회전 <i>·</i> 휠로 확대 <i>·</i> 휠 버튼 / 오른쪽 드래그로 이동</div>
-    </section>
-    <aside>
-      <div class="panel-intro"><span class="eyebrow">직접 연결해 보세요</span><h2>눌렀을 때 켜지는 불</h2><p>버튼 → 릴레이 → 표시등.<br>작은 회로로 3D 배선을 체험해요.</p></div>
-      <div class="tools" role="group" aria-label="작업 도구">
-        <button data-tool="wire" aria-pressed="true">＋ 배선</button><button data-tool="erase" aria-pressed="false">− 선 지우기</button>
-      </div>
-      <div id="status" role="status" aria-live="polite">연결할 단자 두 개를 차례로 눌러요.</div>
-      <div class="readouts">
-        <div><span>전원</span><b id="powerState">꺼짐</b></div>
-        <div><span>릴레이 K1</span><b id="relayState">OFF</b></div>
-        <div><span>표시등 H1</span><b id="lampState">OFF</b></div>
-      </div>
-      <button id="power" class="wide" aria-pressed="false">전원 켜기</button>
-      <button id="push" class="push wide">PB 누르기 <small>누르고 있는 동안 동작</small></button>
-      <p class="rule">전원을 끄면 배선을 바꿀 수 있어요.</p>
-      <details id="help"><summary>처음이라면 이렇게 해보세요</summary><ol><li>전원을 켜고 <b>PB 누르기</b>를 꾹 눌러요.</li><li>릴레이와 표시등이 함께 켜지는지 봐요.</li><li>전원을 끄고 선 하나를 지운 뒤 다시 시험해요.</li><li>단자 두 개를 눌러 새 선을 연결해요.</li></ol><p>단자대의 같은 칸 위·아래는 내부로 연결돼요. 단자대를 거쳐서 배선해도 동작해요.</p><p>이 회로의 K1은 A1/A2가 코일, 11/14가 a접점이에요. 실제 사용 기구의 단자 번호는 해당 도면을 확인하세요.</p></details>
-      <div class="workspace-actions"><button id="undo">↶ 되돌리기</button><span id="count">전선 6개</span></div>
-      <div class="workspace-actions"><button id="example">예제 배선</button><button id="clear">모두 비우기</button></div>
-      <p id="saveState" class="save-state">이 작업대의 배선만 따로 저장해요.</p>
-      <p class="scope">3D 조작·간단한 회로 체험용 시제품이에요. 전체 1과제 조립·채점은 기존 화면에서 진행해요.</p>
-    </aside>
-  </main>
-  </div>
-  <script>
-    // A static-page entrance lock; it is not server-side authentication.
-    const gateKey = 'task1:3d-entry:v1';
-    let opening = false;
-    function openLab() {
-      if (opening) return;
-      opening = true;
-      document.querySelector('#labGate').hidden = true;
-      const app = document.querySelector('#labApp'); app.hidden = false; app.inert = false;
-      document.querySelector('#scene').focus({ preventScroll: true });
-      if (location.protocol === 'file:') {
-        document.querySelector('#loading').textContent = '3D 화면은 웹 주소에서 열어주세요. 로컬에서는 python3 -m http.server 8000 실행 후 localhost:8000/lab-3d.html로 접속하세요.';
-      } else {
-        import(new URLSearchParams(location.search).get('mode') === 'circuit' ? './lab-3d/main.mjs' : './lab-3d/workshop.mjs').catch(() => {
-          document.querySelector('#loading').hidden = false;
-          document.querySelector('#loading').textContent = '3D 화면을 열지 못했어요. WebGL을 지원하는 최신 브라우저에서 다시 열어주세요.';
-        });
-      }
-    }
-    document.querySelector('#gateForm').addEventListener('submit', event => {
-      event.preventDefault();
-      const input = document.querySelector('#gatePassword');
-      if (input.value !== '0923') {
-        document.querySelector('#gateError').textContent = '비밀번호가 맞지 않아요. 다시 입력해 주세요.';
-        input.setAttribute('aria-invalid', 'true'); input.focus(); input.select(); return;
-      }
-      input.value = ''; input.removeAttribute('aria-invalid');
-      try { sessionStorage.setItem(gateKey, '1'); } catch { /* The current visit still works without storage. */ }
-      openLab();
-    });
-    document.querySelector('#lockLab').addEventListener('click', () => {
-      try { sessionStorage.removeItem(gateKey); } catch { /* Reload always starts closed without storage. */ }
-      location.reload();
-    });
-    try { if (sessionStorage.getItem(gateKey) === '1') openLab(); } catch { /* Ask again if storage is unavailable. */ }
-  </script>
+  <p>3D 작업실은 종료했습니다. <a href="./index.html">1과제 시뮬레이터로 이동</a></p>
 </body>
 </html>

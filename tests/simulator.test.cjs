@@ -7,9 +7,12 @@ const { chromium } = require('playwright');
 let server, browser, context, page, origin, errors;
 before(async () => {
   const html = await readFile(require('node:path').join(__dirname, '..', 'index.html'));
+  const legacyEntry = await readFile(require('node:path').join(__dirname, '..', 'lab-3d.html'));
   server = createServer((req, res) => {
-    if (req.url !== '/' && req.url !== '/index.html') { res.writeHead(404).end(); return; }
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(html);
+    const pathname = new URL(req.url, 'http://localhost').pathname;
+    const data = pathname === '/lab-3d.html' ? legacyEntry : ['/', '/index.html'].includes(pathname) ? html : null;
+    if (!data) { res.writeHead(404).end(); return; }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(data);
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${server.address().port}`;
@@ -839,9 +842,9 @@ test('AC DC and conveyor wiring errors show persistent guidance without adding a
 
 
 
-test('home has the existing modes and a separate 3D workbench without quizzes',async()=>{
-  assert.equal(await page.locator('.hm-card').count(),6);
-  assert.equal(await page.locator('[data-home="lab3d"]').count(),1);
+test('home keeps the five 2D modes without the retired 3D workshop or quizzes',async()=>{
+  assert.equal(await page.locator('.hm-card').count(),5);
+  assert.equal(await page.locator('[data-home="lab3d"]').count(),0);
   assert.equal(await page.locator('[data-home="quiz"]').count(),0);
   assert.equal(await page.evaluate(()=>typeof QUIZ_BANK),'undefined');
   for(const route of ['help','strip','prac']){
@@ -849,4 +852,30 @@ test('home has the existing modes and a separate 3D workbench without quizzes',a
     assert.equal(await page.locator('.hm-top h1').count(),1);
     await page.locator('.hm-back[data-home="main"]').click();
   }
+});
+
+
+test('old workshop bookmarks return to 2D without loading 3D assets or changing saved work', async () => {
+  await fullState();
+  const saved = await page.evaluate(() => {
+    save();
+    const ex = pClone(S); ex.exam = { on: true }; ex.elapsed = 123000; ex.op.labels.L_hmi = '시험';
+    localStorage.setItem(STORE_EXAM, JSON.stringify(ex));
+    localStorage.setItem(STORE_PRAC, JSON.stringify({ done: { '1-1': 12500 } }));
+    return [STORE, STORE_EXAM, STORE_PRAC].map(key => localStorage.getItem(key));
+  });
+  const threeRequests = [];
+  page.on('request', req => { if (/\/(?:lab-3d|vendor)\//.test(req.url())) threeRequests.push(req.url()); });
+  for (const suffix of ['', '?mode=circuit']) {
+    await page.goto(origin + '/lab-3d.html' + suffix);
+    await page.waitForURL(origin + '/index.html');
+    await page.waitForFunction(() => window.SIM);
+    await page.evaluate(() => clearInterval(LIVE.timer));
+    assert.equal(await page.locator('#home').isVisible(), true);
+    assert.equal(await page.locator('.hm-card').count(), 5);
+    assert.deepEqual(await page.evaluate(() => [STORE, STORE_EXAM, STORE_PRAC].map(key => localStorage.getItem(key))), saved);
+  }
+  assert.deepEqual(threeRequests, []);
+  await page.locator('[data-home="free"]').click();
+  assert.equal(await page.evaluate(() => scoreSheet().total), 30);
 });
