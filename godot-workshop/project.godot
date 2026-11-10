@@ -1,0 +1,24 @@
+; Open this file with Godot 4.6 or newer (standard / GDScript edition).
+config_version=5
+
+[application]
+config/name="1과제 작업실 · 첫 실행판"
+run/main_scene="res://scenes/workshop.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+config/icon="res://assets/icon.svg"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=800
+window/size/window_width_override=1280
+window/size/window_height_override=800
+window/stretch/mode="canvas_items"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+anti_aliasing/quality/msaa_3d=1
+
+[physics]
+common/physics_ticks_per_second=60

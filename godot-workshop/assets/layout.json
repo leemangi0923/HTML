@@ -1,0 +1,397 @@
+{
+  "panel": {
+    "w": 760,
+    "h": 600
+  },
+  "devices": [
+    {
+      "name": "MCB",
+      "type": "mcb",
+      "x": 101.5,
+      "y": 99,
+      "w": 35.2,
+      "h": 82,
+      "image": "res://assets/faces/MCB.png"
+    },
+    {
+      "name": "FS1",
+      "type": "fuse",
+      "x": 156.7,
+      "y": 100,
+      "w": 36,
+      "h": 80,
+      "image": "res://assets/faces/FS1.png"
+    },
+    {
+      "name": "FS2",
+      "type": "fuse",
+      "x": 212.7,
+      "y": 100,
+      "w": 36,
+      "h": 80,
+      "image": "res://assets/faces/FS2.png"
+    },
+    {
+      "name": "SMPS",
+      "type": "smps",
+      "x": 268.7,
+      "y": 92.5,
+      "w": 50,
+      "h": 95,
+      "image": "res://assets/faces/SMPS.png"
+    },
+    {
+      "name": "PLC",
+      "type": "plc",
+      "x": 338.7,
+      "y": 92.5,
+      "w": 120,
+      "h": 95,
+      "image": "res://assets/faces/PLC.png"
+    },
+    {
+      "name": "POS",
+      "type": "pos",
+      "x": 458.7,
+      "y": 92.5,
+      "w": 22,
+      "h": 95,
+      "image": "res://assets/faces/POS.png"
+    },
+    {
+      "name": "R1",
+      "type": "relay",
+      "x": 101.5,
+      "y": 302.5,
+      "w": 31,
+      "h": 75,
+      "image": "res://assets/faces/R1.png"
+    },
+    {
+      "name": "R2",
+      "type": "relay",
+      "x": 132.5,
+      "y": 302.5,
+      "w": 31,
+      "h": 75,
+      "image": "res://assets/faces/R2.png"
+    },
+    {
+      "name": "R3",
+      "type": "relay",
+      "x": 163.5,
+      "y": 302.5,
+      "w": 31,
+      "h": 75,
+      "image": "res://assets/faces/R3.png"
+    },
+    {
+      "name": "R4",
+      "type": "relay",
+      "x": 194.5,
+      "y": 302.5,
+      "w": 31,
+      "h": 75,
+      "image": "res://assets/faces/R4.png"
+    },
+    {
+      "name": "R5",
+      "type": "relay",
+      "x": 225.5,
+      "y": 302.5,
+      "w": 31,
+      "h": 75,
+      "image": "res://assets/faces/R5.png"
+    },
+    {
+      "name": "R6",
+      "type": "relay",
+      "x": 256.5,
+      "y": 302.5,
+      "w": 31,
+      "h": 75,
+      "image": "res://assets/faces/R6.png"
+    },
+    {
+      "name": "T1",
+      "type": "timer",
+      "x": 313.5,
+      "y": 304,
+      "w": 40,
+      "h": 72,
+      "image": "res://assets/faces/T1.png"
+    },
+    {
+      "name": "T2",
+      "type": "timer",
+      "x": 353.5,
+      "y": 304,
+      "w": 40,
+      "h": 72,
+      "image": "res://assets/faces/T2.png"
+    },
+    {
+      "name": "T3",
+      "type": "timer",
+      "x": 393.5,
+      "y": 304,
+      "w": 40,
+      "h": 72,
+      "image": "res://assets/faces/T3.png"
+    },
+    {
+      "name": "XTB1",
+      "type": "xtb40",
+      "x": 459.5,
+      "y": 318,
+      "w": 149,
+      "h": 44,
+      "image": "res://assets/faces/XTB1.png"
+    },
+    {
+      "name": "TB",
+      "type": "tb",
+      "x": 101.5,
+      "y": 479,
+      "w": 348,
+      "h": 42,
+      "image": "res://assets/faces/TB.png"
+    },
+    {
+      "name": "XTB2",
+      "type": "xtb50",
+      "x": 469.5,
+      "y": 478,
+      "w": 184,
+      "h": 44,
+      "image": "res://assets/faces/XTB2.png"
+    },
+    {
+      "name": "SERVO",
+      "type": "servo",
+      "x": 615,
+      "y": 60,
+      "w": 50,
+      "h": 160,
+      "holes": [
+        [
+          640,
+          66
+        ],
+        [
+          640,
+          214
+        ]
+      ],
+      "image": "res://assets/faces/SERVO.png"
+    }
+  ],
+  "frames": [
+    {
+      "name": "D1",
+      "type": "duct",
+      "x": 40,
+      "y": 0,
+      "w": 40,
+      "h": 600,
+      "o": "v",
+      "slot": "dL",
+      "image": "res://assets/faces/D1.png"
+    },
+    {
+      "name": "D2",
+      "type": "duct",
+      "x": 680,
+      "y": 0,
+      "w": 40,
+      "h": 600,
+      "o": "v",
+      "slot": "dR",
+      "image": "res://assets/faces/D2.png"
+    },
+    {
+      "name": "D3",
+      "type": "duct",
+      "x": 80,
+      "y": 0,
+      "w": 600,
+      "h": 40,
+      "o": "h",
+      "slot": "dT",
+      "image": "res://assets/faces/D3.png"
+    },
+    {
+      "name": "D4",
+      "type": "duct",
+      "x": 80,
+      "y": 240,
+      "w": 600,
+      "h": 40,
+      "o": "h",
+      "slot": "d1",
+      "image": "res://assets/faces/D4.png"
+    },
+    {
+      "name": "D5",
+      "type": "duct",
+      "x": 80,
+      "y": 400,
+      "w": 600,
+      "h": 40,
+      "o": "h",
+      "slot": "d2",
+      "image": "res://assets/faces/D5.png"
+    },
+    {
+      "name": "D6",
+      "type": "duct",
+      "x": 80,
+      "y": 560,
+      "w": 600,
+      "h": 40,
+      "o": "h",
+      "slot": "dB",
+      "image": "res://assets/faces/D6.png"
+    },
+    {
+      "name": "C1",
+      "type": "ch500",
+      "x": 92.5,
+      "y": 122.5,
+      "w": 500,
+      "h": 35,
+      "o": "h",
+      "image": "res://assets/faces/C1.png"
+    },
+    {
+      "name": "C2",
+      "type": "ch575",
+      "x": 92.5,
+      "y": 322.5,
+      "w": 575,
+      "h": 35,
+      "o": "h",
+      "image": "res://assets/faces/C2.png"
+    },
+    {
+      "name": "C3",
+      "type": "ch575",
+      "x": 92.5,
+      "y": 482.5,
+      "w": 575,
+      "h": 35,
+      "o": "h",
+      "image": "res://assets/faces/C3.png"
+    }
+  ],
+  "op": {
+    "x": 840,
+    "y": 170,
+    "w": 375,
+    "h": 270,
+    "cut": {
+      "x": 32.5,
+      "y": 20.75,
+      "w": 228.5,
+      "h": 158.5
+    },
+    "holes": {
+      "h1": [
+        40,
+        230
+      ],
+      "h2": [
+        100,
+        230
+      ],
+      "h3": [
+        160,
+        230
+      ],
+      "h4": [
+        220,
+        230
+      ],
+      "h5": [
+        280,
+        230
+      ],
+      "h6": [
+        344.25,
+        230
+      ],
+      "v1": [
+        344.25,
+        30
+      ],
+      "v2": [
+        344.25,
+        80
+      ],
+      "v3": [
+        344.25,
+        130
+      ],
+      "v4": [
+        344.25,
+        180
+      ]
+    },
+    "answer": {
+      "h1": {
+        "type": "lampW",
+        "sym": "WL1"
+      },
+      "h2": {
+        "type": "lampW",
+        "sym": "WL2"
+      },
+      "h3": {
+        "type": "lampR",
+        "sym": "RL"
+      },
+      "h4": {
+        "type": "lampG",
+        "sym": "GL"
+      },
+      "h5": {
+        "type": "lampY",
+        "sym": "YL"
+      },
+      "h6": {
+        "type": "ems",
+        "sym": "EMS"
+      },
+      "v1": {
+        "type": "pbG",
+        "sym": "PB1"
+      },
+      "v2": {
+        "type": "pbR",
+        "sym": "PB0"
+      },
+      "v3": {
+        "type": "ss",
+        "sym": "SS"
+      },
+      "v4": {
+        "type": "bz",
+        "sym": "BZ"
+      }
+    },
+    "plate": "res://assets/faces/op-plate.png",
+    "front": "res://assets/faces/op-front.png",
+    "back": "res://assets/faces/op-back.png"
+  },
+  "conveyor": {
+    "x": 130,
+    "y": 880,
+    "L": 500,
+    "w": 50,
+    "mx": 30,
+    "mw": 30,
+    "mh": 86,
+    "s1": 160,
+    "s2": 340
+  }
+}
