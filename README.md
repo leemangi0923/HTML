@@ -6,9 +6,9 @@
 python3 -m http.server 8000 --directory .
 ```
 
-## Godot 첫 실행 프로젝트
+## Godot 작업실 프로젝트 · 캐릭터 0.2.0
 
-Godot로 가져와 F5로 실행하는 별도 [첫 작업실 프로젝트](godot-workshop/README.md)를 추가했습니다. [프로젝트 ZIP 다운로드](downloads/task1-godot-starter.zip) 후 압축을 풀고 Godot의 **가져오기 → project.godot → F5**, 비밀번호 **0923** 순서로 시작합니다. 첫 버전은 방·작업대·1인칭 걷기·충돌·앉기·정지 메뉴 확인용이며 최종 교복 모델과 배선 편집·채점은 아직 포함하지 않습니다. 기존 HTML은 유지합니다.
+Godot로 가져와 F5로 실행하는 별도 [첫 작업실 프로젝트](godot-workshop/README.md)를 추가했습니다. [프로젝트 ZIP 다운로드](downloads/task1-godot-starter.zip) 후 압축을 풀고 Godot의 **가져오기 → project.godot → F5**, 비밀번호 **0923** 순서로 시작합니다. 0.2.0에는 Blender에서 제작한 스킨 교복 캐릭터와 서기·걷기·앉기·앉아서 걷기 애니메이션을 추가했습니다. 1인칭 머리·어깨 마크는 숨깁니다. Blender는 실행에 필요하지 않습니다. 배선 편집·채점은 아직 포함하지 않습니다. 기존 HTML은 유지합니다.
 
 ## 2.12.1 교복 전체보기 제거
 

@@ -13,6 +13,7 @@ var active := false
 var head: Node3D
 var camera: Camera3D
 var capsule: CapsuleShape3D
+var avatar: WorkshopAvatar
 var collider: CollisionShape3D
 
 func _ready() -> void:
@@ -26,16 +27,19 @@ func _ready() -> void:
 	add_child(collider)
 	head = Node3D.new()
 	head.name = "Head"
-	head.position.y = 1.60
+	head.position = Vector3(0, 1.60, -0.18)
 	head.rotation.x = -0.50
 	add_child(head)
 	camera = Camera3D.new()
 	camera.name = "Camera"
 	camera.current = true
 	camera.fov = 72
+	camera.cull_mask = 1
 	camera.near = 0.03
 	camera.far = 35
 	head.add_child(camera)
+	avatar = WorkshopAvatar.new()
+	add_child(avatar)
 	reset_position()
 
 func set_active(value: bool) -> void:
@@ -58,7 +62,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion:
 		rotate_y(-event.relative.x * SENSITIVITY)
-		head.rotation.x = clampf(head.rotation.x - event.relative.y * SENSITIVITY, -1.48, 1.15)
+		head.rotation.x = clampf(head.rotation.x - event.relative.y * SENSITIVITY, -1.53, 1.15)
 	if event.is_action_pressed("inspect"):
 		inspect_requested.emit(camera)
 
@@ -76,6 +80,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, direction.x * speed, delta * 9.0)
 	velocity.z = move_toward(velocity.z, direction.z * speed, delta * 9.0)
 	move_and_slide()
+	avatar.set_motion(Vector2(velocity.x, velocity.z).length() if active else 0.0, crouched)
 	if position.y < -2:
 		reset_position()
 
