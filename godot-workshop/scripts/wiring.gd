@@ -9,17 +9,26 @@ var installed: Array = []
 var held: Dictionary = {}
 var history: Array = []
 var terminals: Array[Vector3] = []
+var terminal_keys: Array[String] = []
+var terminal_labels: Array[String] = []
+var internal_links: Array = []
 var visuals: Node3D
+var connection_nodes: Dictionary = {}
+var tight_material: StandardMaterial3D
+var loose_material: StandardMaterial3D
 var preview: MeshInstance3D
 var player: WorkshopPlayer
 var status_label: Label3D
-var save_path := "user://prepared-wires-v1.json"
+var save_path := "user://prepared-wires-v2.json"
+var legacy_save_path := "user://prepared-wires-v1.json"
 var persistence := true
 var wire_material: StandardMaterial3D
 
 func _ready() -> void:
 	name = "PreparedWires"
 	wire_material = _mat(Color("e8b927"))
+	tight_material = _mat(Color("72917c"))
+	loose_material = _mat(Color("c37e35"))
 	visuals = Node3D.new()
 	add_child(visuals)
 	preview = MeshInstance3D.new()
@@ -55,6 +64,8 @@ func _ready() -> void:
 		for col in range(6):
 			var at := Vector3(0.215 + col * 0.05, 0.805, 0.48 + row * 0.065)
 			terminals.append(at)
+			terminal_keys.append("TEST.X%d.%s" % [col + 1, "t" if row == 0 else "b"])
+			terminal_labels.append("연습 X%d %s" % [col + 1, "위" if row == 0 else "아래"])
 			var socket := _box(at, Vector3(0.041, 0.012, 0.043), Color("6b7477"))
 			_hit(socket, {"terminal": terminals.size() - 1}, Vector3(0.045, 0.025, 0.048))
 			var label := Label3D.new()
@@ -64,9 +75,81 @@ func _ready() -> void:
 			label.rotation_degrees.x = -90
 			label.position = at + Vector3(0, 0.008, 0)
 			add_child(label)
-	if persistence and FileAccess.file_exists(save_path):
-		restore(JSON.parse_string(FileAccess.get_file_as_string(save_path)))
+	_add_panel_terminals()
+	var read_path := save_path if FileAccess.file_exists(save_path) else legacy_save_path
+	if persistence and FileAccess.file_exists(read_path):
+		restore(JSON.parse_string(FileAccess.get_file_as_string(read_path)))
 	refresh()
+
+func _add_panel_terminals() -> void:
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/layout.json"))
+	var depths := {"mcb": 0.065, "fuse": 0.055, "smps": 0.065, "plc": 0.055, "relay": 0.048, "timer": 0.057, "xtb40": 0.030, "tb": 0.025, "xtb50": 0.030}
+	var first := terminals.size()
+	for device in data.devices:
+		for pin in device.get("terminals", []):
+			var at := Vector3((float(device.x) + float(pin.x) - 620) / 1000, 0.755 + float(depths[device.type]) + 0.004, (float(device.y) + float(pin.y) - 460) / 1000)
+			var id := terminals.size()
+			terminals.append(at)
+			terminal_keys.append(str(device.name) + "." + str(pin.k))
+			terminal_labels.append(str(device.name) + " · " + str(pin.nm))
+			var body := StaticBody3D.new()
+			body.position = at
+			body.set_meta("terminal", id)
+			var collider := CollisionShape3D.new()
+			var shape := BoxShape3D.new()
+			shape.size = Vector3(0.0055, 0.008, 0.0055)
+			collider.shape = shape
+			body.add_child(collider)
+			add_child(body)
+	# One draw call for all metal screw heads.
+	var screws := MultiMeshInstance3D.new()
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	var screw := CylinderMesh.new()
+	screw.top_radius = 0.0018
+	screw.bottom_radius = 0.0018
+	screw.height = 0.002
+	screw.radial_segments = 8
+	multi.mesh = screw
+	multi.instance_count = terminals.size() - first
+	for id in range(first, terminals.size()):
+		multi.set_instance_transform(id - first, Transform3D(Basis.IDENTITY, terminals[id]))
+	screws.multimesh = multi
+	screws.material_override = _mat(Color("9ca5a8"))
+	add_child(screws)
+	for col in range(6):
+		internal_links.append([col, col + 6])
+	for col in range(1, 41):
+		internal_links.append([terminal_keys.find("TB.%d.t" % col), terminal_keys.find("TB.%d.b" % col)])
+	for pair in [["SMPS.V1", "SMPS.V2"], ["SMPS.G1", "SMPS.G2"]]:
+		internal_links.append([terminal_keys.find(pair[0]), terminal_keys.find(pair[1])])
+
+func connected(a: int, b: int) -> bool:
+	if a < 0 or b < 0 or a >= terminals.size() or b >= terminals.size():
+		return false
+	var graph := {}
+	var links := internal_links.duplicate()
+	for wire in installed:
+		if wire.tight_a and wire.tight_b:
+			links.append([wire.a, wire.b])
+	for pair in links:
+		if pair[0] < 0 or pair[1] < 0:
+			continue
+		for i in range(2):
+			if not graph.has(pair[i]):
+				graph[pair[i]] = []
+			graph[pair[i]].append(pair[1 - i])
+	var pending := [a]
+	var seen := {a: true}
+	while not pending.is_empty():
+		var current: int = pending.pop_back()
+		if current == b:
+			return true
+		for next in graph.get(current, []):
+			if not seen.has(next):
+				seen[next] = true
+				pending.append(next)
+	return false
 
 func _mat(color: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -105,11 +188,39 @@ func available(kind: String) -> int:
 	return count
 
 func state() -> Dictionary:
-	return {"schema": 1, "installed": installed.duplicate(true), "held": held.duplicate(true)}
+	return {"schema": 2, "terminal_keys": terminal_keys.duplicate(), "installed": installed.duplicate(true), "held": held.duplicate(true)}
 
 func restore(data: Variant) -> bool:
-	if not data is Dictionary or data.get("schema") != 1 or not data.get("installed") is Array or not data.get("held") is Dictionary:
+	if not data is Dictionary or (data.get("schema") != 1 and data.get("schema") != 2) or not data.get("installed") is Array or not data.get("held") is Dictionary:
 		return false
+	data = data.duplicate(true)
+	if data.schema == 1:
+		var legacy_wires: Array = data.installed.duplicate()
+		if not data.held.is_empty():
+			legacy_wires.append(data.held)
+		for wire in legacy_wires:
+			if not wire is Dictionary or not (wire.get("a") is int or wire.get("a") is float) or not (wire.get("b") is int or wire.get("b") is float):
+				return false
+			if wire.a >= 12 or wire.b >= 12:
+				return false
+	if data.schema == 2:
+		if not data.get("terminal_keys") is Array:
+			return false
+		var wires: Array = data.installed.duplicate()
+		if not data.held.is_empty():
+			wires.append(data.held)
+		for wire in wires:
+			if not wire is Dictionary:
+				return false
+			for end in ["a", "b"]:
+				var old: Variant = wire.get(end)
+				if not (old is int or old is float) or old != floor(old) or old < -1 or old >= data.terminal_keys.size():
+					return false
+				if old >= 0:
+					var mapped := terminal_keys.find(str(data.terminal_keys[int(old)]))
+					if mapped < 0:
+						return false
+					wire[end] = mapped
 	var counts := {"standard": 0, "long": 0}
 	var used := {}
 	for wire in data.installed:
@@ -133,18 +244,18 @@ func restore(data: Variant) -> bool:
 	return true
 
 func _valid_wire(w: Dictionary, complete: bool) -> bool:
-	if not TOTAL.has(w.get("kind", "")) or not w.get("a") is int or not w.get("b") is int:
-		# JSON numbers are floats, normalize only exact integers.
-		if not TOTAL.has(w.get("kind", "")) or not w.has_all(["a", "b"]):
+	if not TOTAL.has(w.get("kind", "")):
+		return false
+	for end in ["a", "b"]:
+		var value: Variant = w.get(end)
+		if not (value is int or value is float) or value != floor(value) or value < -1 or value >= terminals.size():
 			return false
-		if not (w.a is float and w.a == floor(w.a) and w.b is float and w.b == floor(w.b)):
-			return false
-		w.a = int(w.a); w.b = int(w.b)
+		w[end] = int(value)
 	if not w.get("tight_a") is bool or not w.get("tight_b") is bool:
 		return false
 	if not complete and (w.b != -1 or w.tight_b or (w.a == -1 and w.tight_a)):
 		return false
-	return w.a >= (0 if complete else -1) and w.a < 12 and w.b >= (0 if complete else -1) and w.b < 12 and (not complete or w.a != w.b)
+	return w.a >= (0 if complete else -1) and w.a < terminals.size() and w.b >= (0 if complete else -1) and w.b < terminals.size() and (not complete or w.a != w.b)
 
 func _before() -> void:
 	history.append(state())
@@ -182,7 +293,7 @@ func insert(id: int) -> String:
 		installed.append(held.duplicate(true))
 		held.clear()
 	refresh()
-	return "삽입했어요. 각 단자에 조준하고 F로 나사를 조이세요."
+	return terminal_labels[id] + "에 삽입했어요. F로 나사를 조이세요."
 
 func tighten(id: int) -> String:
 	var wire: Dictionary = {}
@@ -229,13 +340,21 @@ func undo() -> void:
 	refresh()
 
 func refresh() -> void:
-	for child in visuals.get_children():
-		child.free()
+	var alive := {}
 	for wire in installed:
-		var points := wire_points(terminals[wire.a], terminals[wire.b], LENGTH[wire.kind])
-		_tube(points, visuals)
-		_end(terminals[wire.a], visuals, wire.tight_a)
-		_end(terminals[wire.b], visuals, wire.tight_b)
+		var key := "%s:%d:%d" % [wire.kind, wire.a, wire.b]
+		alive[key] = true
+		if not connection_nodes.has(key):
+			var group := Node3D.new()
+			visuals.add_child(group)
+			_tube(wire_points(terminals[wire.a], terminals[wire.b], LENGTH[wire.kind]), group)
+			connection_nodes[key] = {"node": group, "a": _end(terminals[wire.a], group, wire.tight_a), "b": _end(terminals[wire.b], group, wire.tight_b)}
+		connection_nodes[key].a.material_override = tight_material if wire.tight_a else loose_material
+		connection_nodes[key].b.material_override = tight_material if wire.tight_b else loose_material
+	for key in connection_nodes.keys():
+		if not alive.has(key):
+			connection_nodes[key].node.free()
+			connection_nodes.erase(key)
 	status_label.text = "준비된 전선\n일반 %d / 120\n긴 선 %d / 9\n조준 + E 집기" % [available("standard"), available("long")]
 	if persistence:
 		var file := FileAccess.open(save_path, FileAccess.WRITE)
@@ -289,7 +408,7 @@ static func tube_mesh(points: PackedVector3Array) -> ArrayMesh:
 	surface.generate_normals()
 	return surface.commit()
 
-func _end(at: Vector3, parent: Node3D, tight: bool) -> void:
+func _end(at: Vector3, parent: Node3D, tight: bool) -> MeshInstance3D:
 	var end := MeshInstance3D.new()
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = 0.0025
@@ -305,8 +424,9 @@ func _end(at: Vector3, parent: Node3D, tight: bool) -> void:
 	ball.height = 0.008
 	marker.mesh = ball
 	marker.position = at + Vector3(0.009, 0.010, 0)
-	marker.material_override = _mat(Color("72917c") if tight else Color("c37e35"))
+	marker.material_override = tight_material if tight else loose_material
 	parent.add_child(marker)
+	return marker
 
 var preview_clock := 0.0
 func _process(delta: float) -> void:
@@ -319,10 +439,19 @@ func _process(delta: float) -> void:
 		return
 	var rig := player.avatar.skeleton
 	var hand := rig.to_global(rig.get_bone_global_pose(rig.find_bone("Hand.R")).origin)
+	if player.work_view:
+		var camera := get_viewport().get_camera_3d()
+		var pixel := get_viewport().get_mouse_position()
+		var origin := camera.project_ray_origin(pixel)
+		var ray := camera.project_ray_normal(pixel)
+		var height: float = terminals[held.a].y + 0.01 if held.a >= 0 else 0.84
+		if absf(ray.y) > 0.001:
+			hand = origin + ray * ((height - origin.y) / ray.y)
 	var start: Vector3 = terminals[held.a] if held.a >= 0 else hand + Vector3(-0.10, -0.08, 0.04)
 	if start.distance_to(hand) > LENGTH[held.kind]:
 		# A connected lead tethers the body instead of stretching the wire.
-		player.global_position += (start - hand).normalized() * (start.distance_to(hand) - LENGTH[held.kind])
-		player.velocity = Vector3.ZERO
+		if not player.work_view:
+			player.global_position += (start - hand).normalized() * (start.distance_to(hand) - LENGTH[held.kind])
+			player.velocity = Vector3.ZERO
 		hand = start + (hand - start).normalized() * LENGTH[held.kind]
 	preview.mesh = tube_mesh(wire_points(start, hand, LENGTH[held.kind]))

@@ -52,7 +52,7 @@ func _run() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = 5.0
 	camera.far = 15
-	camera.cull_mask = 1
+	camera.cull_mask = 5
 	camera.position = Vector3(0, 6, 3)
 	stage.add_child(camera)
 	camera.look_at(Vector3(0, 0, 0.7))

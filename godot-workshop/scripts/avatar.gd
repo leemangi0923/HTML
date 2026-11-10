@@ -32,7 +32,7 @@ func _ready() -> void:
 			if mesh.name.begins_with("Head_"):
 				_add_head_shadow(mesh)
 		else:
-			mesh.layers = 1
+			mesh.layers = 4
 			body_meshes.append(mesh)
 			# Supplied material resources are retained without procedural overrides.
 	animation_player = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -65,7 +65,7 @@ func _add_head_shadow(source: MeshInstance3D) -> void:
 	shadow.skin = source.skin
 	shadow.skeleton = source.skeleton
 	shadow.transform = source.transform
-	shadow.layers = 1
+	shadow.layers = 4
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 	source.get_parent().add_child(shadow)
 	head_shadow_meshes.append(shadow)

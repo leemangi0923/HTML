@@ -34,7 +34,7 @@ func _capture() -> void:
 	print("CLIPS: ", avatar.animation_player.get_animation_list())
 	print("BONES: ", avatar.skeleton.get_bone_count(), " HIDDEN FP MESHES: ", avatar.first_person_hidden.size())
 	var camera := Camera3D.new()
-	camera.cull_mask = 3
+	camera.cull_mask = 7
 	camera.position = Vector3(0, 0.95, -2.7)
 	camera.fov = 43
 	stage.add_child(camera)

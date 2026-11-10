@@ -13,6 +13,11 @@ var help_label: Label
 var crosshair: Label
 var logged_in := false
 var wiring: WorkshopWiring
+var work_view: WorkshopWorkView
+var target_label: Label
+var probe_mode := false
+var probe_start := -1
+var hover_timer := 0.0
 
 func _ready() -> void:
 	_install_inputs()
@@ -29,9 +34,14 @@ func _ready() -> void:
 	wiring = WorkshopWiring.new()
 	wiring.player = player
 	add_child(wiring)
+	work_view = WorkshopWorkView.new()
+	work_view.player = player
+	add_child(work_view)
+	work_view.clicked.connect(_inspect)
+	work_view.mode_changed.connect(_work_mode_changed)
 
 func _install_inputs() -> void:
-	var bindings := {"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN], "move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT], "run": [KEY_SHIFT], "crouch": [KEY_C], "inspect": [KEY_E], "pause": [KEY_ESCAPE], "reset": [KEY_R], "tighten": [KEY_F], "return_wire": [KEY_Q], "remove_wire": [KEY_X], "undo_wire": [KEY_Z]}
+	var bindings := {"move_forward": [KEY_W, KEY_UP], "move_back": [KEY_S, KEY_DOWN], "move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT], "run": [KEY_SHIFT], "crouch": [KEY_C], "inspect": [KEY_E], "pause": [KEY_ESCAPE], "reset": [KEY_R], "tighten": [KEY_F], "return_wire": [KEY_Q], "remove_wire": [KEY_X], "undo_wire": [KEY_Z], "trace_wire": [KEY_M]}
 	for action in bindings:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
@@ -144,31 +154,45 @@ func _build_interface() -> void:
 	var hud_top := ColorRect.new()
 	hud_top.color = Color(0.03, 0.10, 0.11, 0.78)
 	hud_top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	hud_top.offset_bottom = 104
+	hud_top.offset_bottom = 62
 	hud_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(hud_top)
 	var hud_bottom := ColorRect.new()
 	hud_bottom.color = Color(0.03, 0.10, 0.11, 0.78)
 	hud_bottom.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	hud_bottom.offset_top = -55
+	hud_bottom.offset_top = -38
 	hud_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(hud_bottom)
 	var version := str(ProjectSettings.get_setting("application/config/version"))
-	var title := _label("1과제 작업실 · 준비된 전선 · v" + version, 21)
-	title.position = Vector2(24, 20)
-	title.size = Vector2(600, 30)
+	var title := _label("1과제 작업실 · 제어판 배선 · v" + version, 18)
+	title.position = Vector2(16, 5)
+	title.size = Vector2(650, 24)
 	ui.add_child(title)
-	var controls := _label("WASD 이동 · C 앉기 · E 집기/삽입 · F 조임/풀기 · Q 반납 · X 분리 · Z 되돌리기 · Esc 메뉴", 16)
+	var controls := _label("Tab 작업보기 · 휠 확대 · 중클릭 이동 · 1~4 위치 · 클릭/E 배선 · F 조임 · Q 반납 · X 분리 · Z 취소 · M 배선추적", 16)
 	controls.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	controls.offset_left = 24
-	controls.offset_top = -42
+	controls.offset_top = -30
 	controls.offset_right = -24
-	controls.offset_bottom = -12
+	controls.offset_bottom = -4
 	ui.add_child(controls)
 	hint_label = _label("비밀번호를 입력하면 작업실에 들어가요.", 18)
-	hint_label.position = Vector2(24, 59)
-	hint_label.size = Vector2(950, 30)
+	hint_label.position = Vector2(16, 32)
+	hint_label.size = Vector2(1200, 24)
 	ui.add_child(hint_label)
+	target_label = _label("", 16)
+	var target_background := StyleBoxFlat.new()
+	target_background.bg_color = Color(0.03, 0.10, 0.11, 0.90)
+	target_background.content_margin_left = 8
+	target_background.content_margin_right = 8
+	target_label.add_theme_stylebox_override("normal", target_background)
+	target_label.visible = false
+	target_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	target_label.offset_left = 20
+	target_label.offset_right = -20
+	target_label.offset_top = -65
+	target_label.offset_bottom = -39
+	target_label.add_theme_color_override("font_color", Color("ffe6a6"))
+	ui.add_child(target_label)
 	crosshair = _label("+", 22)
 	crosshair.set_anchors_preset(Control.PRESET_CENTER)
 	crosshair.position = Vector2(-8, -16)
@@ -202,7 +226,7 @@ func _build_interface() -> void:
 	menu.add_child(_button("계속하기", _resume))
 	menu.add_child(_button("작업대 앞으로 돌아오기", _reset))
 	menu.add_child(_button("조작법", _toggle_help))
-	help_label = _label("WASD / 방향키로 이동, 마우스로 둘러보기\nC 낮추기 · E 전선 집기/삽입 · F 조임/풀기\nQ 반납 · X 분리 · Z 되돌리기 · Esc 메뉴", 16)
+	help_label = _label("WASD / 방향키로 이동, 마우스로 둘러보기\nTab 작업보기 · 휠 확대 · 가운데 버튼 이동\n1 제어판 · 2 조작판 · 3 컨베이어 · 4 재료대\n클릭/E 삽입 · F 조임 · M 배선추적\nQ 반납 · X 분리 · Z 되돌리기 · Esc 메뉴", 16)
 	help_label.visible = false
 	menu.add_child(help_label)
 	menu.add_child(_button("종료", func(): get_tree().quit()))
@@ -221,9 +245,11 @@ func _submit_password() -> void:
 
 func _resume() -> void:
 	pause_menu.hide()
-	crosshair.show()
+	crosshair.visible = work_view == null or not work_view.enabled
 	player.set_active(true)
-	hint_label.text = "오른쪽 재료대에서 E로 전선을 집으세요. 작업대 앞 X1~X6에 E로 삽입, F로 조이기. C로 낮춰 작업해요."
+	if work_view != null and work_view.enabled:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	hint_label.text = "Tab을 누르면 제어판이 크게 보여요. 작업보기에서 4 재료대 → 전선 클릭 → 1 제어판 → 단자 클릭, F로 조여요."
 
 func _show_pause() -> void:
 	if not logged_in:
@@ -233,6 +259,7 @@ func _show_pause() -> void:
 	pause_menu.show()
 
 func _reset() -> void:
+	work_view.set_enabled(false)
 	player.reset_position()
 	_resume()
 
@@ -249,6 +276,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_show_pause()
 		get_viewport().set_input_as_handled()
 	if player.active:
+		if event.is_action_pressed("trace_wire"):
+			probe_mode = not probe_mode
+			probe_start = -1
+			hint_label.text = "배선 추적: 단자 두 개를 차례로 클릭하세요. M으로 종료." if probe_mode else "전선 연결 작업으로 돌아왔어요."
 		if event.is_action_pressed("return_wire"):
 			hint_label.text = wiring.return_held()
 		if event.is_action_pressed("undo_wire"):
@@ -260,26 +291,47 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("reset"):
 		_reset()
 
+func _work_mode_changed(enabled: bool) -> void:
+	crosshair.visible = player.active and not enabled
+	hint_label.text = "작업보기 · 1 제어판 / 2 조작판 / 3 컨베이어 / 4 재료대 · 휠 확대 · 가운데 버튼 이동 · Tab 돌아가기" if enabled else "WASD 이동 · Tab으로 작업보기"
+
+func _process(delta: float) -> void:
+	hover_timer += delta
+	if hover_timer < 0.1 or not logged_in or not player.active:
+		return
+	hover_timer = 0
+	var hit := _aim(get_viewport().get_camera_3d())
+	target_label.text = ""
+	target_label.visible = false
+	if not hit.is_empty() and hit.collider.has_meta("terminal"):
+		var id := int(hit.collider.get_meta("terminal"))
+		target_label.visible = true
+		target_label.text = wiring.terminal_labels[id] + (" · 사용 중" if wiring.occupied(id) else " · E 삽입") + " · F 조임/풀기"
+
 func _aim(camera: Camera3D) -> Dictionary:
-	var start := camera.global_position
-	var query := PhysicsRayQueryParameters3D.create(start, start - camera.global_basis.z * 2.2)
+	var pixel := get_viewport().get_mouse_position() if work_view != null and work_view.enabled else get_viewport().get_visible_rect().size / 2
+	var start := camera.project_ray_origin(pixel)
+	var query := PhysicsRayQueryParameters3D.create(start, start + camera.project_ray_normal(pixel) * 2.2)
 	query.exclude = [player.get_rid()]
 	return get_world_3d().direct_space_state.intersect_ray(query)
 
 func _reachable(point: Vector3) -> bool:
+	if work_view.enabled:
+		return work_view.camera.global_position.distance_to(point) < 1.4
 	var rig := player.avatar.skeleton
 	var shoulder := rig.to_global(rig.get_bone_global_pose(rig.find_bone("UpperArm.R")).origin)
 	return shoulder.distance_to(point) < 0.60
 
 func _wire_action(action: String) -> void:
-	var hit := _aim(player.camera)
+	var hit := _aim(get_viewport().get_camera_3d())
 	if hit.is_empty() or not hit.collider.has_meta("terminal"):
-		hint_label.text = "작업대 앞 X1~X6 단자에 조준해 주세요."
+		hint_label.text = "제어판이나 연습 단자에 조준해 주세요."
 		return
 	if not _reachable(hit.position):
 		hint_label.text = "손이 닿지 않아요. 조금 가까이 가거나 C로 자세를 낮춰주세요."
 		return
-	player.avatar.reach_to(hit.position + Vector3(0, 0.04, 0))
+	if not work_view.enabled:
+		player.avatar.reach_to(hit.position + Vector3(0, 0.04, 0))
 	var id := int(hit.collider.get_meta("terminal"))
 	hint_label.text = wiring.tighten(id) if action == "tighten" else wiring.remove_wire(id)
 
@@ -293,7 +345,20 @@ func _inspect(from_camera: Camera3D) -> void:
 		if not _reachable(hit.position):
 			hint_label.text = "손이 닿지 않아요. 조금 가까이 가거나 C로 자세를 낮춰주세요."
 			return
-		player.avatar.reach_to(hit.position + Vector3(0, 0.04, 0))
+		if probe_mode:
+			if object.has_meta("terminal"):
+				_trace(int(object.get_meta("terminal")))
+			return
+		if not work_view.enabled:
+			player.avatar.reach_to(hit.position + Vector3(0, 0.04, 0))
 		hint_label.text = wiring.take(str(object.get_meta("supply"))) if object.has_meta("supply") else wiring.insert(int(object.get_meta("terminal")))
 	else:
 		hint_label.text = str(object.get_meta("label", "작업대"))
+
+func _trace(id: int) -> void:
+	if probe_start < 0:
+		probe_start = id
+		hint_label.text = wiring.terminal_labels[id] + " 선택됨. 비교할 두 번째 단자를 클릭하세요."
+	else:
+		hint_label.text = wiring.terminal_labels[probe_start] + " ↔ " + wiring.terminal_labels[id] + (" : 조인 전선으로 이어져 있어요." if wiring.connected(probe_start, id) else " : 조인 전선 경로가 없어요.")
+		probe_start = -1

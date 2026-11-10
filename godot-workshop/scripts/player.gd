@@ -19,6 +19,7 @@ var step_phase := 0.0
 var camera_bob := Vector2.ZERO
 var workbench: Node3D
 var working_pose := false
+var work_view := false
 
 func _ready() -> void:
 	name = "Player"
@@ -38,7 +39,7 @@ func _ready() -> void:
 	camera.name = "Camera"
 	camera.current = true
 	camera.fov = 72
-	camera.cull_mask = 1
+	camera.cull_mask = 5
 	camera.near = 0.03
 	camera.far = 35
 	head.add_child(camera)
@@ -67,11 +68,11 @@ func reset_position() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not active:
 		return
-	if event is InputEventMouseMotion:
+	if event is InputEventMouseMotion and not work_view:
 		rotate_y(-event.relative.x * SENSITIVITY)
 		head.rotation.x = clampf(head.rotation.x - event.relative.y * SENSITIVITY, -1.53, 1.15)
 	if event.is_action_pressed("inspect"):
-		inspect_requested.emit(camera)
+		inspect_requested.emit(get_viewport().get_camera_3d())
 
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
@@ -80,7 +81,7 @@ func _physics_process(delta: float) -> void:
 	var desired_height := 1.12 if crouched else 1.60
 	capsule.height = 1.20 if crouched else 1.70
 	collider.position.y = capsule.height * 0.5
-	var axis := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if active else Vector2.ZERO
+	var axis := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if active and not work_view else Vector2.ZERO
 	var direction := (transform.basis * Vector3(axis.x, 0, axis.y)).normalized()
 	var speed := CROUCH_SPEED if crouched else RUN_SPEED if Input.is_action_pressed("run") else WALK_SPEED
 	velocity.x = move_toward(velocity.x, direction.x * speed, delta * 9.0)

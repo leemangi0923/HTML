@@ -48,6 +48,21 @@ func _run() -> void:
 		check(absf(distance - WorkshopWiring.LENGTH[kind]) < 0.002, "Wire arc length stays fixed: " + kind)
 	w.take("long"); w.return_held()
 	check(w.available("long") == 9, "Long wire stock independent")
+	var migrated := WorkshopWiring.new()
+	migrated.save_path = "user://wiring-migration-test-v2.json"
+	migrated.legacy_save_path = "user://wiring-migration-test-v1.json"
+	DirAccess.remove_absolute(migrated.save_path)
+	var old_text := JSON.stringify({"schema":1,"installed":[{"kind":"standard","a":0,"b":7,"tight_a":true,"tight_b":false}],"held":{}})
+	var old_file := FileAccess.open(migrated.legacy_save_path, FileAccess.WRITE)
+	old_file.store_string(old_text)
+	old_file.close()
+	root.add_child(migrated)
+	check(migrated.installed.size() == 1 and migrated.available("standard") == 119, "Migrate existing disk save automatically")
+	check(FileAccess.file_exists(migrated.save_path), "Write migrated state to a new file")
+	check(FileAccess.get_file_as_string(migrated.legacy_save_path) == old_text, "Retain original v1 save for rollback")
+	DirAccess.remove_absolute(migrated.save_path)
+	DirAccess.remove_absolute(migrated.legacy_save_path)
+	migrated.queue_free()
 	w.queue_free()
 	await process_frame
 	if not failed:

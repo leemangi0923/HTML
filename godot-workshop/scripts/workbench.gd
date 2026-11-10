@@ -52,6 +52,8 @@ func _face(r: Dictionary, top: float, file_path: String) -> void:
 	mesh.position = Vector3((float(r.x) + float(r.w) / 2 - 620) / 1000, top + 0.0004, (float(r.y) + float(r.h) / 2 - 460) / 1000)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = load(file_path)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	mat.roughness = 0.85
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
