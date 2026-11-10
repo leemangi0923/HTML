@@ -1,0 +1,40 @@
+appId: io.github.leemangi0923.task1
+productName: 1과제 제작 시뮬레이터
+copyright: Copyright © 2026 leemangi0923
+asar: true
+npmRebuild: false
+toolsets:
+  wine: 1.0.1
+artifactName: task1-simulator-v${version}-${arch}.${ext}
+directories:
+  output: dist
+  buildResources: desktop/assets
+files:
+  - desktop/main.cjs
+  - desktop/preload.cjs
+  - desktop/generated/index.html
+  - desktop/assets/icon.png
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: desktop/assets/icon.ico
+  artifactName: task1-simulator-setup-v${version}-${arch}.${ext}
+  executableName: Task1Simulator
+  signExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 1과제 제작 시뮬레이터
+  uninstallDisplayName: 1과제 제작 시뮬레이터
+  deleteAppDataOnUninstall: false
+  installerLanguages: [ko_KR, en_US]
+linux:
+  target: dir
+  category: Education
+  icon: desktop/assets/icon.png
