@@ -2,14 +2,13 @@ import * as THREE from 'three';
 import { OrbitControls } from '../vendor/three/OrbitControls.js';
 import { WalkingView } from './walking.mjs';
 import { buildDetails } from './details.mjs';
-import { createUniformAvatar } from './uniform.mjs';
 
 const $ = s => document.querySelector(s);
 document.title = '1과제 작업대 · 3D 미리보기';
 document.body.classList.add('workshop');
 $('.brand .eyebrow').textContent='산업용로봇 1과제 · 가상 작업실';
 $('.scene-title').innerHTML = '<span class="dot"></span>TASK 01 / WORKBENCH <small>기존 작업대 배치 그대로</small>';
-$('aside').innerHTML = `<div class="panel-intro"><span class="eyebrow">산업용로봇 1과제</span><h2>내 발로 둘러보는 작업실</h2><p>작업대 앞에 서서 걷고, 앉아서 기구를 가까이 살펴봐요.</p></div><div class="walk-settings"><button id="walkMode" class="wide" aria-pressed="true">1인칭으로 걷는 중 · 돌려보기로 전환</button><div class="workspace-actions"><button id="crouch" aria-pressed="false">앉아서 보기</button><button id="bob" aria-pressed="true">걸음 흔들림</button></div><button id="avatarView" class="wide">교복 전체보기</button><button id="walkHome" class="wide">작업대 앞으로 돌아오기</button><p class="walk-keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 걷기 · 마우스 둘러보기<br><kbd>Shift</kbd> 빠르게 · <kbd>C</kbd> 앉기<br><kbd>E</kbd> 기구 이름 · <kbd>Esc</kbd> 마우스 해제</p></div>
+$('aside').innerHTML = `<div class="panel-intro"><span class="eyebrow">산업용로봇 1과제</span><h2>내 발로 둘러보는 작업실</h2><p>작업대 앞에 서서 걷고, 앉아서 기구를 가까이 살펴봐요.</p></div><div class="walk-settings"><button id="walkMode" class="wide" aria-pressed="true">1인칭으로 걷는 중 · 돌려보기로 전환</button><div class="workspace-actions"><button id="crouch" aria-pressed="false">앉아서 보기</button><button id="bob" aria-pressed="true">걸음 흔들림</button></div><button id="walkHome" class="wide">작업대 앞으로 돌아오기</button><p class="walk-keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 걷기 · 마우스 둘러보기<br><kbd>Shift</kbd> 빠르게 · <kbd>C</kbd> 앉기<br><kbd>E</kbd> 기구 이름 · <kbd>Esc</kbd> 마우스 해제</p></div>
 <div class="workspace-actions"><button data-focus="panel">제어판 보기</button><button data-focus="op">조작판 보기</button></div><button class="wide" data-focus="conveyor">컨베이어 보기</button>
 <div id="status" role="status" aria-live="polite">작업실 들어가기를 누르면 마우스로 둘러볼 수 있어요.</div>
 <div class="readouts"><div><span>제어판</span><b>760 × 600</b></div><div><span>조작판</span><b>375 × 270</b></div></div>
@@ -89,9 +88,8 @@ const wireGroup=new THREE.Group(), opWires=new THREE.Group();scene.add(wireGroup
 const wireMat=new THREE.MeshStandardMaterial({color:'#edc22b',roughness:.6});
 for(const route of data.routes){const points=route.points.filter((_,i,a)=>i===0||i===a.length-1||i%3===0).map(([x,y])=>new THREE.Vector3(X(x),.94,Z(y)));if(points.length<2)continue;
  const curve=new THREE.CatmullRomCurve3(points,false,'centripetal');const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,Math.min(120,Math.max(16,points.length)),.018,4,false),wireMat);(route.op?opWires:wireGroup).add(mesh);}
-let focus='all',walker,avatarPreview=false,previewGroup,savedVisibility,savedBackground,savedFog;
-function leaveAvatarPreview(){if(!avatarPreview)return;for(const [object,visible] of savedVisibility)object.visible=visible;previewGroup.visible=false;scene.background=savedBackground;scene.fog=savedFog;avatarPreview=false;dirty=true;}
-function modeUI(mode){leaveAvatarPreview();controls.enabled=mode==='orbit';document.body.classList.toggle('walking',mode==='walk');$('#walkMode').setAttribute('aria-pressed',String(mode==='walk'));$('#walkMode').textContent=mode==='walk'?'1인칭으로 걷는 중 · 돌려보기로 전환':'돌려보는 중 · 1인칭으로 걷기';$('.scene-hint').textContent=mode==='walk'?'WASD 이동 · 마우스 둘러보기 · C 앉기 · E 기구 이름 · Esc 해제':'드래그 회전 · 휠 확대 · 휠 버튼 / 오른쪽 드래그 이동';}
+let focus='all',walker;
+function modeUI(mode){controls.enabled=mode==='orbit';document.body.classList.toggle('walking',mode==='walk');$('#walkMode').setAttribute('aria-pressed',String(mode==='walk'));$('#walkMode').textContent=mode==='walk'?'1인칭으로 걷는 중 · 돌려보기로 전환':'돌려보는 중 · 1인칭으로 걷기';$('.scene-hint').textContent=mode==='walk'?'WASD 이동 · 마우스 둘러보기 · C 앉기 · E 기구 이름 · Esc 해제':'드래그 회전 · 휠 확대 · 휠 버튼 / 오른쪽 드래그 이동';}
 function view(type='iso',section=focus){if(walker)walker.setMode('orbit');focus=section;const p=section==='panel'?[-4.8,0,-3.2]:section==='op'?[8,0,-3]:section==='conveyor'?[-5,0,9]:[0,0,1];controls.target.set(...p);
  const dist=section==='all'?1:section==='panel'?.64:.36;const ratio=Math.min(1.7,Math.max(1,1.05/camera.aspect));const v=type==='top'?[0,43,.01]:[20,29,32];camera.position.set(p[0]+v[0]*dist*ratio,p[1]+v[1]*dist*ratio,p[2]+v[2]*dist*ratio);controls.update();dirty=true;}
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>view(b.dataset.view==='top'?'top':'iso',b.dataset.view==='close'?'panel':'all')));
@@ -114,17 +112,10 @@ walker=new WalkingView(camera,canvas,{onMode:modeUI,onChange:()=>{dirty=true},on
  ray.setFromCamera(new THREE.Vector2(0,0),camera);const hit=ray.intersectObjects(picks).find(h=>h.distance<50&&h.object.parent.visible);$('#status').textContent=hit?hit.object.userData.name:'기구를 화면 가운데에 두고 조금 가까이 가보세요.';
 }});scene.add(walker.body);walker.setMode('walk');$('#bob').setAttribute('aria-pressed',String(walker.bob));
 $('#walkMode').addEventListener('click',()=>{if(walker.mode==='walk'){walker.setMode('orbit');view()}else walker.setMode('walk')});
-$('#avatarView').addEventListener('click',()=>{
- walker.setMode('orbit');focus='avatar';
- if(!previewGroup){previewGroup=new THREE.Group();const avatar=createUniformAvatar(()=>{dirty=true});previewGroup.add(avatar);const portraitLight=new THREE.DirectionalLight('#fff3e5',2.5);portraitLight.position.set(-10,30,-30);portraitLight.target.position.set(0,20,0);previewGroup.add(portraitLight,portraitLight.target);const floor=new THREE.Mesh(new THREE.CylinderGeometry(10,10.8,.4,48),new THREE.MeshStandardMaterial({color:'#b5bfba',roughness:1}));floor.position.y=-.25;previewGroup.add(floor);scene.add(previewGroup);}
- savedVisibility=scene.children.filter(o=>!o.isLight&&o!==previewGroup).map(o=>[o,o.visible]);for(const [o] of savedVisibility)o.visible=false;
- savedBackground=scene.background;savedFog=scene.fog;scene.background=new THREE.Color('#bfc8c4');scene.fog=null;previewGroup.visible=true;avatarPreview=true;camera.layers.enable(1);
- controls.target.set(0,17,0);camera.position.set(0,18,-54*Math.max(1,.85/camera.aspect));controls.update();$('#status').textContent='교복 전체보기 · 드래그로 앞·옆·뒤를 확인해요. 걷기 버튼으로 작업실에 돌아가요.';dirty=true;
-});
 $('#walkHome').addEventListener('click',()=>{walker.home();$('#crouch').setAttribute('aria-pressed','false')});
 $('#crouch').addEventListener('click',()=>{walker.crouched=!walker.crouched;$('#crouch').setAttribute('aria-pressed',String(walker.crouched));dirty=true});
 $('#bob').addEventListener('click',()=>{walker.bob=!walker.bob;$('#bob').setAttribute('aria-pressed',String(walker.bob));dirty=true});
 renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
 let previousTime=0;
 renderer.setAnimationLoop(time=>{const dt=previousTime?Math.min((time-previousTime)/1000,.1):0;previousTime=time;if(controls.enabled)controls.update();if(walker.update(dt))dirty=true;if(dirty){renderer.render(scene,camera);dirty=false}});
-window.WORKSHOP3D={get layout(){return{panel:data.panel,op:{x:op.x,y:op.y,w:op.w,h:op.h},devices:data.devices.map(({name,type,x,y,w,h})=>({name,type,x,y,w,h})),frames:data.frames.length,conveyor:cv}},get state(){return{back,wireVisible,focus,walk:walker?.state,details:detailInfo,uniform:{...walker.body.userData.uniform,bodyVisible:walker.body.visible,badgesVisibleInCamera:walker.body.visible&&walker.body.userData.rig.badges.some(b=>camera.layers.test(b.layers)),preview:avatarPreview}}},get ready(){return $('#loading').hidden}};
+window.WORKSHOP3D={get layout(){return{panel:data.panel,op:{x:op.x,y:op.y,w:op.w,h:op.h},devices:data.devices.map(({name,type,x,y,w,h})=>({name,type,x,y,w,h})),frames:data.frames.length,conveyor:cv}},get state(){return{back,wireVisible,focus,walk:walker?.state,details:detailInfo,uniform:{...walker.body.userData.uniform,bodyVisible:walker.body.visible,badgesVisibleInCamera:walker.body.visible&&walker.body.userData.rig.badges.some(b=>camera.layers.test(b.layers))}}},get ready(){return $('#loading').hidden}};

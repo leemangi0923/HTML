@@ -225,16 +225,15 @@ test('3D entry requires 0923 before loading a scene, supports same-tab reload an
   } finally {await context.close();}
 });
 
-test('school uniform preview preserves school identity, concealed zipper and hidden first-person shoulder badges', async () => {
+test('first-person uniform preserves school identity and concealed zipper without a uniform gallery', async () => {
   const {page,context,errors}=await session(undefined,'workshop');
   try {
     const info=await page.evaluate(()=>WORKSHOP3D.state.uniform);
     assert.equal(info.school,'국립전북기계공업고등학교');assert.equal(info.english,'Chonbuk Mechanical Technical High School');assert.equal(info.innerText,'마이스터고');
     assert.equal(info.bodyVisible,true);assert.equal(info.badgesVisibleInCamera,false);assert.match(info.closure,/덮개.*똑딱/);
-    await page.locator('#avatarView').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.preview),true);
-    const scene=await page.locator('#scene').boundingBox();await page.mouse.move(scene.x+scene.width/2,scene.y+scene.height/2);await page.mouse.down();await page.mouse.move(scene.x+scene.width/2+120,scene.y+scene.height/2,{steps:6});await page.mouse.up();
-    await page.locator('#walkMode').click();
-    assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.preview),false);assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.bodyVisible),true);assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.badgesVisibleInCamera),false);
+    assert.equal(await page.locator('#avatarView').count(),0);
+    await page.locator('[data-focus="panel"]').click();await page.locator('#walkMode').click();
+    assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.bodyVisible),true);assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.badgesVisibleInCamera),false);
     await page.locator('#walkStart').click();await page.mouse.move(700,1000);await page.mouse.move(700,1450);
     await page.waitForFunction(()=>WORKSHOP3D.state.walk.pitch<-1.4);
     assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.bodyVisible),true);assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.badgesVisibleInCamera),false);
