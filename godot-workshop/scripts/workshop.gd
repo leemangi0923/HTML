@@ -62,20 +62,24 @@ func _build_room() -> void:
 	settings.background_color = Color("cbd4d7")
 	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	settings.ambient_light_color = Color("e7eef1")
-	settings.ambient_light_energy = 0.35
+	settings.ambient_light_energy = 0.28
 	environment.environment = settings
 	add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, -25, 0)
 	sun.light_color = Color("fff3de")
-	sun.light_energy = 0.55
+	sun.light_energy = 0.42
 	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = 10.0
+	sun.shadow_bias = 0.1
+	sun.shadow_normal_bias = 1.0
 	add_child(sun)
 	for x in [-1.2, 1.2]:
 		var fill := OmniLight3D.new()
 		fill.position = Vector3(x, 2.5, 1.2)
 		fill.omni_range = 5.0
-		fill.light_energy = 0.4
+		fill.light_energy = 0.24
 		add_child(fill)
 	_room_box(Vector3(0, -0.05, 0), Vector3(6, 0.10, 5.6), Color("aeb7b5"), "작업실 바닥")
 	_room_box(Vector3(0, 1.5, -2.8), Vector3(6, 3, 0.10), Color("d6ddda"), "작업실 벽")

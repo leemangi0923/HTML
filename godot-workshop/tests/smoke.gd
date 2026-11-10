@@ -34,6 +34,11 @@ func _run() -> void:
 	check(avatar.first_person_hidden.size() > 2, "Head and shoulder badges must be identified")
 	for hidden in avatar.first_person_hidden:
 		check((hidden.layers & app.player.camera.cull_mask) == 0, "FP camera must hide " + hidden.name)
+	check(not avatar.head_shadow_meshes.is_empty(), "Hidden head must retain shadow geometry")
+	for shadow in avatar.head_shadow_meshes:
+		check((shadow.layers & app.player.camera.cull_mask) != 0, "Head shadow must use an FP camera layer")
+		check(shadow.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "Head must remain invisible in first person")
+	check(avatar.cloth_materials.has("Navy") and avatar.cloth_materials.has("Pants"), "Clothes must load their fabric materials")
 	var hip_index: int = avatar.skeleton.find_bone("Hips")
 	var standing_hip: float = avatar.skeleton.get_bone_global_pose(hip_index).origin.y
 	var eye_z: float = app.player.camera.global_position.z
@@ -43,7 +48,9 @@ func _run() -> void:
 	Input.action_press("move_forward")
 	await wait_ticks(10)
 	check(avatar.current_clip == "Walk", "Movement must select the walk animation")
+	var head_rotation: Quaternion = avatar.skeleton.get_bone_pose_rotation(avatar.head_bone)
 	await wait_ticks(120)
+	check(head_rotation.angle_to(avatar.skeleton.get_bone_pose_rotation(avatar.head_bone)) < 0.001, "Holding a look direction must not accumulate head rotation")
 	Input.action_release("move_forward")
 	check(app.player.position.z < spawn.z - 0.2, "WASD must move the player")
 	check(app.player.position.z >= 0.885, "Player must not cross the workbench collider")
@@ -66,10 +73,16 @@ func _run() -> void:
 	app._reset()
 	check(app.player.position.distance_to(WorkshopPlayer.SPAWN) < 0.001, "Reset must return to the workbench")
 	check(app.player.active and not app.pause_menu.visible, "Reset must resume play")
+	Input.action_press("move_back")
+	await wait_ticks(20)
+	check(app.player.velocity.z > 0.1 and avatar.animation_player.speed_scale < 0.0, "Walking backward must reverse the foot cycle")
+	Input.action_release("move_back")
+	await wait_ticks(50)
+	check(app.player.camera_bob.length() < 0.0001, "Camera sway must settle when movement stops")
 	check(app.get_node("Workbench").layout.devices.size() == 19, "All 19 reference devices must exist")
 	app.player.set_active(false)
 	if failures.is_empty():
-		print("PASS: entry, WASD, floor, workbench collision, crouch, pause, reset, 19 devices, skinned character, animations, knee direction and FP masks")
+		print("PASS: entry, WASD, collisions, crouch, pause, reset, devices, skin, fabric, animations, knees, FP masks, shadow geometry, backward walk and camera settling")
 	else:
 		print("FAIL: ", failures)
 	app.queue_free()

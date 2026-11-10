@@ -15,6 +15,8 @@ var camera: Camera3D
 var capsule: CapsuleShape3D
 var avatar: WorkshopAvatar
 var collider: CollisionShape3D
+var step_phase := 0.0
+var camera_bob := Vector2.ZERO
 
 func _ready() -> void:
 	name = "Player"
@@ -54,8 +56,11 @@ func reset_position() -> void:
 	position = SPAWN
 	rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
+	step_phase = 0.0
+	camera_bob = Vector2.ZERO
 	if is_instance_valid(head):
 		head.rotation = Vector3(-0.50, 0, 0)
+		head.position = Vector3(0, 1.60, -0.18)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not active:
@@ -71,7 +76,6 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= 9.8 * delta
 	var crouched := active and Input.is_action_pressed("crouch")
 	var desired_height := 1.12 if crouched else 1.60
-	head.position.y = lerpf(head.position.y, desired_height, 1.0 - exp(-14.0 * delta))
 	capsule.height = 1.20 if crouched else 1.70
 	collider.position.y = capsule.height * 0.5
 	var axis := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if active else Vector2.ZERO
@@ -80,7 +84,17 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, direction.x * speed, delta * 9.0)
 	velocity.z = move_toward(velocity.z, direction.z * speed, delta * 9.0)
 	move_and_slide()
-	avatar.set_motion(Vector2(velocity.x, velocity.z).length() if active else 0.0, crouched)
+	var actual_speed := Vector2(velocity.x, velocity.z).length() if active else 0.0
+	var target_bob := Vector2.ZERO
+	if active and is_on_floor() and actual_speed > 0.08:
+		step_phase += actual_speed * delta * TAU / (0.50 if crouched else 0.83)
+		var strength := minf(actual_speed / WALK_SPEED, 1.0) * (0.55 if crouched else 1.0)
+		target_bob = Vector2(sin(step_phase) * 0.0025, cos(step_phase * 2.0) * 0.004) * strength
+	camera_bob = camera_bob.lerp(target_bob, 1.0 - exp(-12.0 * delta))
+	head.position.x = camera_bob.x
+	head.position.y = lerpf(head.position.y, desired_height + camera_bob.y, 1.0 - exp(-14.0 * delta))
+	avatar.look_pitch = head.rotation.x
+	avatar.set_motion(actual_speed, crouched, global_basis.inverse() * velocity, delta)
 	if position.y < -2:
 		reset_position()
 

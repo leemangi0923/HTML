@@ -67,14 +67,32 @@ def tube(name,points,radius,mat,bone):
     bpy.context.view_layer.objects.active=o;o.select_set(True);bpy.ops.object.convert(target='MESH');o.select_set(False)
     o.data.materials.append(M[mat]);objects.append(o);rigid(o,bone);return o
 
+def jacket_fold(x,z):
+    # Shallow tension folds run diagonally from the waist and pocket openings.
+    fold=0
+    for height,slant,depth in [(.86,.16,.0028),(.921,-.10,-.0025),(.981,.14,.0022),(1.065,-.17,-.0018)]:
+        fold+=depth*math.exp(-((z-height-slant*abs(x))/.012)**2)
+    return fold*min(1,max(0,(.205-abs(x))/.035))
+
 def loft(name,rings,mats,mat_fn=None,weight_fn=None,segments=24,sub=1):
     # rings: center x/y/z, cross-section radii x/y; gentle cloth waviness only.
     verts=[]
     for i,(x,y,z,rx,ry) in enumerate(rings):
         for j in range(segments):
             t=2*math.pi*j/segments
-            wrinkle=1+.009*math.sin(j*3+i*1.8)
-            verts.append((x+rx*math.cos(t)*wrinkle,y+ry*math.sin(t)*wrinkle,z))
+            wrinkle=1+.004*math.sin(j*3+i*1.8)
+            vx=x+rx*math.cos(t)*wrinkle;vy=y+ry*math.sin(t)*wrinkle
+            if name=='Jacket':
+                vy+=jacket_fold(vx,z)*math.sin(t)
+            elif name.startswith('Sleeve_'):
+                amount=.0035*math.exp(-((z-1.105)/.09)**2)+.002*math.exp(-((z-.92)/.035)**2)
+                ripple=amount*math.sin(z*115+t*2.5)
+                vx+=math.cos(t)*ripple;vy+=math.sin(t)*ripple
+            elif name.startswith('Trouser_leg_'):
+                amount=.0035*math.exp(-((z-.49)/.10)**2)+.003*math.exp(-((z-.17)/.07)**2)
+                ripple=amount*math.sin(z*87+t*2)
+                vx+=math.cos(t)*ripple;vy+=math.sin(t)*ripple
+            verts.append((vx,vy,z))
     faces=[]
     for i in range(len(rings)-1):
         for j in range(segments):faces.append((i*segments+j,i*segments+(j+1)%segments,(i+1)*segments+(j+1)%segments,(i+1)*segments+j))
@@ -87,8 +105,8 @@ def loft(name,rings,mats,mat_fn=None,weight_fn=None,segments=24,sub=1):
     return o
 
 # Continuous coat silhouette, with gray shoulder/yoke faces in the same mesh.
-TORSO=[(.800,.177,.101),(.808,.184,.107),(.84,.190,.110),(.91,.190,.108),(1.00,.181,.100),(1.10,.183,.107),(1.18,.197,.120),(1.26,.211,.124),(1.31,.214,.117),(1.33,.214,.111),(1.36,.207,.101),(1.39,.190,.091),(1.405,.153,.079),(1.412,.111,.066)]
-coat=loft('Jacket',[(0,0,z,x,y) for z,x,y in TORSO],[M['Navy'],M['Gray']],lambda p:1 if p.z>1.32 and (p.y<-.015 or abs(p.x)>.13) else 0,body_weight,segments=32,sub=2)
+TORSO=[(.800,.177,.101),(.808,.184,.107),(.84,.190,.110),(.865,.191,.111),(.885,.190,.109),(.91,.190,.108),(.94,.188,.106),(.97,.184,.103),(1.00,.181,.100),(1.035,.182,.102),(1.065,.182,.104),(1.10,.183,.107),(1.18,.197,.120),(1.26,.211,.124),(1.31,.214,.117),(1.33,.214,.111),(1.36,.207,.101),(1.39,.190,.091),(1.405,.153,.079),(1.412,.111,.066)]
+coat=loft('Jacket',[(0,0,z,x,y) for z,x,y in TORSO],[M['Navy'],M['Gray']],lambda p:1 if p.z>1.33 else 0,body_weight,segments=48,sub=2)
 
 def torso_r(z):
     for a,b in zip(TORSO,TORSO[1:]):
@@ -96,7 +114,7 @@ def torso_r(z):
             t=(z-a[0])/(b[0]-a[0]);return a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t
     return TORSO[-1][1:]
 def front_y(x,z):
-    rx,ry=torso_r(z);return ry*math.sqrt(max(.03,1-(x/rx)**2))
+    rx,ry=torso_r(z);return ry*math.sqrt(max(.03,1-(x/rx)**2))+jacket_fold(x,z)
 def cloth_patch(name,z0,z1,x0,x1,mat,back=False):
     verts=[];faces=[];nz=12;nx=10
     for i in range(nz+1):
@@ -117,7 +135,8 @@ sphere('Top_snap',(0,front_y(0,1.393)+.004,1.393),(.005,.002,.005),'Snap','Chest
 for side in [-1,1]:
     x0,x1=(.018,.193) if side>0 else (-.193,-.018)
     cloth_patch('Chest_reflective_stripe',1.211,1.223,x0,x1,'Stripe')
-    pocket=tube('Pocket_seam',[(side*.134,front_y(side*.134,z)+.002,z) for z in [.87,.91,.95]],.002,'Seam','Spine');pocket.vertex_groups.clear();weights(pocket,body_weight)
+    pocket=tube('Pocket_seam',[(side*.134,front_y(side*.134,z)+.002,z) for z in [.87,.91,.95]],.0008,'Seam','Spine');pocket.vertex_groups.clear();weights(pocket,body_weight)
+    seam=tube('Jacket_side_topstitch',[(side*torso_r(z)[0]*.94,.034,z) for z in [.82,.89,.96,1.04,1.12,1.20,1.26]],.00065,'Seam','Spine');seam.vertex_groups.clear();weights(seam,body_weight)
 cloth_patch('Chest_name_patch',1.247,1.270,-.148,-.089,'Stripe')
 cloth_patch('Back_reflective_yoke_stripe',1.305,1.315,-.190,.190,'Stripe',True)
 cloth_patch('Back_hem_stripe',.819,.826,-.17,.17,'Stripe',True)
@@ -148,6 +167,10 @@ for side in [-1,1]:
     loft('Sleeve_'+suffix,rings,[M['Gray'],M['Navy']],lambda v,s=side:1 if (v.x-arm_center(s,v.z)[0])*s<-.025 else 0,lambda v,s=side:arm_weight(s,v),sub=2)
     x,y=arm_center(side,.885)
     loft('Navy_cuff_'+suffix,[(x,y,z,.037,.041) for z in [.864,.868,.889,.894]],[M['Cuff']],weight_fn=lambda v,s=side:arm_weight(s,v),sub=1)
+    for z in [.869,.889]:
+        cx,cy=arm_center(side,z)
+        seam=tube('Cuff_stitch_'+suffix,[(cx+.0376*math.cos(t*math.tau/24),cy+.0415*math.sin(t*math.tau/24),z) for t in range(25)],.00055,'Seam','Hand.'+suffix)
+        seam.vertex_groups.clear();weights(seam,lambda v,s=side:arm_weight(s,v))
     hx,hy=arm_center(side,.865)
     sphere('Glove_'+suffix,(hx,hy+.005,.824),(.038,.025,.049),'Glove','Hand.'+suffix)
     sphere('Glove_grip_'+suffix,(hx-side*.025,hy,.822),(.014,.020,.034),'Grip','Hand.'+suffix)
@@ -182,12 +205,14 @@ loft('Trousers_waist',[(0,0,z,x,y) for z,x,y in [(.85,.174,.094),(.90,.177,.098)
 for side in [-1,1]:
     suffix='L' if side<0 else 'R'
     rings=[]
-    for z,rx,ry in [(.91,.088,.080),(.86,.086,.081),(.79,.083,.087),(.71,.077,.090),(.63,.069,.081),(.55,.064,.074),(.51,.064,.073),(.48,.063,.071),(.43,.061,.069),(.35,.061,.070),(.26,.058,.067),(.17,.055,.065),(.12,.055,.062),(.108,.053,.060)]:rings.append((side*.096,0,z,rx,ry))
+    leg_radii=[(.91,.088,.080),(.86,.086,.081),(.79,.083,.087),(.71,.077,.090),(.63,.069,.081),(.57,.065,.075),(.55,.064,.074),(.53,.064,.074),(.51,.064,.073),(.49,.064,.072),(.47,.063,.071),(.45,.062,.070),(.43,.061,.069),(.35,.061,.070),(.26,.058,.067),(.22,.057,.067),(.195,.057,.066),(.17,.055,.065),(.145,.055,.063),(.12,.055,.062),(.108,.053,.060)]
+    for z,rx,ry in leg_radii:rings.append((side*.096,0,z,rx,ry))
     def lw(v,s=suffix):
         if v.z>.58:return {'Thigh.'+s:1}
         if v.z<.43:return {'Shin.'+s:1}
         return mix('Shin.'+s,'Thigh.'+s,(v.z-.43)/.15)
     loft('Trouser_leg_'+suffix,rings,[M['Pants']],weight_fn=lw,sub=2)
+    seam=tube('Trouser_side_seam_'+suffix,[(side*(.096+rx)+side*.0006,.005,z) for z,rx,ry in leg_radii],.0005,'Seam','Thigh.'+suffix);seam.vertex_groups.clear();weights(seam,lw)
     # Sneaker as smooth cross sections along its long axis, white sole layer.
     def shoe_surface(name,sole):
         verts=[];faces=[];n=24
@@ -205,20 +230,22 @@ for side in [-1,1]:
     shoe_surface('Shoe_sole_'+suffix,True);shoe_surface('Sneaker_'+suffix,False)
     for i in range(3):tube('Shoe_lace_'+suffix,[(side*.096-.025,.025+i*.023,.092),(side*.096,.021+i*.023,.099),(side*.096+.025,.025+i*.023,.092)],.0017,'Seam','Foot.'+suffix)
 
-# Original stylized student face and swept short hair, hidden from the FP camera.
-loft('Head_Face',[(0,0,z,x,y) for z,x,y in [(1.475,.049,.046),(1.493,.082,.069),(1.52,.104,.082),(1.56,.114,.089),(1.61,.115,.091),(1.65,.110,.087),(1.685,.089,.070),(1.705,.045,.035)]],[M['Skin']],weight_fn=lambda v:{'Head':1},segments=32,sub=2)
+# A narrower oval head and continuous swept hair silhouette, hidden from FP.
+loft('Head_Face',[(0,0,z,x,y) for z,x,y in [(1.475,.037,.043),(1.493,.061,.065),(1.52,.082,.079),(1.56,.092,.086),(1.61,.093,.089),(1.65,.091,.086),(1.685,.077,.069),(1.705,.044,.035)]],[M['Skin']],weight_fn=lambda v:{'Head':1},segments=32,sub=2)
 for side in [-1,1]:
-    sphere('Head_Ear',(side*.111,.001,1.581),(.016,.022,.031),'Skin','Head')
-    sphere('Head_Eye',(side*.042,.087,1.608),(.0068,.0045,.012),'Eye','Head')
-    tube('Head_Eyebrow',[(side*.022,.083,1.638),(side*.041,.086,1.642),(side*.060,.079,1.637)],.0031,'Hair','Head')
+    sphere('Head_Ear',(side*.092,.001,1.581),(.012,.018,.025),'Skin','Head')
+    sphere('Head_Eye',(side*.036,.087,1.608),(.0075,.003,.0045),'Eye','Head')
+    tube('Head_Eyebrow',[(side*.020,.083,1.627),(side*.036,.086,1.630),(side*.052,.079,1.626)],.0019,'Hair','Head')
 sphere('Head_Nose',(0,.094,1.584),(.010,.012,.014),'Skin','Head')
 tube('Head_Smile',[(-.029,.087,1.559),(0,.092,1.552),(.029,.087,1.559)],.0018,'Lip','Head')
-loft('Head_Hair_cap',[(0,-.006,z,x,y) for z,x,y in [(1.64,.111,.087),(1.67,.116,.089),(1.70,.100,.079),(1.723,.070,.055),(1.735,.027,.025)]],[M['Hair']],weight_fn=lambda v:{'Head':1},segments=32,sub=2)
-for i in range(9):
-    x=(i-4)*.021;y=.045+random.uniform(-.01,.01);z=1.691+random.uniform(-.005,.009)
-    sphere('Head_Hair_lock',(x,y,z),(.028,.056,.022),'Hair','Head',rot=(.35,(i-4)*.04,-.25+(i%3)*.09),segments=20)
-for i,x in enumerate([-.080,-.045,-.010,.029,.067]):
-    sphere('Head_Fringe',(x,.079,1.659+(i%3)*.005),(.032,.025,.036),'Hair','Head',rot=(.20,-.35+(i%2)*.14,0),segments=24)
+hair=loft('Head_Hair_cap',[(0,-.006,z,x,y) for z,x,y in [(1.635,.092,.085),(1.66,.097,.089),(1.69,.090,.080),(1.713,.068,.059),(1.725,.030,.029)]],[M['Hair']],weight_fn=lambda v:{'Head':1},segments=48,sub=2)
+for vertex in hair.data.vertices:
+    co=vertex.co
+    if co.z>1.65:
+        co.z+=.002*math.sin(co.x*95+co.y*30)
+for i in range(5):
+    x=(i-2)*.029
+    tube('Head_Hair_flow',[(x-.009,-.035,1.710),(x,.010,1.710),(x+.018,.056,1.689),(x+.020,.077,1.652)],.003,'Hair','Head')
 
 for obj in objects:
     if obj.name.startswith('Head_'):
