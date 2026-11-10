@@ -43,7 +43,7 @@ func _ready() -> void:
 		head_base_rotation = skeleton.get_bone_pose_rotation(head_bone)
 	assert(animation_player != null, "Character must contain animation clips")
 	animation_player.mixer_applied.connect(_apply_head_look)
-	for wanted in ["Idle", "Walk", "CrouchIdle", "CrouchWalk"]:
+	for wanted in ["Idle", "Walk", "CrouchIdle", "CrouchWalk", "WorkIdle", "CrouchWorkIdle"]:
 		for clip in animation_player.get_animation_list():
 			if clip == wanted or clip.ends_with("/" + wanted) or clip.ends_with("|" + wanted):
 				clips[wanted] = clip
@@ -69,7 +69,7 @@ func _add_head_shadow(source: MeshInstance3D) -> void:
 func _apply_fabric(mesh: MeshInstance3D) -> void:
 	for surface in range(mesh.mesh.get_surface_count()):
 		var original := mesh.get_active_material(surface) as StandardMaterial3D
-		if original == null or original.resource_name not in ["Navy", "Gray", "Pants", "Cuff", "Glove"]:
+		if original == null or original.resource_name not in ["Navy", "Gray", "Pants", "Cuff"]:
 			continue
 		var key := original.resource_name
 		if not cloth_materials.has(key):
@@ -92,11 +92,13 @@ func _apply_head_look() -> void:
 	# last frame's pose: immutable animation tracks may have been removed on import.
 	skeleton.set_bone_pose_rotation(head_bone, head_base_rotation * Quaternion(Vector3.RIGHT, clampf(look_pitch, -0.55, 0.35)))
 
-func set_motion(speed: float, crouched: bool, local_velocity := Vector3.ZERO, delta := 1.0 / 60.0) -> void:
+func set_motion(speed: float, crouched: bool, local_velocity := Vector3.ZERO, delta := 1.0 / 60.0, working := false) -> void:
 	if animation_player == null:
 		return
 	var moving := speed > 0.08
 	var desired := "CrouchWalk" if crouched and moving else "CrouchIdle" if crouched else "Walk" if moving else "Idle"
+	if working and not moving:
+		desired = "CrouchWorkIdle" if crouched else "WorkIdle"
 	if current_clip != desired:
 		current_clip = desired
 		animation_player.play(clips[desired], 0.16)

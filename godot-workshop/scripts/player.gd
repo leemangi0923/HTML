@@ -17,6 +17,8 @@ var avatar: WorkshopAvatar
 var collider: CollisionShape3D
 var step_phase := 0.0
 var camera_bob := Vector2.ZERO
+var workbench: Node3D
+var working_pose := false
 
 func _ready() -> void:
 	name = "Player"
@@ -94,9 +96,21 @@ func _physics_process(delta: float) -> void:
 	head.position.x = camera_bob.x
 	head.position.y = lerpf(head.position.y, desired_height + camera_bob.y, 1.0 - exp(-14.0 * delta))
 	avatar.look_pitch = head.rotation.x
-	avatar.set_motion(actual_speed, crouched, global_basis.inverse() * velocity, delta)
+	working_pose = active and actual_speed < 0.08 and _near_workbench()
+	avatar.set_motion(actual_speed, crouched, global_basis.inverse() * velocity, delta, working_pose)
 	if position.y < -2:
 		reset_position()
+
+func _near_workbench() -> bool:
+	if not is_instance_valid(workbench) or head.rotation.x > -0.35:
+		return false
+	# The table is 1.55 x 1.30 m, centered at (0, 0, 0.05) in Workbench space.
+	var at := workbench.to_local(global_position)
+	var closest := Vector3(clampf(at.x, -0.775, 0.775), at.y, clampf(at.z, -0.60, 0.70))
+	var toward := workbench.global_basis * (closest - at)
+	if toward.length() > 0.42 or toward.length() < 0.05:
+		return false
+	return (-global_basis.z).dot(toward.normalized()) > 0.65
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT and active:

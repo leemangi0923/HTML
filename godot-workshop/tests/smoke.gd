@@ -14,6 +14,12 @@ func wait_ticks(count: int) -> void:
 	for i in range(count):
 		await physics_frame
 
+func arm_flex(avatar: WorkshopAvatar, side: String) -> float:
+	var shoulder := avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("UpperArm." + side)).origin
+	var elbow := avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Forearm." + side)).origin
+	var wrist := avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Hand." + side)).origin
+	return PI - (shoulder - elbow).angle_to(wrist - elbow)
+
 func _run() -> void:
 	var packed: PackedScene = load("res://scenes/workshop.tscn")
 	var app = packed.instantiate()
@@ -29,7 +35,7 @@ func _run() -> void:
 	await wait_ticks(8)
 	check(app.player.is_on_floor(), "Player must settle on the floor")
 	var avatar: WorkshopAvatar = app.player.avatar
-	check(avatar.skeleton.get_bone_count() >= 18, "Character must have a real skeleton")
+	check(avatar.skeleton.get_bone_count() >= 40, "Character must include shoulder and finger joints")
 	check(avatar.body_meshes.size() > 10, "Character body must be visible geometry")
 	check(avatar.first_person_hidden.size() > 2, "Head and shoulder badges must be identified")
 	for hidden in avatar.first_person_hidden:
@@ -39,6 +45,10 @@ func _run() -> void:
 		check((shadow.layers & app.player.camera.cull_mask) != 0, "Head shadow must use an FP camera layer")
 		check(shadow.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "Head must remain invisible in first person")
 	check(avatar.cloth_materials.has("Navy") and avatar.cloth_materials.has("Pants"), "Clothes must load their fabric materials")
+	var relaxed_flex := arm_flex(avatar, "R")
+	check(relaxed_flex > deg_to_rad(20) and relaxed_flex < deg_to_rad(65), "Relaxed elbows must have a modest forward bend")
+	for body in avatar.body_meshes:
+		check(not body.name.begins_with("Glove"), "Hands must match the bare-hand reference")
 	var hip_index: int = avatar.skeleton.find_bone("Hips")
 	var standing_hip: float = avatar.skeleton.get_bone_global_pose(hip_index).origin.y
 	var eye_z: float = app.player.camera.global_position.z
@@ -57,7 +67,12 @@ func _run() -> void:
 	Input.action_press("crouch")
 	await wait_ticks(25)
 	check(app.player.head.position.y < 1.2, "Crouch must lower the eye height")
-	check(avatar.current_clip == "CrouchIdle", "Crouching at rest must select crouch idle")
+	check(app.player.working_pose and avatar.current_clip == "CrouchWorkIdle", "Stopping near the bench must select a bent-arm work pose")
+	check(arm_flex(avatar, "R") > relaxed_flex + deg_to_rad(20), "Working pose must bend the elbow farther than relaxed idle")
+	var elbow: Vector3 = avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Forearm.R")).origin
+	var wrist: Vector3 = avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Hand.R")).origin
+	check(wrist.z < elbow.z - 0.12, "Working forearms must point forward, not backward or sideways")
+	check(wrist.y > 0.80, "Crouched working hands must stay above the tabletop")
 	var crouch_hip: Vector3 = avatar.skeleton.get_bone_global_pose(hip_index).origin
 	check(crouch_hip.y < standing_hip - 0.20, "Crouch animation must lower the character, not just the camera")
 	var knee: Vector3 = avatar.skeleton.get_bone_global_pose(avatar.skeleton.find_bone("Shin.L")).origin
@@ -79,10 +94,11 @@ func _run() -> void:
 	Input.action_release("move_back")
 	await wait_ticks(50)
 	check(app.player.camera_bob.length() < 0.0001, "Camera sway must settle when movement stops")
+	check(not app.player.working_pose and avatar.current_clip == "Idle", "Walking away must release the work pose")
 	check(app.get_node("Workbench").layout.devices.size() == 19, "All 19 reference devices must exist")
 	app.player.set_active(false)
 	if failures.is_empty():
-		print("PASS: entry, WASD, collisions, crouch, pause, reset, devices, skin, fabric, animations, knees, FP masks, shadow geometry, backward walk and camera settling")
+		print("PASS: entry, movement, collisions, crouch, pause, reset, devices, skin, fabric, knees, FP masks, shadows, backward walk, camera settling, natural elbows, bare hands and work pose transitions")
 	else:
 		print("FAIL: ", failures)
 	app.queue_free()

@@ -4,7 +4,7 @@ Blender uses Z-up / +Y forward. glTF export maps that to Godot Y-up / -Z forward
 """
 import bpy, math, os, random
 from pathlib import Path
-from mathutils import Vector
+from mathutils import Vector, Quaternion
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'godot-workshop/assets/character'
 OUT.mkdir(parents=True, exist_ok=True)
@@ -19,7 +19,7 @@ def material(name, value, rough=.8):
     m.node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=col
     m.node_tree.nodes.get('Principled BSDF').inputs['Roughness'].default_value=rough
     m.diffuse_color=col;return m
-M={k:material(k,c) for k,c in {'Navy':'25304b','Gray':'85858b','Stripe':'e1e2da','Cuff':'19243a','Pants':'1e2940','Skin':'dfb48c','Hair':'29282c','Eye':'222126','Sole':'cdd0cd','Shoe':'303540','Glove':'c2c3bd','Grip':'555b59','Seam':'354158','Snap':'303740','Lip':'9e7158'}.items()}
+M={k:material(k,c) for k,c in {'Navy':'263247','Gray':'85858b','Stripe':'bfc3bd','Cuff':'222e43','Pants':'243047','Skin':'d3aa8c','Nail':'d1b4a1','Hair':'29282c','Eye':'222126','Sole':'cdd0cd','Shoe':'303540','Seam':'39445a','Facing':'9b9b98','Snap':'79735d','Lip':'9e7158'}.items()}
 objects=[]
 def smooth(obj, subdivision=1):
     for p in obj.data.polygons: p.use_smooth=True
@@ -97,6 +97,8 @@ def loft(name,rings,mats,mat_fn=None,weight_fn=None,segments=24,sub=1):
     for i in range(len(rings)-1):
         for j in range(segments):faces.append((i*segments+j,i*segments+(j+1)%segments,(i+1)*segments+(j+1)%segments,(i+1)*segments+j))
     faces.extend([tuple(reversed(range(segments))),tuple((len(rings)-1)*segments+j for j in range(segments))])
+    if rings[-1][2]<rings[0][2]:
+        faces=[tuple(reversed(face)) for face in faces]
     o=mesh(name,verts,faces,mats,0)
     if mat_fn:
         for p in o.data.polygons:p.material_index=mat_fn(p.center if False else sum((o.data.vertices[v].co for v in p.vertices),Vector())/len(p.vertices))
@@ -106,7 +108,7 @@ def loft(name,rings,mats,mat_fn=None,weight_fn=None,segments=24,sub=1):
 
 # Continuous coat silhouette, with gray shoulder/yoke faces in the same mesh.
 TORSO=[(.800,.177,.101),(.808,.184,.107),(.84,.190,.110),(.865,.191,.111),(.885,.190,.109),(.91,.190,.108),(.94,.188,.106),(.97,.184,.103),(1.00,.181,.100),(1.035,.182,.102),(1.065,.182,.104),(1.10,.183,.107),(1.18,.197,.120),(1.26,.211,.124),(1.31,.214,.117),(1.33,.214,.111),(1.36,.207,.101),(1.39,.190,.091),(1.405,.153,.079),(1.412,.111,.066)]
-coat=loft('Jacket',[(0,0,z,x,y) for z,x,y in TORSO],[M['Navy'],M['Gray']],lambda p:1 if p.z>1.33 else 0,body_weight,segments=48,sub=2)
+coat=loft('Jacket',[(0,0,z,x,y) for z,x,y in TORSO],[M['Navy'],M['Gray']],lambda p:1 if p.z>1.33 and p.y<-.025 else 0,body_weight,segments=48,sub=2)
 
 def torso_r(z):
     for a,b in zip(TORSO,TORSO[1:]):
@@ -115,71 +117,71 @@ def torso_r(z):
     return TORSO[-1][1:]
 def front_y(x,z):
     rx,ry=torso_r(z);return ry*math.sqrt(max(.03,1-(x/rx)**2))+jacket_fold(x,z)
-def cloth_patch(name,z0,z1,x0,x1,mat,back=False):
+def cloth_patch(name,z0,z1,x0,x1,mat,back=False,offset=.0008):
     verts=[];faces=[];nz=12;nx=10
     for i in range(nz+1):
         z=z0+(z1-z0)*i/nz
         for j in range(nx+1):
-            x=x0+(x1-x0)*j/nx;y=front_y(x,z)+.0015
+            x=x0+(x1-x0)*j/nx;y=front_y(x,z)+offset
             verts.append((x,-y if back else y,z))
     for i in range(nz):
         for j in range(nx):
             a=i*(nx+1)+j;faces.append((a,a+nx+1,a+nx+2,a+1) if not back else (a,a+1,a+nx+2,a+nx+1))
     return weights(mesh(name,verts,faces,[M[mat]],0),body_weight)
-cloth_patch('Concealed_zipper_fabric_placket',.805,1.405,-.016,.016,'Navy')
+placket=cloth_patch('Concealed_zipper_fabric_placket',.805,1.405,-.028,.028,'Navy',offset=.003)
+mod=placket.modifiers.new('Overlapping cloth flap','SOLIDIFY');mod.thickness=.0015
+bpy.context.view_layer.objects.active=placket;bpy.ops.object.modifier_apply(modifier=mod.name)
 # Very subtle placket stitch, no zipper teeth or pull tab.
-for x in [-.013,.013]:
-    o=tube('Placket_stitch',[(x,front_y(x,z)+.002,z) for z in [.82,.98,1.14,1.30,1.39]],.00065,'Seam','Chest')
+for x in [-.025,.025]:
+    o=tube('Placket_stitch',[(x,front_y(x,z)+.0038,z) for z in [.82,.98,1.14,1.30,1.39]],.00045,'Seam','Chest')
     o.vertex_groups.clear();weights(o,body_weight)
-sphere('Top_snap',(0,front_y(0,1.393)+.004,1.393),(.005,.002,.005),'Snap','Chest')
+sphere('Top_snap',(0,front_y(0,1.393)+.005,1.393),(.005,.002,.005),'Snap','Chest')
+o=tube('Placket_inner_gray_edge',[(.028,front_y(.028,z)+.003,z) for z in [1.26,1.31,1.36,1.40]],.00085,'Facing','Chest')
+o.vertex_groups.clear();weights(o,body_weight)
 for side in [-1,1]:
-    x0,x1=(.018,.193) if side>0 else (-.193,-.018)
-    cloth_patch('Chest_reflective_stripe',1.211,1.223,x0,x1,'Stripe')
+    x0,x1=(.029,.193) if side>0 else (-.193,-.029)
+    cloth_patch('Chest_reflective_stripe',1.201,1.218,x0,x1,'Stripe')
     pocket=tube('Pocket_seam',[(side*.134,front_y(side*.134,z)+.002,z) for z in [.87,.91,.95]],.0008,'Seam','Spine');pocket.vertex_groups.clear();weights(pocket,body_weight)
     seam=tube('Jacket_side_topstitch',[(side*torso_r(z)[0]*.94,.034,z) for z in [.82,.89,.96,1.04,1.12,1.20,1.26]],.00065,'Seam','Spine');seam.vertex_groups.clear();weights(seam,body_weight)
-cloth_patch('Chest_name_patch',1.247,1.270,-.148,-.089,'Stripe')
+cloth_patch('Chest_name_patch',1.247,1.267,-.148,-.089,'Gray')
 cloth_patch('Back_reflective_yoke_stripe',1.305,1.315,-.190,.190,'Stripe',True)
 cloth_patch('Back_hem_stripe',.819,.826,-.17,.17,'Stripe',True)
 # Soft collar leaves, snug rather than floating shoulder plates.
 for side in [-1,1]:
-    vs=[(side*.012,.074,1.418),(side*.062,.069,1.444),(side*.105,.067,1.403),(side*.070,.103,1.374)]
+    vs=[(side*.014,.069,1.418),(side*.051,.063,1.441),(side*.080,.067,1.409),(side*.055,.085,1.390)]
     o=mesh('Collar',vs,[(0,1,2,3)],[M['Navy']],0)
     mod=o.modifiers.new('Fabric thickness','SOLIDIFY');mod.thickness=.003;bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=mod.name);rigid(o,'Chest')
 loft('Head_Neck',[(0,0,1.39,.047,.044),(0,0,1.47,.047,.044),(0,0,1.49,.045,.043)],[M['Skin']],weight_fn=lambda v:{'Neck':1},sub=1)
 
 # Smooth complete sleeves, graded weights across elbow and wrist.
 def arm_center(side,z):
-    t=max(0,min(1,(1.365-z)/.50));return side*(.205+.087*t),.01+.10*t
+    # Upper arms hang near the ribs. The neutral forearm already has a small
+    # anatomical bend; animation adds flexion around the elbow, not a sideways kink.
+    if z>=1.095:
+        t=max(0,min(1,(1.365-z)/.270));return side*(.205+.020*t),.010+.018*t
+    t=max(0,min(1,(1.095-z)/.230));return side*.225,.028+.097*t
 
 def arm_weight(side,v):
     s='L' if side<0 else 'R';z=v.z
     if z>1.31:return mix('UpperArm.'+s,'Chest',(z-1.31)/.10)
     if z>1.15:return {'UpperArm.'+s:1}
     if z>1.055:return mix('Forearm.'+s,'UpperArm.'+s,(z-1.055)/.095)
-    if z>.91:return {'Forearm.'+s:1}
-    return mix('Hand.'+s,'Forearm.'+s,(z-.86)/.05)
+    # Cloth follows the forearm. Wrist pronation belongs to the bare hand and
+    # must not twist or flare the sleeve opening with the hand.
+    return {'Forearm.'+s:1}
 
 for side in [-1,1]:
     suffix='L' if side<0 else 'R'
     rings=[]
-    for z,rx,ry in [(1.39,.034,.045),(1.37,.047,.059),(1.33,.054,.061),(1.27,.055,.059),(1.20,.051,.054),(1.14,.048,.051),(1.11,.050,.052),(1.08,.047,.050),(1.02,.045,.048),(.97,.043,.046),(.92,.040,.044),(.89,.037,.041),(.88,.035,.039)]:
+    for z,rx,ry in [(1.39,.030,.040),(1.37,.047,.059),(1.33,.057,.065),(1.27,.058,.063),(1.20,.054,.059),(1.16,.052,.056),(1.13,.053,.056),(1.105,.053,.056),(1.08,.050,.053),(1.055,.047,.050),(1.02,.046,.050),(.97,.043,.048),(.92,.038,.043),(.89,.032,.036),(.88,.030,.033)]:
         x,y=arm_center(side,z);rings.append((x,y,z,rx,ry))
-    loft('Sleeve_'+suffix,rings,[M['Gray'],M['Navy']],lambda v,s=side:1 if (v.x-arm_center(s,v.z)[0])*s<-.025 else 0,lambda v,s=side:arm_weight(s,v),sub=2)
+    loft('Sleeve_'+suffix,rings,[M['Navy'],M['Gray']],lambda v,s=side:1 if (v.x-arm_center(s,v.z)[0])*s>.028 else 0,lambda v,s=side:arm_weight(s,v),segments=48,sub=2)
     x,y=arm_center(side,.885)
-    loft('Navy_cuff_'+suffix,[(x,y,z,.037,.041) for z in [.864,.868,.889,.894]],[M['Cuff']],weight_fn=lambda v,s=side:arm_weight(s,v),sub=1)
+    loft('Navy_cuff_'+suffix,[(x,y,z,.030,.033) for z in [.864,.868,.889,.894]],[M['Cuff']],weight_fn=lambda v,s=side:arm_weight(s,v),sub=1)
     for z in [.869,.889]:
         cx,cy=arm_center(side,z)
-        seam=tube('Cuff_stitch_'+suffix,[(cx+.0376*math.cos(t*math.tau/24),cy+.0415*math.sin(t*math.tau/24),z) for t in range(25)],.00055,'Seam','Hand.'+suffix)
+        seam=tube('Cuff_stitch_'+suffix,[(cx+.0306*math.cos(t*math.tau/24),cy+.0335*math.sin(t*math.tau/24),z) for t in range(25)],.00045,'Seam','Hand.'+suffix)
         seam.vertex_groups.clear();weights(seam,lambda v,s=side:arm_weight(s,v))
-    hx,hy=arm_center(side,.865)
-    sphere('Glove_'+suffix,(hx,hy+.005,.824),(.038,.025,.049),'Glove','Hand.'+suffix)
-    sphere('Glove_grip_'+suffix,(hx-side*.025,hy,.822),(.014,.020,.034),'Grip','Hand.'+suffix)
-    for i in range(4):
-        fx=hx+(i-1.5)*.017
-        length=[.029,.037,.035,.027][i]
-        sphere('Finger_'+suffix,(fx,hy+.012,.785-length*.30),(.008,.010,length*.68),'Glove','Hand.'+suffix,rot=(.2,0,0),segments=16)
-        sphere('Finger_tip_'+suffix,(fx,hy+.019,.774-length*.5),(.0075,.008,.012),'Grip','Hand.'+suffix,segments=16)
-    sphere('Thumb_'+suffix,(hx-side*.039,hy+.018,.817),(.014,.018,.027),'Glove','Hand.'+suffix,rot=(.15,side*.5,0),segments=20)
     # Outward-facing upper-arm decal, curved to the sleeve. UVs never mirrored.
     file='school' if side<0 else 'worldskills';mat=bpy.data.materials.new('Badge_'+file);mat.use_nodes=True
     bs=mat.node_tree.nodes.get('Principled BSDF');image=mat.node_tree.nodes.new('ShaderNodeTexImage');image.image=bpy.data.images.load(str(ROOT/'art-source/decals'/f'{file}.png'));image.image.pack();mat.node_tree.links.new(image.outputs['Color'],bs.inputs['Base Color']);mat.node_tree.links.new(image.outputs['Alpha'],bs.inputs['Alpha']);bs.inputs['Roughness'].default_value=.88;mat.surface_render_method='DITHERED';mat.use_backface_culling=True
@@ -188,7 +190,7 @@ for side in [-1,1]:
         v=j/n;z=1.255+(v-.5)*.072;cx,cy=arm_center(side,z)
         for i in range(n+1):
             u=i/n;dy=side*(u-.5)*.064
-            verts.append((cx+side*(.054*math.sqrt(max(.03,1-(dy/.059)**2))+.001),cy+dy,z));uv.append((u,v))
+            verts.append((cx+side*(.058*math.sqrt(max(.03,1-(dy/.063)**2))+.0015),cy+dy,z));uv.append((u,v))
     for j in range(n):
         for i in range(n):
             a=j*(n+1)+i;face=(a,a+1,a+n+2,a+n+1)
@@ -199,6 +201,51 @@ for side in [-1,1]:
     for polygon in o.data.polygons:
         for li in polygon.loop_indices:layer.data[li].uv=uv[o.data.loops[li].vertex_index]
     weights(o,lambda v,s=side:arm_weight(s,v))
+
+# Bare, inward-facing palms with softly curled fingers. Each finger has two
+# deform joints; the relaxed hand no longer uses straight glove-like cylinders.
+FINGER_BONES=[]
+def finger_mesh(name,points,radius,b1,b2):
+    points=[Vector(p) for p in points];verts=[];faces=[];segments=12;rows=13
+    for i in range(rows):
+        t=i/(rows-1)
+        if t<=.55:
+            center=points[0].lerp(points[1],t/.55);tangent=(points[1]-points[0]).normalized()
+        else:
+            center=points[1].lerp(points[2],(t-.55)/.45);tangent=(points[2]-points[1]).normalized()
+        axis=tangent.cross(Vector((0,1,0))).normalized();other=tangent.cross(axis).normalized()
+        r=radius*(.90+.10*math.sin(math.pi*t))*(max(.12,(1-t)/.13) if t>.87 else 1)
+        for j in range(segments):
+            angle=j*math.tau/segments
+            verts.append(tuple(center+r*(axis*math.cos(angle)+other*math.sin(angle))))
+    for i in range(rows-1):
+        for j in range(segments):
+            a=i*segments+j;faces.append((a,i*segments+(j+1)%segments,(i+1)*segments+(j+1)%segments,a+segments))
+    faces.extend([tuple(reversed(range(segments))),tuple((rows-1)*segments+j for j in range(segments))])
+    obj=mesh(name,verts,faces,[M['Skin']],1)
+    start,end=points[0].z,points[2].z
+    weights(obj,lambda v:mix(b1,b2,((start-v.z)/max(.001,start-end)-.35)/.35))
+    return obj
+
+for side in [-1,1]:
+    s='L' if side<0 else 'R';hx,hy=arm_center(side,.865)
+    hand_parts=[]
+    palm=loft('Palm_'+s,[(hx,hy,z,rx,ry) for z,rx,ry in [(.873,.014,.023),(.854,.015,.026),(.835,.017,.033),(.808,.017,.039),(.783,.014,.036),(.771,.011,.030)]],[M['Skin']],weight_fn=lambda v,s=s:{'Hand.'+s:1},sub=2)
+    hand_parts.append(palm)
+    for label,offset,length,radius in [('Index',.025,.073,.0087),('Middle',.008,.083,.0090),('Ring',-.010,.077,.0084),('Little',-.026,.059,.0070)]:
+        p0=(hx,hy+offset,.777);p1=(hx-side*.012,hy+offset+.001,.777-length*.55);p2=(hx-side*.029,hy+offset+.003,.777-length)
+        b1='Finger'+label+'1.'+s;b2='Finger'+label+'2.'+s
+        FINGER_BONES.append((b1,b2,p0,p1,p2,s))
+        hand_parts.append(finger_mesh(label+'_'+s,[p0,p1,p2],radius,b1,b2))
+        sphere('Nail_'+label+'_'+s,(p2[0]+side*radius*.74,p2[1],p2[2]+.009),(.0018,radius*.66,.008),'Nail',b2,segments=16)
+    p0=(hx,hy+.028,.818);p1=(hx-side*.020,hy+.052,.788);p2=(hx-side*.028,hy+.040,.769)
+    b1='FingerThumb1.'+s;b2='FingerThumb2.'+s;FINGER_BONES.append((b1,b2,p0,p1,p2,s))
+    hand_parts.append(finger_mesh('Thumb_'+s,[p0,p1,p2],.0105,b1,b2))
+    sphere('Nail_Thumb_'+s,(p2[0]+side*.008,p2[1],p2[2]+.007),(.002,.006,.007),'Nail',b2,segments=16)
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in hand_parts:obj.select_set(True)
+    objects[:]=[o for o in objects if o not in hand_parts or o==palm]
+    bpy.context.view_layer.objects.active=palm;bpy.ops.object.join();palm.name='Bare_hand_'+s
 
 # Plain trousers: a hidden waist and two unbroken skinned legs, without knee pads.
 loft('Trousers_waist',[(0,0,z,x,y) for z,x,y in [(.85,.174,.094),(.90,.177,.098),(.94,.173,.096)]],[M['Pants']],weight_fn=lambda v:{'Hips':1},sub=1)
@@ -267,14 +314,17 @@ bone('Neck',(0,0,1.39),(0,0,1.475),'Chest')
 bone('Head',(0,0,1.475),(0,0,1.71),'Neck')
 for side in [-1,1]:
     s='L' if side<0 else 'R'
-    bone('UpperArm.'+s,(side*.205,.01,1.365),(side*.26,.06,1.10),'Chest')
-    bone('Forearm.'+s,(side*.26,.06,1.10),(side*.292,.11,.88),'UpperArm.'+s)
-    bone('Hand.'+s,(side*.292,.11,.88),(side*.30,.125,.76),'Forearm.'+s)
+    bone('Clavicle.'+s,(side*.045,.010,1.365),(side*.205,.010,1.365),'Chest')
+    bone('UpperArm.'+s,(side*.205,.010,1.365),(side*.225,.028,1.095),'Clavicle.'+s)
+    bone('Forearm.'+s,(side*.225,.028,1.095),(side*.225,.125,.865),'UpperArm.'+s)
+    bone('Hand.'+s,(side*.225,.125,.865),(side*.225,.125,.775),'Forearm.'+s)
     bone('Thigh.'+s,(side*.096,0,.90),(side*.096,.005,.50),'Hips')
     bone('Shin.'+s,(side*.096,.005,.50),(side*.096,0,.09),'Thigh.'+s)
     bone('Foot.'+s,(side*.096,0,.09),(side*.096,.16,.04),'Shin.'+s)
     bone('TargetFoot.'+s,(side*.096,0,.09),(side*.096,.16,.04),'Root',False)
     bone('PoleKnee.'+s,(side*.096,.8,.50),(side*.096,.8,.62),'Root',False)
+for b1,b2,p0,p1,p2,s in FINGER_BONES:
+    bone(b1,p0,p1,'Hand.'+s);bone(b2,p1,p2,b1)
 bpy.ops.object.mode_set(mode='OBJECT')
 for side in ['L','R']:
     ik=rig.pose.bones['Shin.'+side].constraints.new('IK');ik.target=rig;ik.subtarget='TargetFoot.'+side;ik.chain_count=2;ik.pole_target=rig;ik.pole_subtarget='PoleKnee.'+side;ik.pole_angle=math.pi/2
@@ -285,7 +335,7 @@ for b in rig.pose.bones:b.rotation_mode='XYZ'
 scene=bpy.context.scene;scene.render.fps=30
 
 def offset_global(pb,delta):pb.location=pb.bone.matrix_local.to_3x3().inverted()@Vector(delta)
-for name,crouch,moving,period in [('Idle',False,False,60),('Walk',False,True,24),('CrouchIdle',True,False,60),('CrouchWalk',True,True,24)]:
+for name,crouch,moving,working,period in [('Idle',False,False,False,60),('Walk',False,True,False,24),('CrouchIdle',True,False,False,60),('CrouchWalk',True,True,False,24),('WorkIdle',False,False,True,60),('CrouchWorkIdle',True,False,True,60)]:
     action=bpy.data.actions.new(name);rig.animation_data_create();rig.animation_data.action=action;action.use_fake_user=True
     for f in range(period+1):
         phase=2*math.pi*f/period
@@ -302,9 +352,17 @@ for name,crouch,moving,period in [('Idle',False,False,60),('Walk',False,True,24)
                 if t<.6:y=travel*(1-2*t/.6);lift=0
                 else:u=(t-.6)/.4;y=travel*(-1+2*u);lift=math.sin(math.pi*u)*(.055 if crouch else .075)
                 offset_global(rig.pose.bones['TargetFoot.'+s],(0,y,lift))
-            swing=math.sin(phase+i*math.pi)*(.18 if crouch else .30) if moving else 0
-            rig.pose.bones['UpperArm.'+s].rotation_euler.x=swing+.06
-            rig.pose.bones['Forearm.'+s].rotation_euler.x=.25+(.04*abs(math.sin(phase)) if moving else 0)
+            swing=math.sin(phase+i*math.pi)*(.12 if crouch else .22) if moving else 0
+            rig.pose.bones['UpperArm.'+s].rotation_euler.x=(.65 if crouch and working else .15 if working else -.035)+swing
+            rig.pose.bones['Forearm.'+s].rotation_euler.x=(1.30 if crouch and working else .97 if working else .38)+(.025*math.sin(phase+i*.4) if not moving else .04*abs(math.sin(phase)))
+            rig.pose.bones['Hand.'+s].rotation_euler.y=(1 if s=='L' else -1)*(1.35 if working else .10)
+            rig.pose.bones['Hand.'+s].rotation_euler.x=-.15 if working else .03
+        for b1,b2,p0,p1,p2,s in FINGER_BONES:
+            side=-1 if s=='L' else 1
+            thumb='Thumb' in b1
+            for name,angle in [(b1,.13 if thumb else .25 if working else .10),(b2,.12 if thumb else .65 if working else .30)]:
+                pb=rig.pose.bones[name];axis=pb.bone.matrix_local.to_3x3().inverted()@Vector((0,1,0))
+                pb.rotation_euler=Quaternion(axis,side*angle).to_euler()
         for pb in rig.pose.bones:
             pb.keyframe_insert('location',frame=f);pb.keyframe_insert('rotation_euler',frame=f)
     for fc in action.fcurves:

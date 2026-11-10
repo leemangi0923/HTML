@@ -20,6 +20,7 @@ func _ready() -> void:
 	bench.set_script(BenchScript)
 	add_child(bench)
 	player = PlayerScript.new()
+	player.workbench = bench
 	add_child(player)
 	player.inspect_requested.connect(_inspect)
 	player.focus_lost.connect(_show_pause)
