@@ -13,6 +13,7 @@ files:
   - desktop/main.cjs
   - desktop/preload.cjs
   - desktop/updater.cjs
+  - desktop/ranking-policy.cjs
   - desktop/generated/index.html
   - desktop/assets/icon.png
   - package.json

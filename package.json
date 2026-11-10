@@ -1,6 +1,6 @@
 {
   "name": "robot-assembly-simulator",
-  "version": "2.18.0",
+  "version": "2.19.0",
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
@@ -18,6 +18,7 @@
     "test:updater": "node --test tests/updater.test.cjs"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.16",
     "electron": "45.2.3",
     "electron-builder": "26.18.0",
     "playwright": "1.62.1"

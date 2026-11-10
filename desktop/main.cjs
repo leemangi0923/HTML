@@ -2,6 +2,7 @@
 const {app, BrowserWindow, Menu, protocol, session, ipcMain, dialog} = require('electron');
 const {readFile, writeFile} = require('node:fs/promises');
 const path = require('node:path');
+const {allowedRankingRequest}=require('./ranking-policy.cjs');
 
 const APP_URL = 'task1://app/index.html';
 const userData = process.env.TASK1_USER_DATA_DIR || path.join(app.getPath('appData'), 'Task1Simulator');
@@ -61,8 +62,8 @@ else {
       status:request.url===APP_URL && request.method==='GET'?200:404,
       headers:{'Content-Type':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff'}
     }));
-    // This app has no remote content. All game pictures are embedded data URLs.
-    session.defaultSession.webRequest.onBeforeRequest((details,callback)=>callback({cancel:!details.url.startsWith('task1://app/')&&!details.url.startsWith('data:')&&!details.url.startsWith('blob:task1://app/')}));
+    // Game pictures are embedded. Only the configured ranking endpoints may leave the app.
+    session.defaultSession.webRequest.onBeforeRequest((details,callback)=>callback({cancel:!details.url.startsWith('task1://app/')&&!details.url.startsWith('data:')&&!details.url.startsWith('blob:task1://app/')&&!allowedRankingRequest(details.url,details.method)}));
     session.defaultSession.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===mainWindow?.webContents && contents.getURL()===APP_URL && permission==='clipboard-sanitized-write'));
     session.defaultSession.setPermissionCheckHandler((contents,permission)=>contents===mainWindow?.webContents && contents.getURL()===APP_URL && permission==='clipboard-sanitized-write');
     ipcMain.handle('task1:save-wiring',async(event,payload)=>{

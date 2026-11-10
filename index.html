@@ -621,6 +621,7 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 .fault-case { text-align:left; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; cursor:pointer; }
 .fault-case b,.fault-case small { display:block; margin:7px 0; } .fault-case small { color:var(--muted); line-height:1.6; }
 .fault-case.done { border-color:#46d07a; } .fault-case:hover { border-color:var(--accent); }
+.rank-tag { display:block; color:var(--muted); font-size:11px; }
 .rank-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; } .rank-tabs .on { outline:2px solid var(--accent); }
 .rank-profile { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:18px 0; }
 .rank-profile .hm-go,.rank-tabs .hm-go { color:#261f00; }
@@ -5504,7 +5505,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.18.0', date: '2026.11.10', notes: ['고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.19.0', date: '2026.11.10', notes: ['온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -6046,8 +6047,91 @@ function renderPracSide() {   // 오른쪽 칸: 이 챕터의 레슨, 다음에 
     + `<div class="pr-btns">${L.btn && PRAC.state === 'run' ? `<button class="primary" data-act="pr-${L.btn[0]}">${L.btn[1]}</button>` : ''}${L.side ? L.side() : ''}${L.wg !== undefined ? '<button data-act="pr-xp">회로 해설</button>' : ''}<button data-act="pr-see">자리 보기</button><button data-act="pr-retry">다시 하기</button><button data-act="pr-list">연습 목록</button></div>`;
 }
 
+/* --- 온라인 랭킹 통신: 공개 키 + 익명 인증, 로컬 저장과 독립된 재전송 대기열 --- */
+function createOnlineRanking({url,key,storage,prefix='t1sim.online',fetcher=(...args)=>fetch(...args),now=()=>Date.now(),pause=ms=>new Promise(resolve=>setTimeout(resolve,ms)),changed=()=>{}}) {
+  const read=(k,fallback)=>{try{return JSON.parse(storage.getItem(prefix+k)||'null')??fallback;}catch(_){return fallback;}};
+  const write=(k,v)=>storage.setItem(prefix+k,JSON.stringify(v));
+  let enabled=read('.enabled',false)===true, message='', sending=false, sessionFlight=null, retryTimer=null;
+  const lists={},loading={},flights={};
+  const pending=()=>{const q=read('.pending',[]);return Array.isArray(q)?q.filter(r=>r&&typeof r.id==='string'&&['exam','strip','fault'].includes(r.type)):[];};
+  const tell=text=>{message=text;changed();};
+  const errorText=e=>e.setup?'서버 설정이 필요해요. 랭킹 SQL을 실행했는지 확인해 주세요.':e.auth?'Supabase의 Anonymous Sign-Ins 설정을 확인해 주세요.':e.invalid?'형식이나 허용 범위를 벗어난 기록은 온라인에 등록할 수 없어요.':e.rate?'등록이 잠시 몰렸어요. 잠시 뒤 다시 시도해요.':'온라인에 연결하지 못했어요. 기기 내 기록은 그대로예요. 잠시 뒤 다시 시도해요.';
+  async function request(path,body,token) {
+    const controller=new AbortController(), timeout=setTimeout(()=>controller.abort(),8000);
+    try {
+      const headers={apikey:key,'Content-Type':'application/json'};if(token)headers.Authorization='Bearer '+token;
+      const response=await fetcher(url+path,{method:'POST',headers,body:JSON.stringify(body),signal:controller.signal,redirect:'error'});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok){const text=String(data?.message||data?.msg||data?.error_description||data?.error||'');const e=new Error('online request failed');Object.assign(e,{status:response.status,setup:response.status===404||data?.code==='PGRST202',auth:/anonymous|provider.*disabled/i.test(text),invalid:text.includes('INVALID_RECORD'),rate:response.status===429||text.includes('RATE_LIMITED')});throw e;}
+      return data;
+    } finally {clearTimeout(timeout);}
+  }
+  async function session() {
+    const current=read('.session',null);
+    if(current?.access_token&&current.expires_at>now()/1000+60)return current.access_token;
+    if(sessionFlight)return sessionFlight;
+    sessionFlight=(async()=>{
+      let data;
+      try {data=current?.refresh_token?await request('/auth/v1/token?grant_type=refresh_token',{refresh_token:current.refresh_token}):await request('/auth/v1/signup',{});}
+      catch(e){if(current?.refresh_token&&[400,401].includes(e.status))write('.session',null);throw e;}
+      if(!data?.access_token||!data?.refresh_token)throw new Error('invalid session');
+      write('.session',{access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at||now()/1000+(data.expires_in||3600)});
+      return data.access_token;
+    })();
+    try{return await sessionFlight;}finally{sessionFlight=null;}
+  }
+  function schedule(){clearTimeout(retryTimer);if(enabled&&pending().length){retryTimer=setTimeout(()=>sync(),30000);retryTimer?.unref?.();}}
+  async function load(type,force=false){
+    if(!enabled||!['exam','strip','fault'].includes(type))return;
+    if(flights[type])return flights[type];
+    if(!force&&lists[type]&&now()-lists[type].fetched<15000)return;
+    loading[type]=true;changed();
+    flights[type]=(async()=>{
+      try {
+        const data=await request('/rest/v1/rpc/task1_leaderboard',{p_mode:type});
+        if(!Array.isArray(data))throw new Error('invalid leaderboard');
+        const rows=data.filter(r=>r&&typeof r.name==='string'&&/^[a-f0-9]{8}$/.test(r.tag)&&Number.isFinite(r.t)&&r.t>0&&Number.isFinite(Date.parse(r.at))&&Number.isInteger(r.place)&&r.place>0&&(type!=='exam'||Number.isFinite(r.score))&&(type!=='strip'||Number.isInteger(r.bad))).slice(0,100).map(r=>({...r,name:r.name.slice(0,16)}));
+        lists[type]={rows,fetched:now()};message='온라인 순위표를 불러왔어요.';
+      }catch(e){message=errorText(e);}
+      finally{loading[type]=false;delete flights[type];changed();}
+    })();return flights[type];
+  }
+  async function sync(){
+    if(!enabled||sending||!pending().length)return;
+    sending=true;tell('대기 중인 기록을 온라인에 등록하고 있어요.');
+    try {
+      const token=await session(), updated=new Set();
+      while(enabled&&pending().length){
+        const row=pending()[0];
+        try {const accepted=await request('/rest/v1/rpc/task1_submit_record',{p_mode:row.type,p_run_id:row.id,p_name:row.name,p_elapsed_ms:Math.round(row.t),p_score:row.type==='exam'?Math.round(row.score*100)/100:null,p_bad:row.type==='strip'?row.bad:null,p_version:row.version||''},token);if(accepted!==true)throw new Error('record was not accepted');}
+        catch(e){if(e.status===401){const stale=read('.session',null);if(stale){stale.expires_at=0;write('.session',stale);}}if(e.invalid){write('.pending',pending().filter(r=>r.id!==row.id));tell(errorText(e));}throw e;}
+        write('.pending',pending().filter(r=>r.id!==row.id));updated.add(row.type);if(enabled&&pending().length)await pause(2100);
+      }
+      tell(enabled?'온라인 등록을 마쳤어요.':'온라인 사용을 껐어요.');if(enabled)for(const type of updated)await load(type,true);
+    }catch(e){tell(errorText(e));}
+    finally{sending=false;schedule();changed();}
+  }
+  function enqueue(row){
+    if(!enabled)return false;
+    try {
+      const q=pending();if(q.some(r=>r.id===row.id))return true;
+      if(q.length>=100){tell('온라인 대기 기록이 100개예요. 먼저 다시 연결해 주세요. 기기 내 기록은 저장돼요.');return false;}
+      q.push({id:row.id,type:row.type,name:row.name,t:row.t,score:row.score,bad:row.bad,version:row.version});write('.pending',q);clearTimeout(retryTimer);retryTimer=setTimeout(()=>sync(),250);retryTimer?.unref?.();changed();return true;
+    }catch(_){tell('온라인 대기 기록을 저장하지 못했어요. 기기 내 랭킹에서 다시 등록할 수 있어요.');return false;}
+  }
+  function enable(value){
+    try{write('.enabled',!!value);enabled=!!value;clearTimeout(retryTimer);tell(enabled?'온라인 사용을 켰어요. 닉네임과 등록한 기록이 공개돼요.':'온라인 사용을 껐어요. 대기 기록은 기기에 보관해요.');if(enabled)schedule();return true;}
+    catch(_){tell('온라인 설정을 저장하지 못했어요.');return false;}
+  }
+  return {load,sync,enqueue,enable,snapshot:()=>({enabled,message,sending,pending:pending().length,lists,loading}),start:()=>{schedule();},stop:()=>clearTimeout(retryTimer)};
+}
+/* --- 온라인 랭킹 통신 끝 --- */
+
 /* --- 기기 내 랭킹: 시작할 때의 이름과 종료 시점의 결과를 고정 저장 --- */
 const RANK_KEY = STORE + '.ranks', RANK_PROFILE = STORE + '.rank-name';
+const ONLINE_CONFIG = {url:'https://yljvxdqocewwaqvlfuds.supabase.co',key:'sb_publishable_npaipGocfSDU2YX_bYLIAQ_Qda_WkRH'};
+const ONLINE = createOnlineRanking({...ONLINE_CONFIG,storage:{getItem:k=>localStorage.getItem(k),setItem:(k,v)=>localStorage.setItem(k,v)},changed:()=>{if(UI.homePage==='ranks'&&!$('#home').hidden)renderHome();}});
+
 const rankName = () => { try { return rankCleanName(localStorage.getItem(RANK_PROFILE)) || '게스트'; } catch (_) { return '게스트'; } };
 const rankCleanName = name => typeof name === 'string' ? name.replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,16) : '';
 const runId = () => globalThis.crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -6063,7 +6147,7 @@ function rankRecord(row) {
   if (rows.some(r => r.id === row.id)) return true;
   if (!row.id || !['exam','strip','fault'].includes(row.type) || !(row.t > 0) || !Number.isFinite(row.t)) return false;
   rows.push({ ...row, name: rankCleanName(row.name) || '게스트', at: Date.now(), version: APP_VER.v });
-  try { localStorage.setItem(RANK_KEY, JSON.stringify(rows.slice(-1000))); return true; }
+  try { localStorage.setItem(RANK_KEY, JSON.stringify(rows.slice(-1000))); ONLINE.enqueue({...row,version:APP_VER.v}); return true; }
   catch (_) { say('랭킹을 저장하지 못했어요. 저장 공간을 확인해 주세요.', 'err'); return false; }
 }
 function rankCompare(type, a, b) {
@@ -6074,19 +6158,29 @@ function rankBest(type) {
   for (const r of rankRead().filter(r => r.type === type)) if (!best.has(r.name) || rankCompare(type,r,best.get(r.name)) < 0) best.set(r.name,r);
   return [...best.values()].sort((a,b) => rankCompare(type,a,b) || a.at-b.at);
 }
-function homeRankHTML() {
-  const type = ['exam','strip','fault'].includes(UI.rankTab) ? UI.rankTab : 'exam', rows = rankBest(type);
-  const titles = {exam:'시험 모드',strip:'선 따기 연습',fault:'고장 랭크'};
-  const rule = {exam:'점수가 높은 순, 동점이면 시간이 짧은 순이에요. 제출 당시 채점 결과를 기록하며, 예시 채우기를 사용한 시험은 제외해요. 선 준비 시간 설정과 자기 점검 항목은 결과에 포함돼요.',strip:'20가닥 한 세트 기준이에요. 직접 점검한 불량 개수가 적은 순, 같으면 시간이 짧은 순이에요. 실제 작업을 스스로 확인한 기록이에요.',fault:'동일한 고장 10개를 무작위 순서로 모두 해결한 총시간이 짧은 순이에요. 힌트가 없으며 메뉴·결과 화면·앱을 꺼 둔 시간도 포함돼요.'};
-  let position = 1;
-  return `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>기기 내 랭킹</h1></div><p class="hm-sub">이 기기에 저장된 기록으로 경쟁해요. 닉네임마다 최고 기록 하나를 보여줘요. 다른 기기와 온라인으로 공유되지는 않아요.</p><div class="rank-profile"><label for="rankName">기록할 닉네임</label><input id="rankName" maxlength="16" value="${esc(rankName())}" autocomplete="off"><button class="hm-go" data-rank="name">이름 저장</button><span>시작할 때 이름으로 기록돼요.</span></div><p id="rankFeedback" role="status">${esc(UI.rankMessage||'')}</p><div class="rank-tabs" role="group" aria-label="랭킹 종류">${Object.entries(titles).map(([k,v]) => `<button class="hm-chip ${k===type?'on':''}" data-rank="tab" data-type="${k}" aria-pressed="${k===type}">${v}</button>`).join('')}</div><div class="st-card"><h2>${titles[type]} 랭킹</h2><p class="hm-rule">${rule[type]}</p>${rows.length ? `<div class="rank-scroll"><table class="rank-table"><thead><tr><th>순위</th><th>닉네임</th>${type==='exam'?'<th>점수</th>':type==='strip'?'<th>불량</th>':''}<th>시간</th><th>기록일</th></tr></thead><tbody>${rows.map((r,i) => { if(i && rankCompare(type,r,rows[i-1])) position=i+1; return `<tr><td>${position}</td><td>${esc(r.name)}</td>${type==='exam'?`<td>${fmtPt(r.score)} / 30</td>`:type==='strip'?`<td>${r.bad}개</td>`:''}<td>${fmt(r.t)}</td><td>${new Date(r.at).toLocaleDateString('ko-KR')}</td></tr>`; }).join('')}</tbody></table></div>` : '<p>아직 기록이 없어요. 첫 기록을 만들어 봐요!</p>'}<div class="rank-tabs">${type==='fault'?'<button class="hm-go" data-fd="rank">고장 랭크 시작</button>':`<button class="hm-go" data-home="${type==='exam'?'exam':'strip'}">${titles[type]} 시작</button>`}</div></div></div>`;
+function rankTable(type,rows,online=false) {
+  if(!rows.length)return '<p>아직 기록이 없어요. 첫 기록을 만들어 봐요!</p>';
+  let position=1;
+  return `<div class="rank-scroll"><table class="rank-table"><thead><tr><th>순위</th><th>닉네임</th>${type==='exam'?'<th>점수</th>':type==='strip'?'<th>불량</th>':''}<th>시간</th><th>기록일</th></tr></thead><tbody>${rows.map((r,i)=>{if(i&&rankCompare(type,r,rows[i-1]))position=i+1;return `<tr><td>${online?r.place:position}</td><td>${esc(r.name)}${online?`<small class="rank-tag">#${esc(r.tag)}</small>`:''}</td>${type==='exam'?`<td>${fmtPt(r.score)} / 30</td>`:type==='strip'?`<td>${r.bad}개</td>`:''}<td>${fmt(r.t)}</td><td>${new Date(r.at).toLocaleDateString('ko-KR')}</td></tr>`;}).join('')}</tbody></table></div>`;
 }
+function homeRankHTML() {
+  const type=['exam','strip','fault'].includes(UI.rankTab)?UI.rankTab:'exam', state=ONLINE.snapshot(), online=UI.rankScope==='online';
+  const titles={exam:'시험 모드',strip:'선 따기 연습',fault:'고장 랭크'};
+  const rule={exam:'점수가 높은 순, 동점이면 시간이 짧은 순이에요. 제출 당시 채점 결과를 기록하며, 예시 채우기는 제외해요. 선 준비 시간과 자기 점검도 결과에 포함돼요.',strip:'실제 20가닥 한 세트예요. 직접 점검한 불량 개수가 적은 순, 같으면 시간이 짧은 순이에요.',fault:'고장 10개를 힌트 없이 모두 해결한 총시간이 짧은 순이에요. 메뉴·결과 화면·앱 종료 시간도 포함돼요.'};
+  return `<div class="hm-page"><div class="hm-top"><button class="hm-back" data-home="main">← 메인</button><h1>랭킹</h1></div><div class="rank-tabs"><button class="hm-chip ${!online?'on':''}" data-rank="scope" data-scope="local" aria-pressed="${!online}">기기 내 랭킹</button><button class="hm-chip ${online?'on':''}" data-rank="scope" data-scope="online" aria-pressed="${online}">온라인 랭킹</button></div><p class="hm-sub">${online?'여러 사람의 기록을 함께 봐요. 기기별 최고 기록 하나를 공개하며, 같은 닉네임은 뒤의 식별 번호로 구분해요.':'이 기기에 저장된 닉네임별 최고 기록이에요. 온라인에 등록하지 않아도 사용할 수 있어요.'}</p><div class="rank-profile"><label for="rankName">기록할 닉네임</label><input id="rankName" maxlength="16" value="${esc(UI.rankDraft??rankName())}" autocomplete="off"><button class="hm-go" data-rank="name">이름 저장</button><span>시작할 때 이름으로 기록돼요.</span></div><p id="rankFeedback" role="status">${esc(UI.rankMessage||'')}</p>${online?`<div class="st-card"><b>온라인 기록 공유 ${state.enabled?'켜짐':'꺼짐'}</b><p>켜면 이후 완료한 기록의 닉네임·점수·불량 개수·시간이 공개돼요. 이메일 없이 기기를 구분하며, 인터넷이 끊기면 기기에 보관했다가 다시 등록해요.</p><button class="hm-chip" data-rank="online-toggle">${state.enabled?'온라인 사용 끄기':'동의하고 온라인 사용'}</button><p id="onlineStatus" role="status">${esc(state.message)}${state.pending?` · 등록 대기 ${state.pending}개`:''}</p>${state.enabled?'<button class="hm-chip" data-rank="refresh">새로고침·대기 기록 재전송</button> <button class="hm-chip" data-rank="upload">이 기기의 최고 기록 등록</button>':''}</div>`:''}<div class="rank-tabs" role="group" aria-label="랭킹 종류">${Object.entries(titles).map(([k,v])=>`<button class="hm-chip ${k===type?'on':''}" data-rank="tab" data-type="${k}" aria-pressed="${k===type}">${v}</button>`).join('')}</div><div class="st-card"><h2>${titles[type]} ${online?'온라인':'기기 내'} 랭킹</h2><p class="hm-rule">${rule[type]}</p>${online? !state.enabled?'<p>온라인 사용을 켜면 모두의 순위표를 볼 수 있어요.</p>':state.loading[type]?'<p>순위표를 불러오는 중이에요…</p>':state.lists[type]?rankTable(type,state.lists[type].rows,true):'<p>순위표를 아직 불러오지 못했어요. 새로고침을 눌러 주세요.</p>':rankTable(type,rankBest(type))}<div class="rank-tabs">${type==='fault'?'<button class="hm-go" data-fd="rank">고장 랭크 시작</button>':`<button class="hm-go" data-home="${type==='exam'?'exam':'strip'}">${titles[type]} 시작</button>`}</div></div></div>`;
+}
+
 function rankAction(button) {
-  if (button.dataset.rank === 'tab') UI.rankTab = button.dataset.type;
+  const action=button.dataset.rank;
+  if(action==='scope') {UI.rankScope=button.dataset.scope;renderHome();if(UI.rankScope==='online')ONLINE.load(UI.rankTab||'exam');return;}
+  if(action==='online-toggle') {ONLINE.enable(!ONLINE.snapshot().enabled);ONLINE.load(UI.rankTab||'exam');ONLINE.sync();return;}
+  if(action==='refresh') {ONLINE.load(UI.rankTab||'exam',true);ONLINE.sync();return;}
+  if(action==='upload') {for(const row of rankBest(UI.rankTab||'exam').slice(0,1))ONLINE.enqueue(row);ONLINE.sync();return;}
+  if (action === 'tab') {UI.rankTab = button.dataset.type;if(UI.rankScope==='online')ONLINE.load(UI.rankTab);}
   else if (button.dataset.rank === 'name') {
     const name = rankCleanName($('#rankName').value);
     if (!name) { $('#rankFeedback').textContent='닉네임을 1~16자로 입력해 주세요.'; return; }
-    try { localStorage.setItem(RANK_PROFILE,name); UI.rankMessage=`${name} 이름으로 다음 기록을 남겨요.`; }
+    try { localStorage.setItem(RANK_PROFILE,name); UI.rankMessage=`${name} 이름으로 다음 기록을 남겨요.`;delete UI.rankDraft; }
     catch (_) { UI.rankMessage='이름을 저장하지 못했어요. 저장 공간을 확인해 주세요.'; }
   }
   renderHome();
@@ -6402,7 +6496,7 @@ function homeMainHTML() {
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
     + `<button class="hm-card fault" data-home="fault">${hmIc('fault')}<b>실전 고장 실습</b><p>증상만 보고 테스터로 찾아 고쳐요. 10개 선택 학습부터 무힌트 랭크까지</p><small>측정 → 수리 → 동작 검사</small></button>`
-    + '</div><div class="hm-foot"><button class="hm-chip" data-home="ranks">🏆 기기 내 랭킹</button><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
+    + '</div><div class="hm-foot"><button class="hm-chip" data-home="ranks">🏆 랭킹</button><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
 }
@@ -6448,6 +6542,7 @@ function showHome(page = 'main') {
   const b = $('#home').querySelector(page === 'prac' ? '.hm-go, .ls' : '.hm-card, .hm-back'); if (b) setTimeout(() => { if (b.isConnected && !$('#modal').hidden && !$('#modalCard').contains(document.activeElement)) b.focus({ preventScroll: true }); }, 30);
 }
 function hideHome() { $('#home').hidden = true; }
+$('#home').addEventListener('input',e=>{if(e.target.id==='rankName')UI.rankDraft=e.target.value;});
 $('#home').addEventListener('click', e => {
   const rank = e.target.closest('[data-rank]'); if (rank) return rankAction(rank);
   const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd);
@@ -6477,6 +6572,8 @@ buildTerms(); renderAll(); UI.lastDone = STAGES.flatMap(k => stepsFor(k)).map(s 
 LIVE.timer = setInterval(() => liveStep(DEMO.on ? (DEMO.play ? .1 * DEMO.speed : 0) : .1), 100);   // 동작 확인은 늘 돌아간다 (MCB를 올리면 전원). 시연 중에는 재생 속도대로
 requestAnimationFrame(() => { fit(); renderOver(); });
 showHome();   // 시작은 늘 메인 화면
+ONLINE.start();
+window.addEventListener('online',()=>{ONLINE.sync();if(UI.homePage==='ranks'&&UI.rankScope==='online')ONLINE.load(UI.rankTab||'exam',true);});
 window.addEventListener('beforeunload', () => save());
 if (window.task1Desktop?.watchUpdates) {
   const box=document.createElement('aside');box.id='desktopUpdate';box.hidden=true;box.setAttribute('aria-label','앱 업데이트');

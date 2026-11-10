@@ -78,6 +78,11 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     assert.equal(await page.locator('.fault-case[data-id="0"] b').textContent(),'퓨즈 고장');
     await page.locator('[data-home="ranks"]').click();await page.locator('[data-rank="tab"][data-type="fault"]').click();
     assert.match(await page.locator('.rank-table').textContent(),/앱랭킹/);
+    await page.route('https://yljvxdqocewwaqvlfuds.supabase.co/**',route=>route.fulfill({contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify([{name:'온라인학생',tag:'1234abcd',t:30000,score:null,bad:null,at:'2026-11-10T00:00:00Z',place:1}])}));
+    await page.locator('[data-rank="scope"][data-scope="online"]').click();await page.locator('[data-rank="online-toggle"]').click();
+    await page.waitForFunction(()=>ONLINE.snapshot().lists.fault);
+    assert.match(await page.locator('.rank-table').textContent(),/온라인학생/);
+    await page.locator('[data-rank="online-toggle"]').click();
     if(process.env.TASK1_DESKTOP_SCREENSHOT)await page.screenshot({path:process.env.TASK1_DESKTOP_SCREENSHOT});
     assert.deepEqual(errors,[]);
   }finally{await app?.close();await rm(temp,{recursive:true,force:true,maxRetries:4,retryDelay:500});}

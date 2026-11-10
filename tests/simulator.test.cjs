@@ -1212,3 +1212,49 @@ test('local rank UI escapes nicknames, uses shared positions for ties, fits mobi
   assert.match(await page.locator('#rankFeedback').textContent(),/저장하지 못/);
   await page.evaluate(()=>Storage.prototype.setItem=window.originalRankSet);
 });
+
+test('online rank consent, anonymous upload, shared positions and nickname escaping work in the browser',async()=>{
+ const calls=[];let submitted=false;
+ await page.route('https://yljvxdqocewwaqvlfuds.supabase.co/**',async route=>{
+  const request=route.request(),url=request.url();calls.push({url,body:request.postDataJSON()});
+  const row={name:'<img src=x>',tag:'1234abcd',t:25000,score:29,bad:null,at:'2026-11-10T01:00:00Z',place:2};
+  let data=[];
+  if(url.includes('signup'))data={access_token:'test-access',refresh_token:'test-refresh',expires_at:9999999999};
+  else if(url.includes('submit_record')){submitted=true;data=true;}
+  else data=[row];
+  await route.fulfill({contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify(data)});
+ });
+ await page.evaluate(()=>rankRecord({id:'browser-one',type:'exam',name:'학생',t:60000,score:29}));
+ await page.locator('[data-home="ranks"]').click();assert.equal(calls.length,0);
+ await page.locator('[data-rank="scope"][data-scope="online"]').click();assert.equal(calls.length,0);
+ await page.locator('[data-rank="online-toggle"]').click();
+ await page.waitForFunction(()=>ONLINE.snapshot().lists.exam);
+ assert.equal(await page.locator('.rank-table img').count(),0);assert.equal(await page.locator('.rank-table tbody tr td').first().textContent(),'2');
+ assert.equal(calls.some(c=>c.url.includes('signup')),false);
+ await page.locator('#rankName').fill('입력중인닉네임');
+ await page.locator('[data-rank="refresh"]').click();await page.waitForFunction(()=>!ONLINE.snapshot().loading.exam);
+ assert.equal(await page.locator('#rankName').inputValue(),'입력중인닉네임');
+ await page.locator('[data-rank="upload"]').click();await page.waitForFunction(()=>ONLINE.snapshot().pending===0&&!ONLINE.snapshot().sending);
+ assert.equal(submitted,true);assert.equal(calls.find(c=>c.url.includes('submit_record')).body.p_name,'학생');
+ await page.locator('[data-rank="scope"][data-scope="local"]').click();assert.match(await page.locator('.rank-table').textContent(),/학생/);
+});
+
+test('online failures retain local and queued records across reload and missing SQL has a clear message',async()=>{
+ let offline=true;
+ await page.route('https://yljvxdqocewwaqvlfuds.supabase.co/**',async route=>{
+  if(offline)return route.abort();
+  const url=route.request().url();let data=url.includes('signup')?{access_token:'test-access',refresh_token:'test-refresh',expires_at:9999999999}:url.includes('submit_record')?true:[];
+  await route.fulfill({contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify(data)});
+ });
+ await page.evaluate(()=>{ONLINE.enable(true);rankRecord({id:'offline-row',type:'fault',name:'대기학생',t:30000});return ONLINE.sync();});
+ assert.equal(await page.evaluate(()=>ONLINE.snapshot().pending),1);
+ await page.reload();await page.waitForFunction(()=>window.SIM);await page.evaluate(()=>clearInterval(LIVE.timer));
+ assert.equal(await page.evaluate(()=>ONLINE.snapshot().pending),1);assert.equal(await page.evaluate(()=>rankRead()[0].name),'대기학생');
+ offline=false;
+ await page.locator('[data-home="ranks"]').click();await page.locator('[data-rank="scope"][data-scope="online"]').click();
+ await page.locator('[data-rank="refresh"]').click();await page.waitForFunction(()=>ONLINE.snapshot().pending===0&&!ONLINE.snapshot().sending);
+ await page.unroute('https://yljvxdqocewwaqvlfuds.supabase.co/**');
+ await page.route('https://yljvxdqocewwaqvlfuds.supabase.co/**',route=>route.fulfill({status:404,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({code:'PGRST202'})}));
+ await page.locator('[data-rank="refresh"]').click();await page.waitForFunction(()=>!ONLINE.snapshot().loading.exam);
+ assert.match(await page.locator('#onlineStatus').textContent(),/SQL/);
+});
