@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ROOM, moveBody, walkingDirection } from './walk-physics.mjs';
+import { createUniformAvatar } from './uniform.mjs';
 
 export class WalkingView {
   constructor(camera, canvas, { onMode, onChange, onInspect }) {
@@ -41,22 +42,14 @@ export class WalkingView {
       for(const ev of ['pointerup','pointercancel','lostpointercapture','blur'])button.addEventListener(ev,clear);
     });
   }
-  makeBody() {
-    const group=new THREE.Group(), cloth=new THREE.MeshStandardMaterial({color:'#36545f',roughness:1}),pants=new THREE.MeshStandardMaterial({color:'#253a46',roughness:1}),shoe=new THREE.MeshStandardMaterial({color:'#1b252c',roughness:1});
-    const part=(x,y,z,w,h,d,mat)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);group.add(m);return m};
-    this.legs=[part(-1.5,5.3,1,2.3,9,2.4,pants),part(1.5,5.3,1,2.3,9,2.4,pants)];
-    this.feet=[part(-1.5,.65,.3,2.5,1.3,4,shoe),part(1.5,.65,.3,2.5,1.3,4,shoe)];
-    part(0,17.6,1.8,6.4,14,3.8,cloth);part(-3.5,18,1,1,11,2,cloth);part(3.5,18,1,1,11,2,cloth);
-    const shadow=new THREE.Mesh(new THREE.CircleGeometry(4.8,24),new THREE.MeshBasicMaterial({color:'#101820',transparent:true,opacity:.14,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.02;group.add(shadow);
-    return group;
-  }
+  makeBody() { return createUniformAvatar(()=>this.onChange()); }
   home(){this.pause();this.position={x:0,z:24};this.yaw=0;this.pitch=-.67;this.crouched=false;this.height=32;this.setMode('walk')}
   clear(){this.keys.clear();this.velocity.x=0;this.velocity.z=0;this.active=false;this.drag=null;document.querySelectorAll('[data-walk]').forEach(b=>b.classList.remove('held'))}
   pause(){this.clear();if(document.pointerLockElement===this.canvas)document.exitPointerLock();if(this.mode==='walk')this.overlay.hidden=false;this.onChange()}
   setMode(mode) {
     if(document.pointerLockElement===this.canvas)document.exitPointerLock();this.clear();this.mode=mode;
-    const walk=mode==='walk';this.overlay.hidden=!walk;this.crosshair.hidden=!walk;this.body.visible=walk;
-    this.camera.fov=walk?68:40;this.camera.updateProjectionMatrix();this.onMode(mode);
+    const walk=mode==='walk';this.camera.layers.set(0);if(!walk)this.camera.layers.enable(1);this.overlay.hidden=!walk;this.crosshair.hidden=!walk;
+    this.camera.fov=walk?68:40;this.camera.updateProjectionMatrix();this.onMode(mode);this.body.visible=walk;
     if(walk)this.updateCamera(0);this.onChange();
   }
   engage(){
@@ -65,11 +58,11 @@ export class WalkingView {
     try {Promise.resolve(this.canvas.requestPointerLock()).catch(()=>this.fallback())}catch{this.fallback()}
   }
   fallback(){if(this.mode!=='walk')return;this.active=true;this.overlay.hidden=true;document.querySelector('#status').textContent='마우스를 누른 채 드래그하면 둘러볼 수 있어요. WASD로 걸어요.';this.onChange()}
-  look(dx,dy){this.yaw-=dx*.0023;this.pitch=THREE.MathUtils.clamp(this.pitch-dy*.0023,-1.43,1.1);this.updateCamera(0);this.onChange()}
+  look(dx,dy){this.yaw-=dx*.0023;this.pitch=THREE.MathUtils.clamp(this.pitch-dy*.0023,-1.53,1.1);this.updateCamera(0);this.onChange()}
   updateCamera(bob){
     this.euler.set(this.pitch,this.yaw,0);this.camera.quaternion.setFromEuler(this.euler);
-    this.camera.position.set(this.position.x,ROOM.floor+this.height+bob,this.position.z);
-    this.body.position.set(this.position.x,ROOM.floor,this.position.z);this.body.rotation.y=this.yaw;this.body.scale.y=this.height/32;
+    this.camera.position.set(this.position.x-Math.sin(this.yaw)*3.5,ROOM.floor+this.height+bob,this.position.z-Math.cos(this.yaw)*3.5);
+    this.body.position.set(this.position.x,ROOM.floor,this.position.z);this.body.rotation.y=this.yaw;
   }
   update(dt){
     if(this.mode!=='walk')return false;dt=Math.min(Math.max(dt,0),.1);
@@ -84,7 +77,7 @@ export class WalkingView {
     const distance=Math.hypot(old.x-this.position.x,old.z-this.position.z),moving=distance>.001;
     if(moving)this.phase+=distance*.38;
     const stride=moving?Math.sin(this.phase)*.65:0;
-    this.legs.forEach((leg,i)=>{leg.rotation.x=stride*(i?1:-1)});this.feet.forEach((foot,i)=>{foot.position.z=.3+stride*(i?1:-1)});
+    this.body.userData.rig.pose(stride,THREE.MathUtils.clamp((32-this.height)/8,0,1));
     this.updateCamera(this.bob&&moving?Math.sin(this.phase*2)*.055:0);
     return moving||heightChange||Math.hypot(this.velocity.x,this.velocity.z)>.01;
   }

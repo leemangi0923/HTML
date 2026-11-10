@@ -49,8 +49,11 @@ async function session(viewport = { width: 1440, height: 1000 }, mode = 'circuit
     external.push(route.request().url()); return route.abort();
   });
   const page = await context.newPage(); page.on('pageerror', e => errors.push(e.message));
-  await page.goto(`${origin}/lab-3d.html${mode === 'circuit' ? '?mode=circuit' : ''}`); await page.waitForFunction(mode === 'circuit' ? () => window.LAB3D : () => window.WORKSHOP3D?.ready);
+  await page.goto(`${origin}/lab-3d.html${mode === 'circuit' ? '?mode=circuit' : ''}`); await unlock(page); await page.waitForFunction(mode === 'circuit' ? () => window.LAB3D : () => window.WORKSHOP3D?.ready);
   return { page, context, errors, external };
+}
+async function unlock(page) {
+  if (await page.locator('#labGate').isVisible()) { await page.locator('#gatePassword').fill('0923'); await page.locator('#gatePassword').press('Enter'); }
 }
 async function state(page) { return page.evaluate(() => LAB3D.state); }
 async function clickTerminal(page, id) {
@@ -198,5 +201,43 @@ test('mobile walking controls release outside the button and focus loss cannot l
     await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await page.mouse.up();
     const paused=await page.evaluate(()=>WORKSHOP3D.state.walk);assert.equal(paused.active,false);assert.deepEqual(paused.keys,[]);
     assert.deepEqual(errors,[]);
+  } finally {await context.close();}
+});
+
+test('3D entry requires 0923 before loading a scene, supports same-tab reload and can be locked again', async () => {
+  const context=await browser.newContext({viewport:{width:390,height:844}});context.setDefaultTimeout(15000);
+  const page=await context.newPage(),requests=[],errors=[];page.on('request',r=>requests.push(new URL(r.url()).pathname));page.on('pageerror',e=>errors.push(e.message));
+  try {
+    await page.goto(`${origin}/lab-3d.html?mode=circuit`);
+    assert.equal(await page.locator('#labGate').isVisible(),true);assert.equal(await page.locator('#labApp').isHidden(),true);
+    assert.equal(await page.evaluate(()=>typeof LAB3D),'undefined');
+    assert.ok(requests.every(u=>!u.includes('vendor/three')&&!u.endsWith('/main.mjs')&&!u.endsWith('/workshop.mjs')));
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+    await page.locator('#gatePassword').fill('1111');await page.keyboard.press('Enter');
+    assert.match(await page.locator('#gateError').textContent(),/맞지/);assert.equal(await page.evaluate(()=>typeof LAB3D),'undefined');
+    await unlock(page);await page.waitForFunction(()=>window.LAB3D);
+    await page.reload();await page.waitForFunction(()=>window.LAB3D);assert.equal(await page.locator('#labGate').isHidden(),true);
+    await page.locator('#lockLab').click();await page.waitForFunction(()=>!document.querySelector('#labGate').hidden);
+    assert.equal(await page.evaluate(()=>typeof LAB3D),'undefined');
+    assert.equal(await page.locator('#gatePassword').inputValue(),'');
+    await page.locator('#gateForm a').click();await page.waitForFunction(()=>window.SIM);assert.equal(await page.locator('#home').count()>0,true);
+    assert.deepEqual(errors,[]);
+  } finally {await context.close();}
+});
+
+test('school uniform preview preserves school identity, concealed zipper and hidden first-person shoulder badges', async () => {
+  const {page,context,errors}=await session(undefined,'workshop');
+  try {
+    const info=await page.evaluate(()=>WORKSHOP3D.state.uniform);
+    assert.equal(info.school,'국립전북기계공업고등학교');assert.equal(info.english,'Chonbuk Mechanical Technical High School');assert.equal(info.innerText,'마이스터고');
+    assert.equal(info.bodyVisible,true);assert.equal(info.badgesVisibleInCamera,false);assert.match(info.closure,/덮개.*똑딱/);
+    await page.locator('#avatarView').click();assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.preview),true);
+    const scene=await page.locator('#scene').boundingBox();await page.mouse.move(scene.x+scene.width/2,scene.y+scene.height/2);await page.mouse.down();await page.mouse.move(scene.x+scene.width/2+120,scene.y+scene.height/2,{steps:6});await page.mouse.up();
+    await page.locator('#walkMode').click();
+    assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.preview),false);assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.bodyVisible),true);assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.badgesVisibleInCamera),false);
+    await page.locator('#walkStart').click();await page.mouse.move(700,1000);await page.mouse.move(700,1450);
+    await page.waitForFunction(()=>WORKSHOP3D.state.walk.pitch<-1.4);
+    assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.bodyVisible),true);assert.equal(await page.evaluate(()=>WORKSHOP3D.state.uniform.badgesVisibleInCamera),false);
+    await page.keyboard.press('Escape');assert.deepEqual(errors,[]);
   } finally {await context.close();}
 });

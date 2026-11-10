@@ -9,10 +9,25 @@
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
 </head>
 <body>
+  <section id="labGate" class="lab-gate" aria-labelledby="gateTitle">
+    <form id="gateForm" class="gate-card">
+      <span class="eyebrow">산업용로봇 1과제 · 3D 작업실</span>
+      <h1 id="gateTitle">작업실 입장</h1>
+      <p>비밀번호를 입력해 주세요.</p>
+      <label for="gatePassword">비밀번호</label>
+      <input id="gatePassword" type="password" inputmode="numeric" autocomplete="current-password" required maxlength="4" aria-describedby="gateError" autofocus>
+      <p id="gateError" role="alert"></p>
+      <button type="submit">입장하기</button>
+      <a href="index.html">← 1과제 메인으로</a>
+      <noscript><p>작업실을 열려면 JavaScript를 켜 주세요.</p></noscript>
+    </form>
+  </section>
+  <div id="labApp" hidden inert>
   <header>
     <a class="back" href="index.html" aria-label="1과제 메인 메뉴로 돌아가기">← 1과제</a>
     <div class="brand"><span class="eyebrow">작은 회로부터, 입체적으로</span><h1>3D 작업대 <span>미리보기</span></h1></div>
     <button id="helpToggle" aria-expanded="false" aria-controls="help">조작법 ?</button>
+    <button id="lockLab" title="이 탭의 입장 확인을 해제합니다">잠그기</button>
   </header>
   <main>
     <section id="viewport" aria-label="마우스로 회전하고 단자를 눌러 배선하는 3D 작업대">
@@ -46,15 +61,42 @@
       <p class="scope">3D 조작·간단한 회로 체험용 시제품이에요. 전체 1과제 조립·채점은 기존 화면에서 진행해요.</p>
     </aside>
   </main>
+  </div>
   <script>
-    if (location.protocol === 'file:') {
-      document.querySelector('#loading').textContent = '3D 화면은 웹 주소에서 열어주세요. 로컬에서는 python3 -m http.server 8000 실행 후 localhost:8000/lab-3d.html로 접속하세요.';
-    } else {
-      import(new URLSearchParams(location.search).get('mode') === 'circuit' ? './lab-3d/main.mjs' : './lab-3d/workshop.mjs').catch(() => {
-        document.querySelector('#loading').hidden = false;
-        document.querySelector('#loading').textContent = '3D 화면을 열지 못했어요. WebGL을 지원하는 최신 브라우저에서 다시 열어주세요.';
-      });
+    // A static-page entrance lock; it is not server-side authentication.
+    const gateKey = 'task1:3d-entry:v1';
+    let opening = false;
+    function openLab() {
+      if (opening) return;
+      opening = true;
+      document.querySelector('#labGate').hidden = true;
+      const app = document.querySelector('#labApp'); app.hidden = false; app.inert = false;
+      document.querySelector('#scene').focus({ preventScroll: true });
+      if (location.protocol === 'file:') {
+        document.querySelector('#loading').textContent = '3D 화면은 웹 주소에서 열어주세요. 로컬에서는 python3 -m http.server 8000 실행 후 localhost:8000/lab-3d.html로 접속하세요.';
+      } else {
+        import(new URLSearchParams(location.search).get('mode') === 'circuit' ? './lab-3d/main.mjs' : './lab-3d/workshop.mjs').catch(() => {
+          document.querySelector('#loading').hidden = false;
+          document.querySelector('#loading').textContent = '3D 화면을 열지 못했어요. WebGL을 지원하는 최신 브라우저에서 다시 열어주세요.';
+        });
+      }
     }
+    document.querySelector('#gateForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const input = document.querySelector('#gatePassword');
+      if (input.value !== '0923') {
+        document.querySelector('#gateError').textContent = '비밀번호가 맞지 않아요. 다시 입력해 주세요.';
+        input.setAttribute('aria-invalid', 'true'); input.focus(); input.select(); return;
+      }
+      input.value = ''; input.removeAttribute('aria-invalid');
+      try { sessionStorage.setItem(gateKey, '1'); } catch { /* The current visit still works without storage. */ }
+      openLab();
+    });
+    document.querySelector('#lockLab').addEventListener('click', () => {
+      try { sessionStorage.removeItem(gateKey); } catch { /* Reload always starts closed without storage. */ }
+      location.reload();
+    });
+    try { if (sessionStorage.getItem(gateKey) === '1') openLab(); } catch { /* Ask again if storage is unavailable. */ }
   </script>
 </body>
 </html>
