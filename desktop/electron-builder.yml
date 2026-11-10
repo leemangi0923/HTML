@@ -12,6 +12,7 @@ directories:
 files:
   - desktop/main.cjs
   - desktop/preload.cjs
+  - desktop/updater.cjs
   - desktop/generated/index.html
   - desktop/assets/icon.png
   - package.json
@@ -23,6 +24,7 @@ win:
   artifactName: task1-simulator-setup-v${version}-${arch}.${ext}
   executableName: Task1Simulator
   signExecutable: false
+  verifyUpdateCodeSignature: false
 nsis:
   oneClick: false
   perMachine: false
@@ -38,3 +40,8 @@ linux:
   target: dir
   category: Education
   icon: desktop/assets/icon.png
+publish:
+  provider: github
+  owner: leemangi0923
+  repo: HTML
+  releaseType: release

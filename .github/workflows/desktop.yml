@@ -35,6 +35,7 @@ jobs:
           $version = (Get-Content package.json | ConvertFrom-Json).version
           if ($env:GITHUB_REF_NAME -ne "v$version") { throw "Tag and package version must match" }
       - run: npm ci
+      - run: npm run test:updater
       - run: npm run test:desktop
       - run: npm run dist:win
       - name: Test packaged Windows app
@@ -55,6 +56,7 @@ jobs:
           path: |
             dist/*-setup-*.exe
             dist/*-setup-*.exe.sha256
+            dist/latest.yml
           if-no-files-found: error
           retention-days: 14
   release:
@@ -74,6 +76,7 @@ jobs:
           files: |
             release/*-setup-*.exe
             release/*-setup-*.exe.sha256
+            release/latest.yml
           fail_on_unmatched_files: true
           body: |
             Windows 10/11 64비트용 설치 파일입니다. 아래의 setup .exe를 내려받아 실행하세요.
@@ -81,6 +84,7 @@ jobs:
             - 설치 경로 선택, 시작 메뉴·바탕화면 바로가기
             - 인터넷 없이 실행, F11 전체 화면
             - 자유·시험·고장 실습 기록을 앱에 자동 저장
+            - 앱 내 새 버전 알림 → 다운로드 → 저장하고 재시작
             - 새 버전 설치 후에도 앱 저장 기록 유지
             - 브라우저 저장 기록과 별도로 사용
 

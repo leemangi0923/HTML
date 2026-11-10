@@ -12,6 +12,7 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
   const launch=async()=>{
     const args=[...(process.platform==='linux'?['--no-sandbox']:[]),'--disable-gpu',...(process.env.TASK1_EXECUTABLE?[]:[root])];
     app=await _electron.launch({timeout:90000,args,executablePath:process.env.TASK1_EXECUTABLE||undefined,cwd:root,env:{...process.env,TASK1_USER_DATA_DIR:path.join(temp,'profile')}});
+    await app.evaluate(async({app})=>{await app.whenReady();process.getBuiltinModule('module').createRequire(app.getAppPath()+'/package.json')('electron-updater').autoUpdater.checkForUpdates=async()=>null;});
     const page=await app.firstWindow();page.on('pageerror',e=>errors.push(e.message));
     await page.waitForFunction(()=>window.SIM);await page.evaluate(()=>clearInterval(LIVE.timer));
     return page;
@@ -40,6 +41,30 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     const faultIds=await page.evaluate(()=>S.fault.ids);
     await page.locator('#btnHome').click();await page.locator('[data-home="free"]').click();
     assert.equal(await page.evaluate(()=>S.tbLabels[0]),'앱 저장 확인');
+    await app.evaluate(({app})=>{
+      const require=process.getBuiltinModule('module').createRequire(app.getAppPath()+'/package.json');
+      const updater=require('electron-updater').autoUpdater;
+      updater.checkForUpdates=async()=>null;
+      app.updateInstallCalls=0;updater.quitAndInstall=()=>app.updateInstallCalls++;
+      updater.emit('update-available',{version:'99.0.0'});
+    });
+    await page.locator('#desktopUpdate').waitFor();
+    assert.match(await page.locator('#desktopUpdate p').textContent(),/99.0.0/);
+    await app.evaluate(({app})=>process.getBuiltinModule('module').createRequire(app.getAppPath()+'/package.json')('electron-updater').autoUpdater.emit('update-downloaded',{version:'99.0.0'}));
+    await page.evaluate(()=>{setMode('prac',pClone(S));PRAC.state='run';});
+    await page.locator('#desktopUpdateAction').click();
+    assert.match(await page.locator('#toast').textContent(),/연습을 마친/);
+    await page.evaluate(()=>{PRAC.state='';goFree();});
+    await page.evaluate(()=>{S.tbLabels[2]='업데이트 전 저장';window.originalStorageSet=Storage.prototype.setItem;Storage.prototype.setItem=()=>{throw new Error('disk full');};});
+    await page.locator('#desktopUpdateAction').click();
+    assert.match(await page.locator('#toast').textContent(),/저장하지 못했/);
+    assert.equal(await app.evaluate(({app})=>app.updateInstallCalls),0);
+    await page.evaluate(()=>{Storage.prototype.setItem=window.originalStorageSet;});
+    await page.locator('#desktopUpdateAction').click();
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem(STORE)).tbLabels[2]),'업데이트 전 저장');
+    assert.equal(await app.evaluate(({app})=>app.updateInstallCalls),await app.evaluate(({app})=>app.isPackaged&&process.platform==='win32'?1:0));
+    await page.locator('#desktopUpdateLater').click();
+    assert.equal(await page.locator('#desktopUpdate').isHidden(),true);
     await page.evaluate(()=>{S.tbLabels[1]='종료 직전 저장';});
     await page.evaluate(()=>{location.href='https://example.com';});
     assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getURL()),'task1://app/index.html');

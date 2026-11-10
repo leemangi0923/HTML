@@ -9,7 +9,7 @@ app.setPath('userData', path.resolve(userData));
 app.setName('1과제 제작 시뮬레이터');
 app.setAppUserModelId('io.github.leemangi0923.task1');
 protocol.registerSchemesAsPrivileged([{scheme:'task1', privileges:{standard:true, secure:true, supportFetchAPI:true, corsEnabled:true}}]);
-let mainWindow;
+let mainWindow, updates;
 
 function createMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
@@ -19,6 +19,7 @@ function createMenu() {
     ]},
     {label:'편집', submenu:[{label:'복사', role:'copy'}, {label:'붙여넣기', role:'paste'}, {label:'모두 선택', role:'selectAll'}]},
     {label:'도움말', submenu:[
+      {label:'업데이트 확인', click:()=>updates.check(true)},
       {label:'저장 위치 열기', click:()=>require('electron').shell.openPath(app.getPath('userData'))},
       {label:'앱 정보', click:()=>dialog.showMessageBox(mainWindow, {type:'info', title:'앱 정보', message:`1과제 제작 시뮬레이터 v${app.getVersion()}`, detail:'인터넷 없이 실행하는 1과제 연습 게임입니다.\n작업은 이 앱에 자동 저장됩니다. 브라우저의 작업과 따로 보관합니다.\n전체 화면: F11', buttons:['확인']})}
     ]}
@@ -63,7 +64,18 @@ else {
       await writeFile(destination,payload.data,'utf8');
       return {canceled:false};
     });
+    const {autoUpdater}=require('electron-updater');
+    updates=require('./updater.cjs').createUpdates(autoUpdater,app.isPackaged && process.platform==='win32',state=>{
+      if(mainWindow && !mainWindow.webContents.isDestroyed())mainWindow.webContents.send('task1:update-state',state);
+    },()=>session.defaultSession.flushStorageData());
+    const trusted=event=>mainWindow && event.sender===mainWindow.webContents && event.senderFrame===mainWindow.webContents.mainFrame && event.senderFrame.url===APP_URL;
+    ipcMain.handle('task1:update-state',event=>{if(!trusted(event))throw new Error('허용되지 않은 요청');return updates.snapshot();});
+    ipcMain.handle('task1:update-action',(event,action)=>{if(!trusted(event)||!['check','download','install','dismiss'].includes(action))throw new Error('허용되지 않은 요청');return updates.action(action);});
     createWindow();
+    if(app.isPackaged && process.platform==='win32') {
+      setTimeout(()=>updates.check(),15000).unref();
+      setInterval(()=>updates.check(),4*60*60*1000).unref();
+    }
     app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow();});
   }).catch(error=>{dialog.showErrorBox('앱 파일을 확인해 주세요',error.message);app.quit();});
   app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});

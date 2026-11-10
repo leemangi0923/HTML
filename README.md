@@ -6,6 +6,12 @@
 python3 -m http.server 8000 --directory .
 ```
 
+## 2.17.0 · 설치형 자동 업데이트
+
+앱이 새 정식 버전을 확인하고 **업데이트 받기 → 저장하고 재시작**으로 적용합니다. 도움말 메뉴에서 직접 확인할 수도 있습니다. 다운로드 완료 후에도 사용자가 적용하기 전까지 게임을 계속하며, 진행 중인 연습·저장 실패 때는 재시작을 막습니다. 기존 앱 저장 위치를 유지합니다.
+
+**기존 v2.16.1 사용자는 v2.17.0을 한 번 직접 설치**해야 합니다. 그다음 버전부터 앱 안에서 업데이트할 수 있습니다. [최신 설치 파일](https://github.com/leemangi0923/HTML/releases/latest) · [업데이트 배포와 저장 설명](docs/desktop.md)
+
 ## 2.16.1 · Windows 설치형 게임
 
 **Electron + electron-builder**로 Windows 10/11 64비트용 설치형 앱을 추가했습니다. [설치 파일 다운로드](https://github.com/leemangi0923/HTML/releases) · [설치·저장·빌드 설명](docs/desktop.md)

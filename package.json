@@ -1,6 +1,6 @@
 {
   "name": "robot-assembly-simulator",
-  "version": "2.16.1",
+  "version": "2.17.0",
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
@@ -14,7 +14,8 @@
     "predist:win": "npm run desktop:prepare",
     "dist:win": "electron-builder --config desktop/electron-builder.yml --win --x64 --publish never",
     "predist:dir": "npm run desktop:prepare",
-    "dist:dir": "electron-builder --config desktop/electron-builder.yml --dir --publish never"
+    "dist:dir": "electron-builder --config desktop/electron-builder.yml --dir --publish never",
+    "test:updater": "node --test tests/updater.test.cjs"
   },
   "devDependencies": {
     "electron": "45.2.3",
@@ -27,5 +28,8 @@
   "description": "산업용로봇 1과제 조립·배선·고장 실습 게임",
   "author": "leemangi0923",
   "license": "UNLICENSED",
-  "main": "desktop/main.cjs"
+  "main": "desktop/main.cjs",
+  "dependencies": {
+    "electron-updater": "6.8.11"
+  }
 }
