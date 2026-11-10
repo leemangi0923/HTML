@@ -1021,3 +1021,63 @@ test('fault practice menu and staged hints fit narrow dark screens; retry preser
   assert.deepEqual(await page.evaluate(() => S.fault.hints),[0,0]);
   assert.equal(await page.evaluate(() => S.fault.attempts),0);
 });
+
+test('live switching retains unchanged device and wire SVG nodes without recalculating physical routes', async () => {
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.opBack=false;buildTerms();renderAll();LIVE.inp.mcb=true;liveStep(0);
+    const panel=gWorld.querySelector('[data-scene-part="panel"] path'),wire=gWorld.querySelector('[data-scene-part^="wire-inner-2:"] path');
+    const r3=S.inst.find(i=>names()[i.id]==='R3'),relay=gWorld.querySelector(`[data-scene-part="device-${r3.id}"]`),off=relay.innerHTML;
+    const original=calculateBasePts;let calculations=0;calculateBasePts=(...args)=>{calculations++;return original(...args);};
+    liveDown('pb1');liveRelease();const on=!!LIVE.out.plc,relayChanged=off!==relay.innerHTML;
+    liveDown('pb1');liveRelease();const turnedOff=!LIVE.out.plc;
+    calculateBasePts=original;
+    const retained=panel===gWorld.querySelector('[data-scene-part="panel"] path')&&wire===gWorld.querySelector('[data-scene-part^="wire-inner-2:"] path');
+    const roles=[...gWorld.children].map(n=>/^wire-inner-(\d):/.exec(n.dataset.scenePart)).filter(Boolean).map(m=>+m[1]);
+    return{calculations,on,turnedOff,relayChanged,retained,paintOrder:roles.every((n,i)=>!i||n>=roles[i-1])};
+  });
+  assert.deepEqual(result,{calculations:0,on:true,turnedOff:true,relayChanged:true,retained:true,paintOrder:true});
+});
+
+test('tie input bursts calculate once per frame, retain unrelated SVG, and save the final release position with undo', async () => {
+  await fullState();
+  const result=await page.evaluate(async()=>{
+    S.finished=true;S.opBack=true;buildTerms();renderAll();fitOp();
+    const t=S.ties[0];tieToNew(t);snap();
+    const geo=tieGeo(t),r=svg.getBoundingClientRect(),sx=r.left+(geo.M.x-UI.cam.x)/UI.cam.w*r.width,sy=r.top+(geo.M.y-UI.cam.y)/UI.cam.h*r.height;
+    const g={type:'tiemove',t,sx,sy,p0:{...geo.M},c0:{...t.c},rank:geo.rank,moved:true,rect:r};UI.gesture=g;
+    const before={...t.c},panel=gWorld.querySelector('[data-scene-part="panel"] path'),wireSig0=wireSig();
+    const original=tieDrag;let calls=0;tieDrag=(...args)=>{calls++;return original(...args);};
+    for(let i=1;i<=120;i++)svg.dispatchEvent(new PointerEvent('pointermove',{clientX:sx+i*.04,clientY:sy,pointerId:1,pointerType:'mouse',buttons:1,bubbles:true}));
+    const beforeFrame=calls;await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));const afterFrame=calls;
+    const end=toWorld(sx+5.4,sy),expected={x:Math.round((g.c0.x+end.x-g.p0.x)*100)/100,y:Math.round((g.c0.y+end.y-g.p0.y)*100)/100};
+    svg.dispatchEvent(new PointerEvent('pointerup',{clientX:sx+5.4,clientY:sy,pointerId:1,pointerType:'mouse',button:0,bubbles:true}));
+    tieDrag=original;const saved=loadKey(STORE).ties[0].c;
+    const retained=panel===gWorld.querySelector('[data-scene-part="panel"] path'),connected=wireSig0===wireSig(),atEnd={...S.ties[0].c};
+    const finalMarkup=gWorld.innerHTML;await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));const stable=finalMarkup===gWorld.innerHTML;
+    undo();return{beforeFrame,afterFrame,expected,atEnd,saved,retained,connected,stable,undone:JSON.stringify(before)===JSON.stringify(S.ties[0].c)};
+  });
+  assert.equal(result.beforeFrame,0);assert.equal(result.afterFrame,1);
+  assert.deepEqual(result.atEnd,result.expected);assert.deepEqual(result.saved,result.expected);
+  for(const key of ['retained','connected','stable','undone'])assert.equal(result[key],true,key);
+});
+
+test('tie release, cancellation, lost capture and focus loss flush pending motion without a later stale frame', async () => {
+  for(const end of ['pointerup','pointercancel','lostpointercapture','blur']){
+    await fullState();
+    const result=await page.evaluate(async end=>{
+      S.finished=true;fitOp();const t=S.ties[0];tieToNew(t);snap();
+      const geo=tieGeo(t),r=svg.getBoundingClientRect(),sx=r.left+(geo.M.x-UI.cam.x)/UI.cam.w*r.width,sy=r.top+(geo.M.y-UI.cam.y)/UI.cam.h*r.height;
+      const g={type:'tiemove',t,sx,sy,p0:{...geo.M},c0:{...t.c},rank:geo.rank,moved:true,rect:r};UI.gesture=g;
+      const cx=sx+5,point=toWorld(cx,sy),expected={x:Math.round((g.c0.x+point.x-g.p0.x)*100)/100,y:Math.round((g.c0.y+point.y-g.p0.y)*100)/100};
+      svg.dispatchEvent(new PointerEvent('pointermove',{clientX:cx,clientY:sy,pointerId:1,pointerType:'mouse',buttons:1,bubbles:true}));
+      if(end==='blur')window.dispatchEvent(new Event('blur'));
+      else svg.dispatchEvent(new PointerEvent(end,{clientX:cx,clientY:sy,pointerId:1,pointerType:'mouse',bubbles:true}));
+      const after={...S.ties[0].c},html=gWorld.innerHTML;
+      await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));
+      return{expected,after,gesture:UI.gesture,pending:g.raf,stable:html===gWorld.innerHTML,saved:loadKey(STORE).ties[0].c};
+    },end);
+    assert.deepEqual(result.after,result.expected,end);assert.deepEqual(result.saved,result.expected,end);
+    assert.equal(result.gesture,null,end);assert.equal(result.pending,0,end);assert.equal(result.stable,true,end);
+  }
+});

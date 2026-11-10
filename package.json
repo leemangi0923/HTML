@@ -1,11 +1,12 @@
 {
   "name": "robot-assembly-simulator",
-  "version": "2.14.0",
+  "version": "2.15.0",
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
     "benchmark": "node scripts/benchmark.cjs",
-    "benchmark:pan": "node scripts/benchmark-pan.cjs"
+    "benchmark:pan": "node scripts/benchmark-pan.cjs",
+    "benchmark:scene": "node scripts/benchmark-scene.cjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

@@ -1815,7 +1815,7 @@ function liveStep(dt) {
   const i = LIVE.inp, key = JSON.stringify([r.out, LIVE.st.rel, TIMERS.map(t => [LIVE.st.tim[t].on, LIVE.st.tim[t].out]), i.mcb, i.ss, i.pb1, i.pb0, i.s1, i.s2, i.plcOut, LIVE.err]);
   if (DEMO.ff) { LIVE.key = key; return; }   // 시연 빨리 감기: 그리지 않는다
   const kc = key !== LIVE.key, ckc = LIVE.ck.ch;
-  if (kc) { LIVE.key = key; renderWorld(); if (LIVE.err && i.mcb) say(LIVE.err, 'err'); if (UI.meter && UI.meter.b && S.tool === 'meter') renderOver(); }   // 테스터 값도 바뀐다
+  if (kc) { LIVE.key = key; renderWorld(false); if (LIVE.err && i.mcb) say(LIVE.err, 'err'); if (UI.meter && UI.meter.b && S.tool === 'meter') renderOver(); }   // 테스터 값도 바뀐다
   if (LIVE.ck.ch || opChkOn() !== UI.ckOn) opChkUI();
   if (MODE === 'prac' && (kc || ckc)) pracLive();
   updateDeviceLive();
@@ -2587,9 +2587,9 @@ function names() {
 }
 let TERMS = [], TERM = {};
 const SCREW_R = { mcb: 2.6, fuse: 2.6, smps: 2.6, servo: 0 }, SCREW_SY = { relay: 'scrY', mcb: 'scr', fuse: 'scr', smps: 'scr', servo: '' };   // 나사 머리 반지름 (#scr 2.6, #scrS·#scrY 2.05). 서보 커넥터는 구멍이라 0: 핀이 구멍 안까지 들어간다
-const WIRE_GEOMETRY = { bases: new Map(), wires: new Map() };
+const WIRE_GEOMETRY = { bases: new Map(), wires: new Map(), fronts: new Map() };
 const POLYLINE_INFO = new WeakMap();
-function invalidateWireGeometry() { WIRE_GEOMETRY.bases.clear(); WIRE_GEOMETRY.wires.clear(); }
+function invalidateWireGeometry() { WIRE_GEOMETRY.bases.clear(); WIRE_GEOMETRY.wires.clear(); WIRE_GEOMETRY.fronts.clear(); }
 function polylineInfo(pts) {
   let info = POLYLINE_INFO.get(pts); if (info) return info;
   let length = 0, minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity; const segments = [];
@@ -2809,7 +2809,7 @@ function setTool(id) {
   if (id === 'glove') return toggleGloves();                   // 장갑은 누르면 바로 끼고 벗음
   if (S.tool === id && id !== 'hand') id = 'hand';            // 같은 도구를 다시 누르면 내려놓기
   S.tool = id; UI.pending = null; UI.meter = null; UI.dsel = []; if (id !== 'hand') UI.carry = null;
-  save(); renderTools(); renderTray(); renderWorld(); renderOver();
+  save(); renderTools(); renderTray(); renderWorld(false); renderOver();
 }
 function toggleGloves() { snap(); S.gloves = !S.gloves; say(S.gloves ? '장갑을 꼈어요' : '장갑을 벗었어요', 'ok'); commit(); }
 const onFloor = pid => S.floor.some(f => f.pid === pid);
@@ -3020,12 +3020,15 @@ function tieTap(p) {   // 케이블 타이 도구로 그냥 눌렀을 때
   if (!S.opBack) return say('케이블 타이는 조작판 뒷면 전선에 묶어요. 위의 조작판 버튼으로 뒤집어요', 'info');
   return say('누른 채로 묶을 전선들을 가로질러 끌었다가 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', 'info');
 }
+function invalidateTiedWires(t) {
+  for (const r of t.ws) { const i = tieWire(r); if (i >= 0) WIRE_GEOMETRY.wires.delete(S.wires[i]); }
+}
 function tieToNew(t) {   // 옛 타이를 가운데·방향을 가진 타이로 (옮기기 전에)
   if (t.c && t.u) return true; const g = tieGeo(t); if (!g) return false;
-  t.ws = t.ws.map((r, k) => ({ a: r.a, b: r.b, f: Math.round(g.As[k].s / g.As[k].L * 1e4) / 1e4 })); t.c = { x: g.M.x, y: g.M.y }; t.u = { x: g.ux, y: g.uy }; return true;
+  t.ws = t.ws.map((r, k) => ({ a: r.a, b: r.b, f: Math.round(g.As[k].s / g.As[k].L * 1e4) / 1e4 })); t.c = { x: g.M.x, y: g.M.y }; t.u = { x: g.ux, y: g.uy }; invalidateTiedWires(t); return true;
 }
 function tieDrag(g, p) {
-  invalidateWireGeometry();   // 묶인 그대로 타이를 옮긴다: 선마다 타이 자리에서 가장 가까운 밑그림 자리로 미끄러지고, 그만큼 끌려온다
+  // 묶인 그대로 타이를 옮긴다: 선마다 타이 자리에서 가장 가까운 밑그림 자리로 미끄러지고, 그만큼 끌려온다
   const t = g.t, c = { x: g.c0.x + p.x - g.p0.x, y: g.c0.y + p.y - g.p0.y }, n = t.ws.length, fs = [];
   if (!tieZoneOK(c.x, c.y)) return 'zone';
   for (let k = 0; k < n; k++) {
@@ -3035,7 +3038,7 @@ function tieDrag(g, p) {
     const ends = [S.wires[i].a, S.wires[i].b].map(id => TERM[id]).filter(Boolean); if (ends.some(T => Math.hypot(T.x - P.x, T.y - P.y) < TIE_END)) return 'end';
     fs.push(Math.round(A.s / pathLen(bp) * 1e4) / 1e4);
   }
-  t.c = { x: Math.round(c.x * 100) / 100, y: Math.round(c.y * 100) / 100 }; fs.forEach((f, k) => { t.ws[k].f = f; }); return '';
+  t.c = { x: Math.round(c.x * 100) / 100, y: Math.round(c.y * 100) / 100 }; fs.forEach((f, k) => { t.ws[k].f = f; }); invalidateTiedWires(t); return '';
 }
 function dropTie(p) {   // 그냥 누르기만 했을 때
   const lp = opLocal(p);
@@ -3392,6 +3395,12 @@ function wirePts(w, i) {
   const pts=basePts(w,i),an=pts && S.ties?.length ? tieAnchors(w) : [];
   const points=an.length ? deform(pts,an,TERM[w.a]?.entrySide ? OP_LAMP_LEAD : 7,TERM[w.b]?.entrySide ? OP_LAMP_LEAD : 7,wireFixedRanges(w,i,pts)) : pts;
   WIRE_GEOMETRY.wires.set(w,{i,points,ties:S.ties,tieCount:S.ties?.length||0,helical:S.helical});return points;
+}
+function frontWirePts(w, i, terms) {
+  const old = WIRE_GEOMETRY.fronts.get(w);
+  if (old && old.i === i && old.terms === terms) return old.points;
+  const points = basePts(w, i, terms);
+  WIRE_GEOMETRY.fronts.set(w, {i, terms, points}); return points;
 }
 function basePts(w, i, ex) {
   if (ex || EXT_RAW) return calculateBasePts(w,i,ex);
@@ -3892,7 +3901,7 @@ function world0() {
   for (const z of OP_ZONES) { const tx = S.op.labels[z.id]; if (tx) s += drawLabel(z, tx); else if (S.guide && S.tool === 'label' && zoneDev(z)) s += R(z.x, z.y, z.w, z.h, 'rx=".6" class="guide-zone"'); }
   return s;
 }
-function world123() {
+function world123Parts() {
   let s = drawPanelPlate();
   if (S.marginSide) { const x = S.marginSide === 'L' ? 40 : 720, cx = S.marginSide === 'L' ? 20 : 740; s += `<path d="M${x} -6V606" class="redmark"/>` + T(cx, 300, '여백 40', TX(8, '#454d53', `font-weight="600" transform="rotate(-90 ${cx} 300)"`)); }
   if (S.ruled) s += `<path d="${RULE_Y.map(y => `M80 ${y}H680`).join('')}" class="redmark thin"/>`;
@@ -3905,48 +3914,80 @@ function world123() {
   if (S.rulerPlaced) s += drawRulerTool(S.rulerSide || 'L');
   for (const [, q] of fr) for (const [x, y] of q.holes) s += q.bolted ? drawBolt(x, y) : drawHole(x, y);
   SERVO.holes.forEach(([x, y], i) => { if (S.svHoles[i] && !S.servo.placed) s += drawHole(x, y); });
-  {
-    for (const st of S.stoppers) s += dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy);
-    for (const i of S.inst) s += drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : i.type === 'relay' || i.type === 'timer' ? !!S.plug[i.id] : S.fuses[i.id]);
-    if (S.servo.placed) s += dServo(SERVO.x, SERVO.y, S.servo.bolted);
-    if (powerPlaced()) s += drawPowerCable();
+  const parts = [['panel', s], ['stoppers', S.stoppers.map(st => dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy)).join('')]];
+  for (const i of S.inst) parts.push(['device-' + i.id, drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : i.type === 'relay' || i.type === 'timer' ? !!S.plug[i.id] : S.fuses[i.id])]);
+  parts.push(['servo', S.servo.placed ? dServo(SERVO.x, SERVO.y, S.servo.bolted) : ''], ['power', powerPlaced() ? drawPowerCable() : '']);
+  return parts;
+}
+function world123() { return world123Parts().map(([,html]) => html).join(''); }
+// Keep unchanged SVG parts mounted, including their paint order. The cache is
+// render-only and never enters saved work or the electrical model.
+const SCENE_PARTS = new Map(), WIRE_MARKUP = new WeakMap();
+function setSceneParts(parts) {
+  const alive = new Set(); let at = gWorld.firstElementChild;
+  for (const [key, html] of parts) {
+    alive.add(key); let node = SCENE_PARTS.get(key);
+    if (!node || node.parentNode !== gWorld) {
+      node = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      node.dataset.scenePart = key; SCENE_PARTS.set(key, node);
+    }
+    if (node !== at) gWorld.insertBefore(node, at);
+    setMarkup(node, html); at = node.nextElementSibling;
   }
-  return s;
+  for (const [key, node] of SCENE_PARTS) if (!alive.has(key)) { node.remove(); SCENE_PARTS.delete(key); }
 }
+let FRONT_TERMS = { tv: -1, terms: null };
 function opFrontTerms() {   // 앞면일 때: 뒷면 단자 자리를 좌우로 되돌려 앞에서 본 자리 (조작판에 가려진다)
-  return withAllTerms(() => Object.fromEntries(TERMS.filter(t => t.op).map(t => [t.id, { ...t, x: 2 * OPW.x + OP.w - t.x, entrySide: -(t.entrySide || 0) }])));
+  if (FRONT_TERMS.tv === UI.tv) return FRONT_TERMS.terms;
+  const terms = withAllTerms(() => Object.fromEntries(TERMS.filter(t => t.op).map(t => [t.id, { ...t, x: 2 * OPW.x + OP.w - t.x, entrySide: -(t.entrySide || 0) }])));
+  FRONT_TERMS = { tv: UI.tv, terms }; return terms;
 }
-function renderWorld() {
-  invalidateWireGeometry();
-  let s = drawConveyor() + world123();
+function renderWorld(geometryChanged = true) {
+  if (geometryChanged) invalidateWireGeometry();
+  const parts = [['conveyor', drawConveyor()], ...world123Parts()];
   const fb = FLIP_BTN;   // 조작판 위: HMI(조작판) 뒤집기
   const flipBtn = R(fb.x, fb.y, fb.w, fb.h, 'rx="5" fill="#f3c11b" stroke="#8a6c00" stroke-width=".8"') + T(fb.x + fb.w / 2, fb.y + 16, S.opBack ? 'HMI 뒤집기 → 앞면' : 'HMI 뒤집기 → 뒷면', TX(10, '#261f00', 'font-weight="800"'));
   const front = S.opBack ? '' : `<g transform="translate(${OPW.x} ${OPW.y})">${world0()}</g><text x="${OPW.x}" y="${OPW.y - 34}" class="cable-label" font-size="11" font-weight="700">조작판 앞면 (기기 끼우기, 견출지)</text><text x="${OPW.x}" y="${OPW.y - 22}" class="cable-label" font-size="6.5">배선은 HMI 뒤집기로 뒷면에서 해요</text>`;
-  s += flipBtn + (S.opBack ? worldOp() : '');
-  const ft = S.opBack ? null : opFrontTerms(), pts = (w, i) => !ft || !isOPWire(w) ? wirePts(w, i) : isExtWire(w) ? basePts(w, i, ft) : null;   // 앞면: 조작판 안쪽끼리 선은 뒤에 가려진다
+  parts.push(['flip', flipBtn], ['op-back', S.opBack ? worldOp() : '']);
+  const ft = S.opBack ? null : opFrontTerms(), pts = (w, i) => !ft || !isOPWire(w) ? wirePts(w, i) : isExtWire(w) ? frontWirePts(w, i, ft) : null;   // 앞면: 조작판 안쪽끼리 선은 뒤에 가려진다
   const hd = id => TERM[id] || (ft && ft[id]);
   const rk = new Map(recentWires().map((w, n) => [w, n ? ' wr2' : ' wr1']).filter(([w]) => w));   // 방금 꽂은 선은 주황, 그 전 선은 하늘색
-  const one = (w, i) => { const q = pts(w, i); if (!q) return null; const ha = hd(w.a), hb = hd(w.b), c = rk.get(w) || ''; return [wireEnds(q, ha, hb, 1), scrUse(ha) + scrUse(hb), wireBody(q, ha, hb, c), wireEnds(q, ha, hb, 2, c)]; };
-  const wires = f => { let e = '', sc = '', bd = '', cl = '', top = '';
-    const ovW = w => [w.a, w.b].some(id => TERM[id] && (TERM[id].ov || TERM[id].gap));   // 바깥 줄 위를 지나는 선은 먼저(아래 층에) 그려서 바깥 줄 압착단자, 선이 가려지지 않게
-    for (const lay of [true, false]) S.wires.forEach((w, i) => { if (!f(w) || rk.has(w) || ovW(w) !== lay) return; const r = one(w, i); if (r) { e += r[0]; sc += r[1]; bd += r[2]; cl += r[3]; } });
-    for (const w of [...rk.keys()].reverse()) { if (!f(w)) continue; const r = one(w, S.wires.indexOf(w)); if (r) top += r.join(''); }   // 방금 꽂은 두 선은 다른 선 위에 (방금 꽂은 선이 맨 위)
-    return e + sc + bd + cl + top; };   // 핀 → 나사 머리 → 전선 → 슬리브
+  const one = (w, i) => {
+    const q = pts(w, i); if (!q) return null;
+    const ha = hd(w.a), hb = hd(w.b), c = rk.get(w) || '', old = WIRE_MARKUP.get(w);
+    if (old && old.q === q && old.ha === ha && old.hb === hb && old.c === c) return old.parts;
+    const list = [wireEnds(q, ha, hb, 1), scrUse(ha) + scrUse(hb), wireBody(q, ha, hb, c), wireEnds(q, ha, hb, 2, c)];
+    WIRE_MARKUP.set(w, {q, ha, hb, c, parts: list}); return list;
+  };
+  const wires = (f, prefix) => {
+    const layers = [[], [], [], []], top = [];
+    const ovW = w => [w.a, w.b].some(id => TERM[id] && (TERM[id].ov || TERM[id].gap));
+    // Preserve the original pins -> screws -> bodies -> sleeves paint order.
+    for (const lay of [true, false]) S.wires.forEach((w, i) => {
+      if (!f(w) || rk.has(w) || ovW(w) !== lay) return;
+      const list = one(w, i); if (!list) return;
+      list.forEach((html, part) => layers[part].push([`${prefix}-${part}:${w.a}>${w.b}`, html]));
+    });
+    for (const w of [...rk.keys()].reverse()) {
+      if (!f(w)) continue; const list = one(w, S.wires.indexOf(w));
+      if (list) top.push([`${prefix}-recent:${w.a}>${w.b}`, list.join('')]);
+    }
+    return [...layers.flat(), ...top];
+  };
   const loose = w => (S.helical !== 2 && isExtWire(w)) || (dressable(w) && !tucked(w));   // 덕트 밖으로 빼 둔 조작판 전선, 덕트에 덜 넣은 선은 커버 위에 보인다
   const lifted = w => UI.replug && UI.replug.w === w;
-  s += wires(w => !loose(w) && !lifted(w));
-  if (S.helical === 2) s += drawBand(band2Duct(0));   // 덕트 안을 지나는 밴드 (커버를 닫으면 가려짐)
-  s += drawConvLeads();   // 덕트 안을 지나는 컨베이어 선도 커버에 가려진다
-  for (const [, q] of frList()) if (q.type === 'duct' && q.slot && q.covered) s += drawDuctCover(frRect(q));   // 커버는 덕트 안 전선을 덮는다
-  s += wires(w => loose(w) && !lifted(w));
-  if (S.tbCover && tbRect()) s += drawTBCover(tbRect());
-  s += lidsOver();
-  if (S.opBack) {
-    s += bandSvg();
-    if (S.helical === 1) s += `<circle cx="${HOLE.x}" cy="${HOLE.y}" r="11" fill="none" stroke="#e3232f" stroke-width="2" stroke-dasharray="4 2.5"/><text x="${HOLE.x + 15}" y="${HOLE.y - 6}" font-size="8" font-weight="700" fill="#ff6b6b">여기로 빼요 (손으로 누르기)</text>`;
-    for (const t of S.ties || []) { const g = tieOK(t) && tieGeo(t); if (g) s += drawTie(t, g); }
-  } else { s += bandSvg(); s += front; }   // 밴드와 전선 끝은 조작판 뒤로
-  setMarkup(gWorld,s + floorSVG());
+  parts.push(...wires(w => !loose(w) && !lifted(w), 'wire-inner'));
+  parts.push(['band-duct', S.helical === 2 ? drawBand(band2Duct(0)) : '']);
+  parts.push(['conveyor-leads', drawConvLeads()]);
+  parts.push(['duct-covers', frList().filter(([,q]) => q.type === 'duct' && q.slot && q.covered).map(([,q]) => drawDuctCover(frRect(q))).join('')]);
+  parts.push(...wires(w => loose(w) && !lifted(w), 'wire-loose'));
+  parts.push(['terminal-cover', S.tbCover && tbRect() ? drawTBCover(tbRect()) : ''], ['lids', lidsOver()]);
+  let band = bandSvg();
+  if (S.opBack && S.helical === 1) band += `<circle cx="${HOLE.x}" cy="${HOLE.y}" r="11" fill="none" stroke="#e3232f" stroke-width="2" stroke-dasharray="4 2.5"/><text x="${HOLE.x + 15}" y="${HOLE.y - 6}" font-size="8" font-weight="700" fill="#ff6b6b">여기로 빼요 (손으로 누르기)</text>`;
+  parts.push(['band-external', band]);
+  parts.push(['ties', S.opBack ? (S.ties || []).map(t => { const g = tieOK(t) && tieGeo(t); return g ? drawTie(t, g) : ''; }).join('') : '']);
+  parts.push(['op-front', front], ['floor', floorSVG()]);
+  setSceneParts(parts);
   if (TZ.id) renderTZ();
 }
 function ghost(p) {
@@ -4548,12 +4589,12 @@ function checkImport(pairs) {
 }
 
 /* ---------- 카메라 ---------- */
-function toWorld(cx, cy) { const r = svg.getBoundingClientRect(); return { x: UI.cam.x + (cx - r.left) / Math.max(1, r.width) * UI.cam.w, y: UI.cam.y + (cy - r.top) / Math.max(1, r.height) * UI.cam.h }; }
+function toWorld(cx, cy, rect) { const r = rect || svg.getBoundingClientRect(); return { x: UI.cam.x + (cx - r.left) / Math.max(1, r.width) * UI.cam.w, y: UI.cam.y + (cy - r.top) / Math.max(1, r.height) * UI.cam.h }; }
 function applyCam(rect) {
   const c = UI.cam; if (!(c.w > 0 && c.h > 0)) return;
   const width=rect?rect.width:svg.clientWidth, view=`${F(c.x)} ${F(c.y)} ${F(c.w)} ${F(c.h)}`;
   if(svg.getAttribute('viewBox')!==view)svg.setAttribute('viewBox',view);
-  const det = width / c.w > 4.2; if (det !== UI.detail) { UI.detail = det; renderWorld(); }
+  const det = width / c.w > 4.2; if (det !== UI.detail) { UI.detail = det; renderWorld(false); }
 }
 let cameraFrame=0, cameraRect=null;
 function cameraGestureActive() { const g=UI.gesture;return !!g && (g.type==='pan'||g.type==='pinch'||(g.type==='press'&&g.moved&&!g.live)); }
@@ -4665,10 +4706,30 @@ function requestPointerOverlay() {
 function flushPointerOverlay() {
   if(overlayFrame){cancelAnimationFrame(overlayFrame);overlayFrame=0;renderOver();}
 }
+function applyTieMove(g) {
+  if (!(S.ties || []).includes(g.t)) { if (UI.gesture === g) UI.gesture = null; return; }
+  const p = g.lastPoint; if (!p || (g.appliedPoint && p.x === g.appliedPoint.x && p.y === g.appliedPoint.y)) return;
+  const why = tieDrag(g, p); g.appliedPoint = p;
+  if (why && why !== g.why) say(why === 'far' ? '더 끌면 전선이 모자라요' : why === 'end' ? '단자 바로 옆(1.6cm 안)까지는 못 가요' : why === 'zone' ? '덕트나 헬리컬 밴드 안으로는 못 들어가요' : '묶인 전선이 없어요', 'info');
+  g.why = why;
+}
+function requestTieMove(g, point) {
+  g.lastPoint = point; UI.pointer = point;
+  if (!g.raf) g.raf = requestAnimationFrame(() => {
+    g.raf = 0; if (UI.gesture !== g) return;
+    applyTieMove(g); renderWorld(false); renderOver();
+  });
+}
+function flushTieMove(g, point) {
+  if (g.raf) { cancelAnimationFrame(g.raf); g.raf = 0; }
+  if (point) g.lastPoint = point;
+  applyTieMove(g);
+}
 svg.addEventListener('pointermove', e => {
   if (UI.ptrs.has(e.pointerId)) UI.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (!cameraGestureActive() && UI.carry && UI.carry.kind === 'pack') ckThru({ x: e.clientX, y: e.clientY });
   const g = UI.gesture, r = g?.rect || svg.getBoundingClientRect();
+  if (g && !g.rect) g.rect = r;
   if (g && g.type === 'pinch' && UI.ptrs.size === 2) {
     const [a, b] = [...UI.ptrs.values()], d = Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const wx = g.cam0.x + (g.m0.x - r.left) / r.width * g.cam0.w, wy = g.cam0.y + (g.m0.y - r.top) / r.height * g.cam0.h;
@@ -4678,24 +4739,23 @@ svg.addEventListener('pointermove', e => {
   if (g && g.type === 'pan') { UI.cam = { ...g.cam0, x: g.cam0.x - (e.clientX - g.sx) / r.width * g.cam0.w, y: g.cam0.y - (e.clientY - g.sy) / r.height * g.cam0.h }; return requestCamera(r); }
   if (g && g.type === 'tiemove') {   // 묶인 타이를 끄는 중: 선이 따라온다
     if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 5) { if (!tieToNew(g.t)) { UI.gesture = null; return; } snap(); g.moved = true; g.c0 = { ...g.t.c }; g.rank = tieGeo(g.t).rank; }
-    if (!g.moved) return; const p = toWorld(e.clientX, e.clientY), why = tieDrag(g, p); UI.pointer = p;
-    if (why && why !== g.why) say(why === 'far' ? '더 끌면 전선이 모자라요' : why === 'end' ? '단자 바로 옆(1.6cm 안)까지는 못 가요' : why === 'zone' ? '덕트나 헬리컬 밴드 안으로는 못 들어가요' : '묶인 전선이 없어요', 'info');
-    g.why = why; if (!g.raf) g.raf = requestAnimationFrame(() => { g.raf = 0; renderWorld(); renderOver(); }); return;
+    if (!g.moved) return;
+    return requestTieMove(g, toWorld(e.clientX, e.clientY, r));
   }
-  if (g && g.type === 'tiedrag') { if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; UI.tieEnd = toWorld(e.clientX, e.clientY); UI.pointer = UI.tieEnd; return requestPointerOverlay(); }
+  if (g && g.type === 'tiedrag') { if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; UI.tieEnd = toWorld(e.clientX, e.clientY, r); UI.pointer = UI.tieEnd; return requestPointerOverlay(); }
   if (g && (g.type === 'hgather' || g.type === 'hpush')) {
-    if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; const p = toWorld(e.clientX, e.clientY); UI.pointer = p; UI.hgEnd = p;
+    if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; const p = toWorld(e.clientX, e.clientY, r); UI.pointer = p; UI.hgEnd = p;
     if (g.type === 'hpush' && g.moved) { pushMove(g, p); if (!g.raf) g.raf = requestAnimationFrame(() => { g.raf = 0; renderWorld(); renderOver(); }); return; }
     return requestPointerOverlay();
   }
-  if (g && g.type === 'dbox') { if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; UI.dboxEnd = toWorld(e.clientX, e.clientY); UI.pointer = UI.dboxEnd; return requestPointerOverlay(); }
+  if (g && g.type === 'dbox') { if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 6) g.moved = true; UI.dboxEnd = toWorld(e.clientX, e.clientY, r); UI.pointer = UI.dboxEnd; return requestPointerOverlay(); }
   if (g && g.type === 'press') {
     if (g.live) return;   // 버튼, 팩을 누르는 동안은 화면을 움직이지 않는다
     if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) > 7) { g.moved = true;beginCameraGesture(); }
     if (g.moved) { UI.cam = { ...g.cam0, x: g.cam0.x - (e.clientX - g.sx) / r.width * g.cam0.w, y: g.cam0.y - (e.clientY - g.sy) / r.height * g.cam0.h }; return requestCamera(r); }
   }
   UI.overBoard = true;
-  const p = toWorld(e.clientX, e.clientY); UI.pointer = p;
+  const p = toWorld(e.clientX, e.clientY, r); UI.pointer = p;
   UI.hoverTerm = (S.tool === 'wire' || S.tool === 'meter' || UI.replug) && !lidAt(p) ? termNear(p, tolMM(14)) : null;   // 뚜껑 위에서는 뚜껑을 누른다
   requestPointerOverlay();
 });
@@ -4709,13 +4769,13 @@ svg.addEventListener('pointerup', e => {
   if (g && g.type === 'hgather') { const p1 = toWorld(e.clientX, e.clientY); UI.gesture = null; UI.hgEnd = null; if (g.moved) gatherWires(gatherCross(g.p0, p1)); else handleTap(p1, e); }
   if (g && g.type === 'hpush') { const p1 = toWorld(e.clientX, e.clientY); UI.gesture = null; UI.hgEnd = null; if (g.moved) pushEnd(g); else { UI.hcovLive = null; handleTap(p1, e); } }
   if (g && g.type === 'dbox') { const p1 = toWorld(e.clientX, e.clientY); UI.dboxEnd = null; UI.gesture = null; if (!g.moved) handleTap(p1, e); else if (tuckMode(g, p1)) tuckWires(tuckSet(g, p1), p1.x - g.p0.x, p1.y - g.p0.y); else dressPick(g.p0, p1, e.shiftKey || e.ctrlKey); }
-  if (g && g.type === 'tiemove') { const p1 = toWorld(e.clientX, e.clientY); UI.gesture = null; if (g.moved) { commit(); say('케이블 타이를 옮겼어요. 묶인 전선이 같이 따라와요', 'ok'); } else handleTap(p1, e); }
+  if (g && g.type === 'tiemove') { const p1 = toWorld(e.clientX, e.clientY); if (g.moved) flushTieMove(g, p1); UI.gesture = null; if (g.moved) { commit(); say('케이블 타이를 옮겼어요. 묶인 전선이 같이 따라와요', 'ok'); } else handleTap(p1, e); }
   if (!UI.ptrs.size || (g && g.type === 'pinch')) UI.gesture = null;
   if(wasCamera)endCameraGesture();
 });
-svg.addEventListener('pointercancel', e => { flushCamera();flushPointerOverlay(); const g = UI.gesture; UI.ptrs.delete(e.pointerId); UI.gesture = null; UI.hcovLive = null; document.body.classList.remove('panning'); if (g && g.type === 'tiemove' && g.moved) commit(); renderOver(); });
-svg.addEventListener('lostpointercapture',()=>{if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}});
-window.addEventListener('blur',()=>{if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}});
+svg.addEventListener('pointercancel', e => { flushCamera();flushPointerOverlay(); const g = UI.gesture; if (g && g.type === 'tiemove' && g.moved) flushTieMove(g); UI.ptrs.delete(e.pointerId); UI.gesture = null; UI.hcovLive = null; document.body.classList.remove('panning'); if (g && g.type === 'tiemove' && g.moved) commit(); renderOver(); });
+svg.addEventListener('lostpointercapture',()=>{if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}else if(UI.gesture?.type==='tiemove'){const g=UI.gesture;flushTieMove(g);UI.gesture=null;UI.ptrs.clear();if(g.moved)commit();}});
+window.addEventListener('blur',()=>{if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}else if(UI.gesture?.type==='tiemove'){const g=UI.gesture;flushTieMove(g);UI.gesture=null;UI.ptrs.clear();if(g.moved)commit();}});
 svg.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
 // 우클릭: 브라우저 메뉴 대신, 손에 든 부품은 재료함으로, 도구는 내려놓기
 document.addEventListener('contextmenu', e => {
@@ -5428,7 +5488,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.14.0', date: '2026.11.10', notes: ['실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.15.0', date: '2026.11.10', notes: ['성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
