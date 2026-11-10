@@ -144,7 +144,8 @@ func _build_interface() -> void:
 	hud_bottom.offset_top = -55
 	hud_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(hud_bottom)
-	var title := _label("1과제 작업실 · 교복 캐릭터", 21)
+	var version := str(ProjectSettings.get_setting("application/config/version"))
+	var title := _label("1과제 작업실 · 교복 캐릭터 · v" + version, 21)
 	title.position = Vector2(24, 20)
 	title.size = Vector2(600, 30)
 	ui.add_child(title)

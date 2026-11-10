@@ -1,6 +1,8 @@
-# 1과제 Godot 작업실 — 교복 캐릭터 0.2.0
+# 1과제 Godot 작업실 — 교복 캐릭터 0.2.1
 
 Godot를 처음 켠 사용자가 가져와 바로 실행하는 프로젝트입니다. 기존 HTML은 별도로 유지합니다.
+
+배포 파일은 `task1-godot-v0.2.1.zip`이며, 실행 화면 상단에서도 버전을 확인할 수 있습니다. 0.2.1에서는 파일명과 화면에 버전을 표시하도록 바꿨습니다.
 
 ## 처음 열기
 
@@ -50,4 +52,4 @@ godot --headless --path . --fixed-fps 60 --script tests/smoke.gd
 
 검증: 초기 잠금, 오입력, 0923 입장, 이동, 바닥 착지, 작업대 충돌, 앉기, 메뉴 중 정지, 위치 복귀, 기구 19개 로드, 스킨 캐릭터 로드, 걷기 애니메이션 선택, 앉을 때 몸 높이·무릎 방향·발 높이, 1인칭 머리/마크 숨김. Linux 가상 X 디스플레이에서 Compatibility 렌더러로 실제 장면과 입장 화면도 렌더링해 확인했습니다.
 
-작업대 자료 갱신: 저장소 루트에서 `CHROMIUM_PATH=/usr/bin/chromium node scripts/prepare-godot-assets.cjs`를 실행합니다. ZIP 갱신: `python3 scripts/package-godot.py`.
+작업대 자료 갱신: 저장소 루트에서 `CHROMIUM_PATH=/usr/bin/chromium node scripts/prepare-godot-assets.cjs`를 실행합니다. 배포할 때마다 `project.godot`의 `config/version`을 올린 뒤 `python3 scripts/package-godot.py`를 실행합니다. ZIP 파일명은 프로젝트 버전에서 자동으로 생성됩니다.
