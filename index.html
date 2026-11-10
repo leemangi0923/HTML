@@ -478,6 +478,7 @@ svg text { font-family: var(--font); }
 .rubber { stroke: #f5c518; stroke-width: 1.4; stroke-dasharray: 3 2; }
 .bad-wire { stroke: #e3232f; stroke-width: 2.2; stroke-linecap: round; }
 .wire-o { fill: none; stroke: #4a3b00; stroke-width: 2.7; stroke-linecap: round; stroke-linejoin: round; }
+.wire-shine { fill:none; stroke:#fff3ad; stroke-width:.42; stroke-opacity:.52; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
 .wire-i { fill: none; stroke: #f5c518; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .wire-i.wr1 { stroke: #ff8a00; } .wire-i.wr2 { stroke: #38bdf8; } .wire-i.wrh { stroke: #ef3b3b; }   /* wrh: 누르면 바뀌는 선 */   /* 방금 꽂은 선, 그 전 선 (설정에서 끄기) */
 @keyframes pulse { 50% { opacity: .3; } }
@@ -693,15 +694,15 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
               <path d="M10 0V50M20 0V50M30 0V50M40 0V50M0 10H50M0 20H50M0 30H50M0 40H50" class="gl1" fill="none" stroke-width=".35"/>
               <path d="M0 0V50M0 0H50" class="gl2" fill="none" stroke-width=".75"/>
             </pattern>
-            <linearGradient id="gAlu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b3b8bb"/><stop offset=".55" stop-color="#9fa5a9"/><stop offset="1" stop-color="#b1b6b9"/></linearGradient>
-            <pattern id="pBrush" width="8" height="2.4" patternUnits="userSpaceOnUse"><path d="M0 .6H8" stroke="#fff" stroke-opacity=".14" stroke-width=".35"/><path d="M0 1.8H5" stroke="#000" stroke-opacity=".04" stroke-width=".3"/></pattern>
+            <linearGradient id="gAlu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d8d5cb"/><stop offset="0.15" stop-color="#c1c7c9"/><stop offset="0.38" stop-color="#e0e2df"/><stop offset="0.54" stop-color="#b4bfc4"/><stop offset="0.8" stop-color="#cbd1d1"/><stop offset="1" stop-color="#a8b2b8"/></linearGradient>
+            <pattern id="pBrush" width="21" height="3.1" patternUnits="userSpaceOnUse"><path d="M0 .4H21M3 1.6H18M0 2.7H12" stroke="#fff" stroke-opacity=".19" stroke-width=".22"/><path d="M0 1H15M8 2.2H21" stroke="#38434c" stroke-opacity=".08" stroke-width=".18"/></pattern>
             <radialGradient id="gScrewY" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#f7e7a8"/><stop offset="1" stop-color="#a47b2c"/></radialGradient>
-            <radialGradient id="gScrew" cx=".35" cy=".35" r=".75"><stop offset="0" stop-color="#f6f7f8"/><stop offset="1" stop-color="#8e969c"/></radialGradient>
+            <radialGradient id="gScrew" cx=".3" cy=".23" r=".8"><stop offset="0" stop-color="#fff9df"/><stop offset=".28" stop-color="#e5edf0"/><stop offset=".62" stop-color="#a3adb4"/><stop offset=".86" stop-color="#6f7c86"/><stop offset="1" stop-color="#c8d2d6"/></radialGradient>
             <radialGradient id="gBolt" cx=".38" cy=".35" r=".8"><stop offset="0" stop-color="#fbfcfc"/><stop offset="1" stop-color="#959ca2"/></radialGradient>
-            <linearGradient id="gRail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b6bec5"/><stop offset=".16" stop-color="#e8ecef"/><stop offset=".5" stop-color="#ced4d9"/><stop offset=".84" stop-color="#e6eaed"/><stop offset="1" stop-color="#a9b2b9"/></linearGradient>
+            <linearGradient id="gRail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f6c75"/><stop offset="0.08" stop-color="#eff5f5"/><stop offset="0.17" stop-color="#9eabb3"/><stop offset="0.29" stop-color="#d4dce0"/><stop offset="0.52" stop-color="#b6c1c7"/><stop offset="0.8" stop-color="#dce2e3"/><stop offset="0.94" stop-color="#f5f7f5"/><stop offset="1" stop-color="#77858d"/></linearGradient>
             <linearGradient id="gCap" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7d858b"/><stop offset=".3" stop-color="#f6f8f9"/><stop offset=".55" stop-color="#cdd2d6"/><stop offset="1" stop-color="#6b7379"/></linearGradient>
             <linearGradient id="gGlass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b9c9d2" stop-opacity=".85"/><stop offset=".3" stop-color="#ffffff" stop-opacity=".9"/><stop offset=".7" stop-color="#e3edf2" stop-opacity=".55"/><stop offset="1" stop-color="#a9bbc5" stop-opacity=".85"/></linearGradient>
-            <linearGradient id="gChrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8f9fa"/><stop offset=".5" stop-color="#a6adb3"/><stop offset="1" stop-color="#eef0f2"/></linearGradient>
+            <linearGradient id="gChrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fdf8e9"/><stop offset="0.16" stop-color="#b1b6b8"/><stop offset="0.32" stop-color="#f8fbfc"/><stop offset="0.48" stop-color="#929fa8"/><stop offset="0.64" stop-color="#e6ecee"/><stop offset="0.85" stop-color="#a6a9a4"/><stop offset="1" stop-color="#f9f6ea"/></linearGradient>
             <radialGradient id="gLW" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c3c8cb"/></radialGradient>
             <radialGradient id="gLR" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ff8e8e"/><stop offset="1" stop-color="#a5121a"/></radialGradient>
             <radialGradient id="gLG" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#9df2b6"/><stop offset="1" stop-color="#0f7c35"/></radialGradient>
@@ -710,7 +711,15 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
             <radialGradient id="gEms" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ff7474"/><stop offset="1" stop-color="#a50e16"/></radialGradient>
             <linearGradient id="gSmps" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c3c8cc"/><stop offset=".5" stop-color="#e0e3e6"/><stop offset="1" stop-color="#bec3c7"/></linearGradient>
             <pattern id="pPins" width="2.54" height="2.54" patternUnits="userSpaceOnUse"><circle cx="1.27" cy="1.27" r=".55" fill="#b9a46a"/></pattern>
-            <pattern id="pCoil" width="8" height="1.2" patternUnits="userSpaceOnUse"><path d="M0 .6H8" stroke="#8d4f16" stroke-width=".35"/></pattern>
+            <linearGradient id="gGraphite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5c656b"/><stop offset="0.16" stop-color="#434d54"/><stop offset="0.5" stop-color="#2e363d"/><stop offset="0.82" stop-color="#242b32"/><stop offset="1" stop-color="#191f24"/></linearGradient>
+            <linearGradient id="gPalePolymer" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="0.16" stop-color="#f1f0e9"/><stop offset="0.5" stop-color="#dfdfd7"/><stop offset="0.88" stop-color="#d0d4cf"/><stop offset="1" stop-color="#b5bebd"/></linearGradient>
+            <linearGradient id="gPLCPolymer" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2e6e6"/><stop offset="0.22" stop-color="#cbd2d5"/><stop offset="0.7" stop-color="#b6c0c6"/><stop offset="1" stop-color="#969fa6"/></linearGradient>
+            <linearGradient id="gCopper" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4d2110"/><stop offset="0.12" stop-color="#ac4e19"/><stop offset="0.3" stop-color="#e99a4c"/><stop offset="0.47" stop-color="#ffe4a7"/><stop offset="0.58" stop-color="#d98436"/><stop offset="0.82" stop-color="#a24718"/><stop offset="1" stop-color="#582a18"/></linearGradient>
+            <linearGradient id="gContact" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7e8b6"/><stop offset="0.3" stop-color="#c1944b"/><stop offset="0.52" stop-color="#fbefc8"/><stop offset="1" stop-color="#82612f"/></linearGradient>
+            <linearGradient id="gRelayShell" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8f6ff" stop-opacity="0.42"/><stop offset="0.12" stop-color="#eefaff" stop-opacity="0.06"/><stop offset="0.48" stop-color="#ffffff" stop-opacity="0.025"/><stop offset="0.83" stop-color="#b4d9ec" stop-opacity="0.1"/><stop offset="1" stop-color="#d1eaff" stop-opacity="0.44"/></linearGradient>
+            <linearGradient id="gSleeve" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b17a08"/><stop offset="0.16" stop-color="#f5bc14"/><stop offset="0.34" stop-color="#fff08b"/><stop offset="0.54" stop-color="#ffd21f"/><stop offset="0.82" stop-color="#e7a708"/><stop offset="1" stop-color="#bd8108"/></linearGradient>
+            <pattern id="pCopperTurns" width="1.15" height="12" patternUnits="userSpaceOnUse"><path d="M.2 0V12" stroke="#54210e" stroke-width=".24" stroke-opacity=".75"/><path d="M.48 0V12" stroke="#ffe6b2" stroke-width=".2" stroke-opacity=".65"/></pattern>
+
             <g id="scr"><circle r="2.6" fill="#4c5358"/><circle r="2.2" fill="url(#gScrew)"/><path d="M-1.4 0H1.4M0 -1.4V1.4" stroke="#5a6167" stroke-width=".5"/></g>
             <g id="scrS"><circle r="2.05" fill="#4c5358"/><circle r="1.7" fill="url(#gScrew)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#5a6167" stroke-width=".4"/></g>
             <g id="scrY"><circle r="2.05" fill="#4a3c1c"/><circle r="1.7" fill="url(#gScrewY)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#6b5420" stroke-width=".4"/></g>
@@ -952,7 +961,7 @@ const T = (x, y, s, a = '') => `<text x="${F(x)}" y="${F(y)}" ${a}>${esc(s)}</te
 const TS = (x, y, str, sz, fill, extra = '') => `<text x="${F(x)}" y="${F(y)}" font-size="${sz}" fill="${fill}" ${extra}>${esc(str)}</text>`;   // 왼쪽 정렬 글자
 const LN = (x1, y1, x2, y2, a = '') => `<line x1="${F(x1)}" y1="${F(y1)}" x2="${F(x2)}" y2="${F(y2)}" ${a}/>`;
 const TX = (sz, fill, extra = '') => `font-size="${sz}" fill="${fill}" text-anchor="middle" ${extra}`;
-const shadow = (x, y, w, h, rx = 1.5) => R(x + 0.9, y + 1.4, w, h, `rx="${rx}" fill="#000" fill-opacity=".28"`);
+const shadow = (x, y, w, h, rx = 1.5) => R(x + 1.3, y + 1.8, w, h, `rx="${rx}" fill="#142127" fill-opacity=".16"`) + R(x + .65, y + .9, w, h, `rx="${rx}" fill="#101a20" fill-opacity=".24"`);
 function screw(x, y, r = 2.2) {
   const k = r * 0.62;
   return C(x, y, r + 0.4, 'fill="#4c5358"') + C(x, y, r, 'fill="url(#gScrew)"') +
@@ -964,7 +973,7 @@ const tl = (x, y, s, sz = 2, fill = '#e8ecef', anchor = 'middle') => `<text clas
 const drawMat = () => R(-4000, -4000, 9000, 9000, 'class="matbg"') + R(-4000, -4000, 9000, 9000, 'fill="url(#pGrid)"');
 function dimH(x1, x2, y, label) { return `<g class="dim"><path d="M${F(x1)} ${F(y)}H${F(x2)}M${F(x1)} ${F(y - 3)}V${F(y + 3)}M${F(x2)} ${F(y - 3)}V${F(y + 3)}"/>${T((x1 + x2) / 2, y - 3, label, 'text-anchor="middle" font-size="9"')}</g>`; }
 function dimV(y1, y2, x, label) { const cy = (y1 + y2) / 2; return `<g class="dim"><path d="M${F(x)} ${F(y1)}V${F(y2)}M${F(x - 3)} ${F(y1)}H${F(x + 3)}M${F(x - 3)} ${F(y2)}H${F(x + 3)}"/>${T(x - 3, cy, label, `text-anchor="middle" font-size="9" transform="rotate(-90 ${F(x - 3)} ${F(cy)})"`)}</g>`; }
-function plate(w, h, rx) { return R(3, 4.5, w, h, `rx="${rx}" fill="#000" fill-opacity=".32"`) + R(0, 0, w, h, `rx="${rx}" fill="url(#gAlu)" stroke="#646c73" stroke-width=".8"`) + R(0, 0, w, h, `rx="${rx}" fill="url(#pBrush)"`); }
+function plate(w, h, rx) { return R(3, 4.5, w, h, `rx="${rx}" fill="#000" fill-opacity=".32"`) + R(0, 0, w, h, `rx="${rx}" fill="url(#gAlu)" stroke="#646c73" stroke-width=".8"`) + R(0, 0, w, h, `rx="${rx}" fill="url(#pBrush)"`) + R(.8, .8, w-1.6, h-1.6, `rx="${rx}" fill="none" stroke="#f7f5e9" stroke-opacity=".6" stroke-width=".7"`) + LN(1.5,h-1,w-1.5,h-1,'stroke="#74818a" stroke-width=".8"'); }
 const drawPanelPlate = () => plate(PANEL.w, PANEL.h, 2.5) + dimH(0, PANEL.w, -14, '760') + dimV(0, PANEL.h, -14, '600');
 function drawOpPlate() {
   const c = OP.cut; let s = plate(OP.w, OP.h, 5);
@@ -977,8 +986,8 @@ function drawOpPlate() {
 /* --- 덕트 / 찬넬 / 구멍 / 표시 --- */
 function drawDuct(r, loose) {
   const { x, y, w, h, o } = r, L = o === 'h' ? w : h; let s = loose ? '' : R(x + 1.4, y + 2.2, w, h, 'rx="1" fill="#000" fill-opacity=".4"');
-  s += `<g${loose ? ' opacity=".8"' : ''}>` + R(x, y, w, h, 'rx="1" fill="#fdfdfb" stroke="#6c716b" stroke-width=".7"');
-  s += o === 'h' ? R(x, y + 6.5, w, h - 13, 'fill="#eeefeb"') : R(x + 6.5, y, w - 13, h, 'fill="#eeefeb"');
+  s += `<g${loose ? ' opacity=".8"' : ''}>` + R(x, y, w, h, 'rx="1" fill="url(#gPalePolymer)" stroke="#6c716b" stroke-width=".7"');
+  s += o === 'h' ? R(x, y + 6.5, w, h - 13, 'fill="#d9dfdb"') : R(x + 6.5, y, w - 13, h, 'fill="#d9dfdb"');
   let d = '';
   for (let p = 6; p < L - 5; p += 10) d += o === 'h' ? `M${F(x + p)} ${F(y)}h3.4v6.5h-3.4zM${F(x + p)} ${F(y + h - 6.5)}h3.4v6.5h-3.4z` : `M${F(x)} ${F(y + p)}v3.4h6.5v-3.4zM${F(x + w - 6.5)} ${F(y + p)}v3.4h6.5v-3.4z`;
   s += `<path d="${d}" fill="#a9ada6"/>`;
@@ -992,7 +1001,7 @@ function drawDuct(r, loose) {
 // 덕트 커버: 빗살이 안 보이는 매끈한 뚜껑
 function drawDuctCover(r, ghost) {
   const { x, y, w, h, o } = r; let s = ghost ? '' : R(x + 1.2, y + 2, w, h, 'rx="1.5" fill="#000" fill-opacity=".32"');
-  s += `<g${ghost ? ' opacity=".75"' : ''}>` + R(x - .4, y - .4, w + .8, h + .8, 'rx="1.6" fill="#f6f6f2" stroke="#5f645e" stroke-width=".8"');
+  s += `<g${ghost ? ' opacity=".75"' : ''}>` + R(x - .4, y - .4, w + .8, h + .8, 'rx="1.6" fill="url(#gPalePolymer)" stroke="#5f645e" stroke-width=".8"');
   s += o === 'h' ? R(x + 3, y + 5, w - 6, h - 10, 'rx="1" fill="#edede8" stroke="#cfd1cb" stroke-width=".7"') + `<path d="M${F(x + 6)} ${F(y + h / 2)}H${F(x + w - 6)}" stroke="#d9dbd5" stroke-width=".8"/>`
     : R(x + 5, y + 3, w - 10, h - 6, 'rx="1" fill="#edede8" stroke="#cfd1cb" stroke-width=".7"') + `<path d="M${F(x + w / 2)} ${F(y + 6)}V${F(y + h - 6)}" stroke="#d9dbd5" stroke-width=".8"/>`;
   return s + '</g>';
@@ -1027,7 +1036,7 @@ function drawBZ(cx, cy) { let s = C(cx + .6, cy + 1, 15.5, 'fill="#000" fill-opa
   for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) if (r * r + c * c <= 5) s += C(cx + c * 2.6, cy + r * 2.6, .8, 'fill="#8f8c82"'); return s; }
 function drawHMI() {
   const c = OP.cut, b = { x: c.x - 8, y: c.y - 8, w: c.w + 16, h: c.h + 16 }, sx = c.x + 6, sy = c.y + 6, sw = c.w - 12, sh = c.h - 12;
-  let s = R(b.x + 1, b.y + 1.6, b.w, b.h, 'rx="4" fill="#000" fill-opacity=".35"') + R(b.x, b.y, b.w, b.h, 'rx="4" fill="#30353a" stroke="#16191c" stroke-width=".6"');
+  let s = R(b.x + 1, b.y + 1.6, b.w, b.h, 'rx="4" fill="#000" fill-opacity=".35"') + R(b.x, b.y, b.w, b.h, 'rx="4" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".6"');
   s += R(sx, sy, sw, sh, 'fill="#0d1a24"') + R(sx, sy, sw, 14, 'fill="#173246"') + T(sx + 6, sy + 9.6, '로봇 연동장치', 'font-size="5.2" fill="#cfe3f1" font-weight="600"');
   const btn = (by, t, f) => R(sx + 8, by, 60, 22, `rx="2" fill="${f}" stroke="#3a7aa3" stroke-width=".5"`) + T(sx + 38, by + 13, t, TX(5, '#e3f1fb', 'font-weight="600"'));
   s += btn(sy + 24, '기초검사', '#1f4a66') + btn(sy + 52, '동작검사', '#1f4a66') + btn(sy + 80, 'PLC 리셋', '#4a2a2a');
@@ -1077,7 +1086,7 @@ function drawDevice(type, x, y, name, extra) {
 }
 function dMCB(x, y, name) {   // LS BKM-b 2P: 위아래 단자 창, 가운데 손잡이 (위 ON, 아래 OFF)
   const w = DEV.mcb.w, h = DEV.mcb.h, on = LIVE.inp && LIVE.inp.mcb, sw = MCB_SW(x, y);
-  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="#ecedea" stroke="#9fa4a8" stroke-width=".45"');
+  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="url(#gPalePolymer)" stroke="#9fa4a8" stroke-width=".45"');
   s += LN(x + w / 2, y + 1, x + w / 2, y + h - 1, 'stroke="#c9ccc9" stroke-width=".5"');   // 2극 경계
   for (const t of devTerms('mcb')) s += R(x + t.x - 5.6, y + t.y - 4.8, 11.2, 9.6, 'rx="1" fill="#2a2d30" stroke="#8c9196" stroke-width=".35"');
   s += R(x + 2.4, y + 14, w - 4.8, 54, 'rx="1.4" fill="#f7f7f4" stroke="#c4c8c6" stroke-width=".4"');
@@ -1107,7 +1116,7 @@ function dFuse(x, y, name, fz) {
 }
 function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −V, 아래 L N FG
   const w = DEV.smps.w, h = DEV.smps.h, on = LIVE.on && LIVE.out.smps;
-  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="#e4e6e7" stroke="#9aa1a6" stroke-width=".5"');
+  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gSmps)" stroke="#9aa1a6" stroke-width=".5"');
   for (let i = 0; i < 11; i++) s += R(x + w - 2.9, y + 21 + i * 4.6, 1.8, 3.2, 'rx=".5" fill="#c4c9cc"');   // 옆면 방열 홈
   const blk = (yy, xs, cw) => { let t = R(x + 2.4, yy, 44.6, 12.6, 'rx="1" fill="#d3d6d8" stroke="#a7adb2" stroke-width=".35"'); for (const xx of xs) t += R(x + xx - cw / 2, yy + 1.2, cw, 10.2, 'rx=".8" fill="#2a2e32"'); return t; };
   s += blk(y + .5, [9, 19, 31, 41], 8.8) + blk(y + 82, [10, 22, 34], 10);
@@ -1125,14 +1134,14 @@ function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −
 }
 function plcLid(x, y, top) {   // 닫은 덮개: 단자와 거기 꽂힌 전선 끝을 덮는다 (전선보다 나중에 그림)
   const w = DEV.plc.w, yy = top ? y - .4 : y + 67.6, hh = top ? 27.6 : 27.8;
-  let t = R(x - 2.6, yy, w + 3.1, hh, 'rx="1.6" fill="#33383d" stroke="#16191c" stroke-width=".5"');   // 왼쪽 끝 단자의 압착단자까지 덮는다
+  let t = R(x - 2.6, yy, w + 3.1, hh, 'rx="1.6" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".5"');   // 왼쪽 끝 단자의 압착단자까지 덮는다
   for (let i = 0; i < 12; i++) t += R(x + 6 + i * 9.4, top ? yy + 3 : yy + hh - 7.5, 4.6, 4.5, 'rx=".6" fill="#3d4247"');
   t += LN(x + 1.5, top ? yy + hh - 3 : yy + 3, x + w - 1.5, top ? yy + hh - 3 : yy + 3, 'stroke="#25292d" stroke-width=".6"');
   return t + (top ? `<path d="M${F(x + 58.5)} ${F(yy + 13)}h3l-1.5 2.2z" fill="#8d949a"/>` : '');
 }
 function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래 전원·출력 단자에 여닫는 덮개
   const w = DEV.plc.w, h = DEV.plc.h, T_ = devTerms('plc'), pw = LIVE.on && LIVE.out.plc;
-  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="#3b4045" stroke="#1b1e21" stroke-width=".5"');
+  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
   // 단자대 두 층 (칸막이)
   const tier = (yy, hh, fill, xs) => { let t = R(x + .8, yy, w - 1.6, hh, `fill="${fill}"`), d = ''; for (const xx of xs) d += `M${F(x + xx)} ${F(yy + .6)}V${F(yy + hh - .6)}`; return t + `<path d="${d}" stroke="#4b5156" stroke-width=".45"/>`; };
   const cut = (ts, dx) => ts.map(t => t.x + dx);
@@ -1146,10 +1155,10 @@ function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래
     s += tl(x + t.x, ly, t.lab, t.lab.length > 3 ? 1.3 : 1.5, p ? '#ffd34d' : '#d8dde1'); }
   { const tL = T_.find(t => t.k === 'L'), tN = T_.find(t => t.k === 'N'); s += tl(x + (tL.x + tN.x) / 2, y + 76, '100-240Va.c', .95, '#ffd34d'); }
   // 가운데: 좌우 덮개판, 상태 표시부
-  s += R(x + 1.5, y + 27.2, 30, 40.6, 'rx="1" fill="#c3c7ca" stroke="#9aa0a5" stroke-width=".35"') + R(x + 88.5, y + 27.2, 30, 40.6, 'rx="1" fill="#c3c7ca" stroke="#9aa0a5" stroke-width=".35"');
+  s += R(x + 1.5, y + 27.2, 30, 40.6, 'rx="1" fill="url(#gPLCPolymer)" stroke="#9aa0a5" stroke-width=".35"') + R(x + 88.5, y + 27.2, 30, 40.6, 'rx="1" fill="url(#gPLCPolymer)" stroke="#9aa0a5" stroke-width=".35"');
   s += `<path d="M${F(x + 27)} ${F(y + 43)}V${F(y + 52)}M${F(x + 28.4)} ${F(y + 43)}V${F(y + 52)}M${F(x + 91.6)} ${F(y + 43)}V${F(y + 52)}M${F(x + 93)} ${F(y + 43)}V${F(y + 52)}" stroke="#8f959a" stroke-width=".5"/>`;
   s += nameTag(x + 15, y + 47.6, 'PLC');
-  s += R(x + 31.5, y + 27.2, 57, 40.6, 'fill="#d4d7d9" stroke="#9aa0a5" stroke-width=".35"');
+  s += R(x + 31.5, y + 27.2, 57, 40.6, 'fill="url(#gPalePolymer)" stroke="#9aa0a5" stroke-width=".35"');
   s += R(x + 34, y + 30, 10.5, 3.8, 'rx=".4" fill="#d6262f"') + T(x + 39.25, y + 33, 'XGB', TX(2.6, '#fff', 'font-weight="800"'));
   s += TS(x + 34, y + 38.6, 'XBC-DN32H', 2.5, '#3a4045', 'font-weight="700"');
   [['PWR', pw ? '#3be06b' : '#7d8a80'], ['RUN', pw ? '#3be06b' : '#7d8a80'], ['ERR', '#8a7a7a']].forEach(([l, c], i) => { s += R(x + 34.4, y + 42 + i * 4.6, 2.2, 2.2, `fill="${c}"`) + TS(x + 37.6, y + 43.9 + i * 4.6, l, 1.9, '#3a4045'); });
@@ -1166,7 +1175,7 @@ function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래
 }
 function dCard(x, y, type) {
   const w = DEV[type].w, h = DEV[type].h, pos = type === 'pos';
-  let s = shadow(x, y, w, h, 1.2) + R(x, y, w, h, 'rx="1.2" fill="#3b4045" stroke="#1b1e21" stroke-width=".5"');
+  let s = shadow(x, y, w, h, 1.2) + R(x, y, w, h, 'rx="1.2" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
   s += R(x + .8, y + .8, w - 1.6, 13.8, 'rx="1" fill="#25292d"') + T(x + w / 2, y + 9.4, pos ? 'POS' : 'TR', TX(3.8, '#f0f3f5', 'font-weight="700"'));
   s += R(x + 1.5, y + 16, w - 3, 8, 'rx=".6" fill="#c3c7ca"') + C(x + 7, y + 20, 1.2, 'fill="#3be06b"') + C(x + 15, y + 20, 1.2, 'fill="#5b2a2a"');
   s += R(x + 4.5, y + 27, 13, 46, 'rx="1" fill="#1b1e21"') + R(x + 6.2, y + 29, 9.6, 42, 'fill="url(#pPins)"');
@@ -1175,7 +1184,7 @@ function dCard(x, y, type) {
 }
 function dServo(x, y, bolted) {   // LS L7S 모양: 위 조작부, 왼쪽 전원 커넥터(주황 레버), 오른쪽 CN 커넥터
   const w = SERVO.w, h = SERVO.h, on = LIVE.on && LIVE.out.sv;
-  let s = shadow(x, y, w, h, 2) + R(x, y, w, h, 'rx="2" fill="#3e4853" stroke="#161b20" stroke-width=".6"');
+  let s = shadow(x, y, w, h, 2) + R(x, y, w, h, 'rx="2" fill="url(#gGraphite)" stroke="#161b20" stroke-width=".6"');
   s += R(x + 1, y + 1, w - 2, 31, 'rx="1.6" fill="#141619"');
   s += `<text x="${F(x + 4)}" y="${F(y + 16)}" font-size="6" font-weight="800" font-style="italic" fill="#f2f4f5">LS</text>` + TS(x + 35, y + 9.2, 'SERVO', 2.2, '#e8ecef', 'font-weight="700"');
   s += R(x + 26, y + 15, 20, 9.5, 'rx=".8" fill="#08090a" stroke="#2b3036" stroke-width=".4"') + T(x + 36, y + 22.3, on ? 'rdy' : '', TX(5.4, '#ff4136', 'font-weight="700"'));
@@ -1204,7 +1213,7 @@ function dServo(x, y, bolted) {   // LS L7S 모양: 위 조작부, 왼쪽 전원
 }
 function dRelay(x, y, name, plugged = false) {   // 14핀 소켓 (KOINO KH-RS-14M). 릴레이는 꽂았을 때만
   const w = DEV.relay.w, h = DEV.relay.h;
-  let s = shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.4" fill="#1e2022" stroke="#0b0c0d" stroke-width=".5"');
+  let s = shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.4" fill="url(#gGraphite)" stroke="#0b0c0d" stroke-width=".5"');
   for (const t of devTerms('relay')) s += R(x + t.x - 3.4, y + t.y - 3.4, 6.8, 6.8, 'rx=".6" fill="#101112"');
   let rib = ''; for (const yy of [[.8, 17.4], [57.6, 74.2]]) for (let i = 0; i <= 4; i++) rib += `M${F(x + 1.2 + i * 7.3)} ${F(y + yy[0])}V${F(y + yy[1])}`;
   s += `<path d="${rib}" stroke="#34383c" stroke-width=".7"/>`;
@@ -1214,22 +1223,36 @@ function dRelay(x, y, name, plugged = false) {   // 14핀 소켓 (KOINO KH-RS-14
   for (const t of devTerms('relay')) { s += SCRY(x + t.x, y + t.y); if (UI.detail) s += tl(x + t.x + 2.5, y + t.y + .6, t.lab, 1.55, '#ffd34d', 'start'); }
   return s + (plugged ? relayBody(x, y, name) : nameTag(x + w / 2, y + 37.5, name));
 }
-function relayBody(x, y, name) {   // KACON HR705-4PL: 투명 케이스 안으로 접점, 코일, 라벨이 보인다
+function relayBody(x, y, name) {   // 정면 투명 케이스. 소켓·단자 좌표는 그대로 두고 내부 재질만 그린다.
   const on = LIVE.on && LIVE.st && LIVE.st.rel[name];
-  let s = R(x + 1.6, y + 17.6, 28.8, 41, 'rx="1.6" fill="#000" fill-opacity=".25"');
-  s += R(x + 1.2, y + 16.8, 28.6, 41, 'rx="1.6" fill="#e9eff3" stroke="#8fa0ab" stroke-width=".45"');
-  s += R(x + 3, y + 18.6, 25, 10, 'rx=".6" fill="#26292c"');
-  for (let i = 0; i < 4; i++) s += R(x + 5.4 + i * 6, y + 19.4, 2.6, 8.6, 'rx=".4" fill="#c9844a"') + C(x + 6.7 + i * 6, y + 26.2, .9, 'fill="#e6e8ea"');
-  s += R(x + 6, y + 30.4, 19, 13, 'rx="1.2" fill="#f1ece0" stroke="#c7bfae" stroke-width=".3"') + R(x + 8, y + 31.6, 15, 10.6, 'rx=".8" fill="#c97a2e"') + R(x + 8, y + 31.6, 15, 10.6, 'rx=".8" fill="url(#pCoil)"');
-  s += R(x + 3, y + 45, 25, 11.2, 'rx=".6" fill="#fbfbf9" stroke="#c9d1d6" stroke-width=".3"');
-  s += `<text x="${F(x + 4.4)}" y="${F(y + 48.4)}" font-size="2" font-weight="800" font-style="italic" fill="#3a4045">KACON</text>` + TS(x + 4.4, y + 51.6, 'HR705-4PL', 2.1, '#22272b', 'font-weight="700"');
-  s += C(x + 5.4, y + 54.2, 1.1, `fill="${on ? '#ff3b30' : '#8a2a24'}"`) + (on ? C(x + 5.4, y + 54.2, 2.6, 'fill="#ff3b30" fill-opacity=".3"') : '');
-  s += R(x + 1.2, y + 16.8, 28.6, 41, 'rx="1.6" fill="#ffffff" fill-opacity=".18"');   // 케이스 반사
-  return s + nameTag(x + 22.6, y + 54.2, name);
+  let s = R(x+1.8,y+17.6,28.8,41,'rx="1.6" fill="#0f1920" fill-opacity=".35"')
+    + R(x+1.2,y+16.8,28.6,41,'rx="1.6" fill="#b3c7cd" fill-opacity=".18" stroke="#8397a3" stroke-width=".5"')
+    + R(x+3.1,y+18.6,24.8,11.4,'rx=".8" fill="url(#gGraphite)"');
+  for(let i=0;i<4;i++) {
+    const px=x+5.2+i*6, yy=y+24.4+(on ? .35 : 1.25);
+    s += R(px,y+19.4,2.9,8.6,'rx=".35" fill="url(#gContact)" stroke="#65502e" stroke-width=".2"')
+      + R(px-.3,y+19,3.5,1.3,'rx=".35" fill="url(#gChrome)"')
+      + LN(px+.25,yy,px+3.7,y+27.3,'stroke="#e2bc7a" stroke-width=".85"')
+      + C(px+1.45,y+26.7,.85,'fill="url(#gChrome)" stroke="#68747b" stroke-width=".2"');
+  }
+  s += R(x+5.5,y+30.8,20.1,12.9,'rx="1.4" fill="#e1d6b8" stroke="#776341" stroke-width=".35"')
+    + R(x+7.4,y+31,16.4,12.6,'rx="1.1" fill="url(#gCopper)"')
+    + R(x+7.4,y+31,16.4,12.6,'rx="1.1" fill="url(#pCopperTurns)"')
+    + R(x+5.4,y+30.3,2,13.6,'rx=".7" fill="url(#gPalePolymer)"')
+    + R(x+23.8,y+30.3,2,13.6,'rx=".7" fill="url(#gPalePolymer)"');
+  s += R(x+3,y+45,25,11.2,'rx=".6" fill="#f8f6ed" stroke="#c5c7be" stroke-width=".3"')
+    + TS(x+4.4,y+48.4,'KACON',2,'#39464b','font-weight="800" font-style="italic"')
+    + TS(x+4.4,y+51.6,'HR705-4PL',2.1,'#22272b','font-weight="700"');
+  s += C(x+5.4,y+54.2,1.1,`fill="${on?'#ff4536':'#723027'}"`) + (on?C(x+5.4,y+54.2,2.6,'fill="#ff3b30" fill-opacity=".22"'):'');
+  s += R(x+1.2,y+16.8,28.6,41,'rx="1.6" fill="url(#gRelayShell)" stroke="#d8eaf2" stroke-opacity=".8" stroke-width=".45"')
+    + R(x+2.25,y+17.85,26.5,38.9,'rx="1.1" fill="none" stroke="#eaf7fa" stroke-opacity=".35" stroke-width=".4"')
+    + `<path d="M${F(x+2.8)} ${F(y+26)}V${F(y+19)}H${F(x+13)}M${F(x+28.1)} ${F(y+43)}V${F(y+54)}H${F(x+23)}" fill="none" stroke="#fff" stroke-opacity=".65" stroke-width=".6"/>`;
+  return s+nameTag(x+22.6,y+54.2,name);
 }
+
 function dTimer(x, y, name, plugged = false) {   // 8핀 소켓 (파란 고정 클립). 타이머는 꽂았을 때만
   const w = DEV.timer.w, h = DEV.timer.h, cx = x + w / 2, cy = y + 36;
-  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="#1e2022" stroke="#0b0c0d" stroke-width=".5"');
+  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="url(#gGraphite)" stroke="#0b0c0d" stroke-width=".5"');
   for (const t of devTerms('timer')) s += R(x + t.x - 4.2, y + t.y - 4, 8.4, 8, 'rx=".6" fill="#101112"');
   s += R(x - 1.4, y + 30, 3.4, 12, 'rx="1" fill="#3fa9f5" stroke="#1f6fa8" stroke-width=".35"') + R(x + w - 2, y + 30, 3.4, 12, 'rx="1" fill="#3fa9f5" stroke="#1f6fa8" stroke-width=".35"');
   s += C(cx, cy, 9.5, 'fill="#2a2d30" stroke="#0e1011" stroke-width=".4"');
@@ -1240,18 +1263,18 @@ function dTimer(x, y, name, plugged = false) {   // 8핀 소켓 (파란 고정 �
 }
 function timerBody(x, y, name, v = name ? tsetMap()[name] || 0 : 0) {   // 한영넉스 T38N: 베이지 몸체, 다이얼(0~30초), UP/ON 램프, 단위 스위치 s
   const st = LIVE.on && LIVE.st && LIVE.st.tim[name], cx = x + 20, cy = y + 36.6, ang = v => (-135 + 270 * Math.min(v, T_MAX) / T_MAX) * Math.PI / 180;
-  let s = R(x + 1.6, y + 12.4, 37.8, 48.6, 'rx="1.8" fill="#000" fill-opacity=".25"') + R(x + 1, y + 11.6, 38, 48.6, 'rx="1.8" fill="#e4e1d6" stroke="#9a978c" stroke-width=".45"');
+  let s = R(x + 1.6, y + 12.4, 37.8, 48.6, 'rx="1.8" fill="#000" fill-opacity=".25"') + R(x + 1, y + 11.6, 38, 48.6, 'rx="1.8" fill="url(#gPalePolymer)" stroke="#9a978c" stroke-width=".45"');
   s += `<text x="${F(x + 3.4)}" y="${F(y + 17.4)}" font-size="3.6" font-weight="800" fill="#2f4a6b">nux</text>` + TS(x + 3.4, y + 19.6, 'HANYOUNG', 1.3, '#2f4a6b', 'font-weight="700"');
   s += C(x + 31, y + 15.4, 1.1, `fill="${st && st.out ? '#ff3b30' : '#5a4560'}"`) + TS(x + 33, y + 16.1, 'UP', 1.7, '#3a3a36') + C(x + 31, y + 19.4, 1.1, `fill="${st && st.on ? '#3be06b' : '#3c4a3f'}"`) + TS(x + 33, y + 20.1, 'ON', 1.7, '#3a3a36');
-  s += C(cx, cy, 13.4, 'fill="#cfd3d6" stroke="#9aa1a7" stroke-width=".4"');
+  s += C(cx+.35, cy+.55, 13.7, 'fill="#2b343b" fill-opacity=".3"') + C(cx, cy, 13.4, 'fill="url(#gChrome)" stroke="#7c8a93" stroke-width=".4"');
   let kn = ''; for (let k = 0; k < 48; k++) { const a = k * 7.5 * Math.PI / 180; kn += `M${F(cx + Math.sin(a) * 12.2)} ${F(cy - Math.cos(a) * 12.2)}L${F(cx + Math.sin(a) * 13.3)} ${F(cy - Math.cos(a) * 13.3)}`; }
-  s += `<path d="${kn}" stroke="#a7aeb3" stroke-width=".35"/>` + C(cx, cy, 11, 'fill="#2b2d2f"');
+  s += `<path d="${kn}" stroke="#a7aeb3" stroke-width=".35"/>` + C(cx, cy, 11, 'fill="url(#gGraphite)" stroke="#f5f6f2" stroke-opacity=".35" stroke-width=".35"');
   for (let k = 0; k <= T_MAX * 2; k++) { const a = ang(k / 2), r0 = k % 2 ? 9.4 : 8.6;   // 0.5초마다 눈금, 1초마다 긴 눈금
     s += LN(cx + Math.sin(a) * r0, cy - Math.cos(a) * r0, cx + Math.sin(a) * 10.4, cy - Math.cos(a) * 10.4, 'stroke="#e8e8e2" stroke-width=".3"'); }
   for (let v = 0; v <= T_MAX; v += 2) { const a = ang(v); s += T(cx + Math.sin(a) * 6.8, cy - Math.cos(a) * 6.8 + .8, String(v), TX(2.2, '#f2f2ee', 'font-weight="700"')); }
   const sa = ang(v);
   s += LN(cx, cy, cx + Math.sin(sa) * 10.2, cy - Math.cos(sa) * 10.2, 'stroke="#ff3b30" stroke-width=".7" stroke-linecap="round"');
-  s += C(cx, cy, 4.4, 'fill="#ffffff" fill-opacity=".45" stroke="#c9cfd3" stroke-width=".35"');
+  s += C(cx+.3, cy+.5, 4.5, 'fill="#000" fill-opacity=".2"') + C(cx, cy, 4.4, 'fill="url(#gPalePolymer)" stroke="#9aa7ae" stroke-width=".35"');
   s += TS(x + 3.4, y + 54.6, 'T38N', 2.4, '#2b2b28', 'font-weight="800"') + TS(x + 3.4, y + 57.8, 'TIMER', 2.2, '#2b2b28', 'font-weight="700"');
   s += R(x + 33.2, y + 52.4, 3.4, 5.8, 'rx=".4" fill="#3a3a36"') + R(x + 33.8, y + 53, 2.2, 1.6, 'fill="#d8d6cd"');   // 단위 스위치: 모두 s(초)
   s += ['s', 'm', 'h'].map((u, k) => TS(x + 37.4, y + 54.3 + k * 1.6, u, 1.4, k ? '#77756c' : '#1d1d1a', 'font-weight="800"')).join('') + TS(x + 31.6, y + 59.7, `${T_MAX} RANGE`, 1.05, '#3a3a36', 'font-weight="700"');
@@ -1307,7 +1330,7 @@ function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
   const h = DEV.tb.h; let s = shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#2a2d30"');
   for (let i = 0; i < TB_N; i++) {
     const x0 = x + 2 + i * 8.6, lab = tbLabel(i + 1);
-    s += R(x0, y, 8.6, h, 'fill="#1d1f21" stroke="#3b3f43" stroke-width=".35"');
+    s += R(x0, y, 8.6, h, 'fill="url(#gGraphite)" stroke="#3b3f43" stroke-width=".35"');
     s += R(x0 + .9, y + 3.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"') + R(x0 + .9, y + 29.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"');   // 나사 홈
     s += R(x0 + .9, y + 15, 6.8, 12, 'rx=".4" fill="#fbfbf7"');
     const chars = [...lab], lines = chars.length > 3 ? Array.from({length:Math.ceil(chars.length/3)},(_,k)=>chars.slice(k*3,k*3+3).join('')) : [lab];
@@ -1354,8 +1377,8 @@ const SLEEVE = { ' wr1': ['#ff8a00', '#c25e00'], ' wr2': ['#38bdf8', '#0e7fae'],
 function ferruleAt(x, y, ux, uy, h, part = 3, cls = '') {   // 압착단자 PP-D120: 흰 원(눌린 자국)이 있는 회색 핀 + 노란 슬리브 (u: 전선 쪽 방향). part: 1 핀, 2 슬리브, 3 둘 다
   const r = h && h.r || 0, a = r ? -(r + 1) : .3, e = r ? r + 1.6 : 3.4;   // 나사가 있으면 핀이 나사 옆을 지나 끝이 나사 너머까지 (나사 머리는 위에 다시 그린다), 구멍이면 가운데로
   let rid = ''; for (let t = a + .8; t < e - .4; t += 1.1) rid += `<circle cx="${F(t)}" r=".42"/>`;
-  return `<g transform="translate(${F(x)} ${F(y)}) rotate(${F(Math.atan2(uy, ux) * 180 / Math.PI)})">` + (part & 1 ? `<rect x="${F(a)}" y="-.75" width="${F(e - a + .3)}" height="1.5" rx=".6" fill="#b9bdc0" stroke="#7e8387" stroke-width=".3"/><g fill="none" stroke="#fff" stroke-width=".22" stroke-opacity=".95">${rid}</g>` : '')
-    + (part & 2 ? `<rect x="${F(e)}" y="-1.6" width="3.6" height="3.2" rx=".8" fill="${(SLEEVE[cls] || [])[0] || '#ffd400'}" stroke="${(SLEEVE[cls] || [])[1] || '#d99a00'}" stroke-width=".35"/>` : '') + '</g>';
+  return `<g transform="translate(${F(x)} ${F(y)}) rotate(${F(Math.atan2(uy, ux) * 180 / Math.PI)})">` + (part & 1 ? `<rect x="${F(a)}" y="-.75" width="${F(e - a + .3)}" height="1.5" rx=".6" fill="url(#gChrome)" stroke="#7e8387" stroke-width=".3"/><g fill="none" stroke="#fff" stroke-width=".22" stroke-opacity=".95">${rid}</g>` : '')
+    + (part & 2 ? `<rect x="${F(e)}" y="-1.6" width="3.6" height="3.2" rx=".8" fill="${(SLEEVE[cls] || [])[0] || 'url(#gSleeve)'}" stroke="${(SLEEVE[cls] || [])[1] || '#d99a00'}" stroke-width=".35"/>` : '') + '</g>';
 }
 const ferLen = h => (h && h.r ? h.r + 1.6 : 3.4) + 3.6;   // 나사 가운데에서 노란 슬리브 끝까지
 const scrUse = h => h && h.sy ? `<use href="#${h.sy}" x="${F(h.x)}" y="${F(h.y)}"/>` : '';   // 압착단자 핀 위에 다시 그리는 나사 머리
@@ -1369,7 +1392,7 @@ function trimPts(pts, a, b) {   // 꺾은선의 앞에서 a, 뒤에서 b만큼 �
   return cut(cut(pts, a).reverse(), b).reverse();
 }
 function wireBody(pts, ha, hb, cls = '') { const body = trimPts(pts, ferLen(ha) - 1.8, ferLen(hb) - 1.8),   // 전선 끝은 노란 슬리브 안으로 (슬리브가 위에 덮인다)
-    d = body.length > 1 ? roundPath(body, 3.2) : ''; return d ? `<path d="${d}" class="wire-o"/><path d="${d}" class="wire-i${cls}"/>` : ''; }   // cls: 방금 꽂은 선 색
+    d = body.length > 1 ? roundPath(body, 3.2) : ''; return d ? `<path d="${d}" class="wire-o"/><path d="${d}" class="wire-i${cls}"/><path d="${d}" class="wire-shine" transform="translate(-.18 -.25)"/>` : ''; }   // cls: 방금 꽂은 선 색
 const wireEnds = (pts, ha, hb, part, cls) => ferrule(pts, false, ha, part, cls) + ferrule(pts, true, hb, part, cls);
 function drawWire(pts, ha, hb) { return wireEnds(pts, ha, hb, 1) + scrUse(ha) + scrUse(hb) + wireBody(pts, ha, hb) + wireEnds(pts, ha, hb, 2); }   // 핀 → 나사 머리 → 전선 → 슬리브   // ha, hb: 양 끝 단자 (나사 머리)
 
@@ -5506,7 +5529,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.19.2', date: '2026.11.11', notes: ['앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.20.0', date: '2026.11.11', notes: ['2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
