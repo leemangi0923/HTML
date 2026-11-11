@@ -650,6 +650,15 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 .relief[data-relief-kind="duct"] .relief-x,.relief[data-relief-kind="cover"] .relief-x { fill:#d0d3c6; stroke:#89988c; }
 .relief[data-relief-kind="duct"] .relief-y,.relief[data-relief-kind="cover"] .relief-y { fill:#a4b0a2; stroke:#7d907f; }
 .relief .relief-shadow { fill:#13262b; fill-opacity:.2; }
+.relief[data-relief-kind="pale"] .relief-x { fill:#c7ccc4; stroke:#8f9c9c; }
+.relief[data-relief-kind="pale"] .relief-y { fill:#9eaaa5; stroke:#718285; }
+.relief[data-relief-kind="graphite"] .relief-x,.relief[data-relief-kind="round-graphite"] .relief-x { fill:#39464b; stroke:#1b2b32; }
+.relief[data-relief-kind="graphite"] .relief-y { fill:#26363d; stroke:#13252e; }
+.relief[data-relief-kind="glass"] .relief-x { fill:#aacbd5; fill-opacity:.4; stroke:#bddce6; }
+.relief[data-relief-kind="glass"] .relief-y { fill:#739eae; fill-opacity:.35; stroke:#a8d0df; }
+.relief[data-relief-kind="glass"] .relief-detail { stroke:#e5f8ff; stroke-opacity:.65; }
+.relief[data-relief-kind="finned"] .relief-x { fill:#8c9fa8; stroke:#425b6a; }
+.relief[data-relief-kind="finned"] .relief-y { fill:#566f7d; stroke:#324e60; }
 [data-power-cable][data-plugged="true"] [data-power-pin] { display:none; }
 </style>
 </head>
@@ -993,12 +1002,12 @@ function stopperProfile() {
     +'<text x="15" y="6.2" fill="#64745f" font-size="2.2" font-family="sans-serif" text-anchor="middle">SEOIL</text><text x="15" y="8.5" fill="#64745f" font-size="2.2" font-family="sans-serif" text-anchor="middle">UA-52</text>';
 }
 function reliefBox(x,y,w,h,height,kind='metal',ox=0,oy=0) {
-  return `<g class="relief" data-relief="${[x,y,w,h,height,ox,oy].join(',')}" data-relief-kind="${kind}" pointer-events="none"><path class="relief-shadow"/><path class="relief-x"/><path class="relief-y"/>${kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:''}</g>`;
+  return `<g class="relief" data-relief="${[x,y,w,h,height,ox,oy].join(',')}" data-relief-kind="${kind}" pointer-events="none"><path class="relief-shadow"/><path class="relief-x"/><path class="relief-y"/>${kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:`<path class="relief-detail" fill="none" stroke="#17232a" stroke-opacity=".48" stroke-width=".45"/>`}</g>`;
 }
 const RELIEF_CACHE=new WeakMap();let reliefNodes=[];
 function refreshRelief() {
   reliefNodes=[...gWorld.querySelectorAll('[data-relief]')].map(node=>{
-    let r=RELIEF_CACHE.get(node);if(!r){r={node,box:node.dataset.relief.split(',').map(Number),kind:node.dataset.reliefKind,shadow:node.children[0],sideX:node.children[1],sideY:node.children[2],profile:node.children[3],key:''};RELIEF_CACHE.set(node,r);}return r;
+    let r=RELIEF_CACHE.get(node);if(!r){r={node,box:node.dataset.relief.split(',').map(Number),kind:node.dataset.reliefKind,shadow:node.children[0],sideX:node.children[1],sideY:node.children[2],profile:node.querySelector('.relief-profile'),detail:node.querySelector('.relief-detail'),key:''};RELIEF_CACHE.set(node,r);}return r;
   });
   updateRelief();
 }
@@ -1014,8 +1023,20 @@ function updateRelief() {
     r.shadow.setAttribute('d',polygon([[x+1,y+1.4],[x+w+1,y+1.4],[x+w+dx+1,y+h+dy+1.4],[x+dx+1,y+h+dy+1.4]]));
     r.sideX.setAttribute('d',r.profile?'':polygon([[ex,y],[ex,y+h],[ex+dx,y+h+dy],[ex+dx,y+dy]]));
     r.sideY.setAttribute('d',polygon([[x,ey],[x+w,ey],[x+w+dx,ey+dy],[x+dx,ey+dy]]));
+    if(r.kind.startsWith('round-')){
+      const a=Math.atan2(dy,dx),arc=[];for(let k=0;k<=16;k++){const t=a-Math.PI/2+k*Math.PI/16;arc.push([x+w/2+Math.cos(t)*w/2,y+h/2+Math.sin(t)*h/2]);}
+      r.sideX.setAttribute('d',polygon([...arc,...arc.slice().reverse().map(([a,b])=>[a+dx,b+dy])]));r.sideY.setAttribute('d','');const shadow=[];for(let k=0;k<24;k++){const t=k*Math.PI/12;shadow.push([x+w/2+1+dx*.3+Math.cos(t)*w/2,y+h/2+1.4+dy*.3+Math.sin(t)*h/2]);}r.shadow.setAttribute('d',polygon(shadow));
+    }
+    if(r.detail){let d='';if(['graphite','pale','finned','glass'].includes(r.kind)){
+      for(let k=1;k<=(r.kind==='glass'?0:7);k++){const yy=y+h*(.15+k*.085);d+=`M${F(ex+dx*.25)} ${F(yy+dy*.25)}L${F(ex+dx*.88)} ${F(yy+dy*.88)}`;}
+      d+=`M${F(ex+dx*.16)} ${F(y+dy*.16)}L${F(ex+dx*.16)} ${F(y+h+dy*.16)}`;
+    }r.detail.setAttribute('d',d);}
     if(r.profile){r.profile.setAttribute('display',Math.abs(dx)<.02?'none':'inline');r.profile.setAttribute('transform',`matrix(0 1 ${dx/30} ${dy/30} ${ex} ${y})`);}
   }
+}
+function housingFinish(x,y,w,h,kind='graphite') {
+  const light=kind==='pale'?'#fffdf0':'#e1eef2';
+  return `<g data-housing-finish="${kind}" pointer-events="none"><path d="M${F(x+1)} ${F(y+h-3)}V${F(y+3)}Q${F(x+1)} ${F(y+1)} ${F(x+3)} ${F(y+1)}H${F(x+w-3)}" fill="none" stroke="${light}" stroke-opacity=".52" stroke-width=".65"/><path d="M${F(x+w-1)} ${F(y+3)}V${F(y+h-3)}Q${F(x+w-1)} ${F(y+h-1)} ${F(x+w-3)} ${F(y+h-1)}H${F(x+3)}" fill="none" stroke="#14222a" stroke-opacity=".55" stroke-width=".85"/></g>`;
 }
 function screw(x, y, r = 2.2) {
   const k = r * 0.62;
@@ -1124,7 +1145,7 @@ function drawBZ(cx, cy) { let s = C(cx + .6, cy + 1, 15.5, 'fill="#000" fill-opa
   for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) if (r * r + c * c <= 5) s += C(cx + c * 2.6, cy + r * 2.6, .8, 'fill="#8f8c82"'); return s; }
 function drawHMI() {
   const c = OP.cut, b = { x: c.x - 8, y: c.y - 8, w: c.w + 16, h: c.h + 16 }, sx = c.x + 6, sy = c.y + 6, sw = c.w - 12, sh = c.h - 12;
-  let s = R(b.x + 1, b.y + 1.6, b.w, b.h, 'rx="4" fill="#000" fill-opacity=".35"') + R(b.x, b.y, b.w, b.h, 'rx="4" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".6"');
+  let s = reliefBox(b.x,b.y,b.w,b.h,18,'graphite',OPW.x,OPW.y)+R(b.x + 1, b.y + 1.6, b.w, b.h, 'rx="4" fill="#000" fill-opacity=".35"') + R(b.x, b.y, b.w, b.h, 'rx="4" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".6"');
   s += R(sx, sy, sw, sh, 'fill="#0d1a24"') + R(sx, sy, sw, 14, 'fill="#173246"') + T(sx + 6, sy + 9.6, '로봇 연동장치', 'font-size="5.2" fill="#cfe3f1" font-weight="600"');
   const btn = (by, t, f) => R(sx + 8, by, 60, 22, `rx="2" fill="${f}" stroke="#3a7aa3" stroke-width=".5"`) + T(sx + 38, by + 13, t, TX(5, '#e3f1fb', 'font-weight="600"'));
   s += btn(sy + 24, '기초검사', '#1f4a66') + btn(sy + 52, '동작검사', '#1f4a66') + btn(sy + 80, 'PLC 리셋', '#4a2a2a');
@@ -1174,10 +1195,10 @@ function drawDevice(type, x, y, name, extra) {
 }
 function dMCB(x, y, name) {   // LS BKM-b 2P: 위아래 단자 창, 가운데 손잡이 (위 ON, 아래 OFF)
   const w = DEV.mcb.w, h = DEV.mcb.h, on = LIVE.inp && LIVE.inp.mcb, sw = MCB_SW(x, y);
-  let s = shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="url(#gPalePolymer)" stroke="#9fa4a8" stroke-width=".45"');
+  let s = reliefBox(x,y,DEV.mcb.w,DEV.mcb.h,65,'pale')+housingFinish(x,y,DEV.mcb.w,DEV.mcb.h,'pale')+shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="url(#gPalePolymer)" stroke="#9fa4a8" stroke-width=".45"');
   s += LN(x + w / 2, y + 1, x + w / 2, y + h - 1, 'stroke="#c9ccc9" stroke-width=".5"');   // 2극 경계
   for (const t of devTerms('mcb')) s += R(x + t.x - 5.6, y + t.y - 4.8, 11.2, 9.6, 'rx="1" fill="#2a2d30" stroke="#8c9196" stroke-width=".35"');
-  s += R(x + 2.4, y + 14, w - 4.8, 54, 'rx="1.4" fill="#f7f7f4" stroke="#c4c8c6" stroke-width=".4"');
+  s += reliefBox(x+2.4,y+14,w-4.8,54,8,'pale')+R(x + 2.4, y + 14, w - 4.8, 54, 'rx="1.4" fill="url(#gPalePolymer)" stroke="#aab2b2" stroke-width=".4"');
   s += `<text x="${F(x + 4.2)}" y="${F(y + 19.6)}" font-size="3.6" font-weight="800" font-style="italic" fill="#0b5fa5">LS</text>` + TS(x + 13.2, y + 19.4, 'BKM-b', 2.6, '#2a2f33', 'font-weight="700"');
   s += T(x + w / 2, y + sw.y - 1.4, 'ON', TX(2.3, on ? '#1f9d55' : '#7f9a88', 'font-weight="800"')) + T(x + w / 2, y + sw.y + sw.h + 3.2, 'OFF', TX(2.3, on ? '#a28a8c' : '#c2262f', 'font-weight="800"'));
   s += R(x + sw.x, y + sw.y, sw.w, sw.h, 'rx="1.6" fill="#24272a" stroke="#0f1112" stroke-width=".4"');   // 손잡이 홈
@@ -1186,25 +1207,25 @@ function dMCB(x, y, name) {   // LS BKM-b 2P: 위아래 단자 창, 가운데 �
   for (let k = 0; k < 3; k++) s += LN(x + sw.x + 4, hy + 4.6 + k * 1.4, x + sw.x + sw.w - 4, hy + 4.6 + k * 1.4, 'stroke="#3a3f44" stroke-width=".35"');
   s += T(x + w / 2, y + 56.6, 'C6', TX(4.4, '#1d2125', 'font-weight="800"')) + T(x + w / 2, y + 60.6, '2P  220/230V~', TX(1.9, '#5a6168'));
   for (const t of devTerms('mcb')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, y + t.y + (t.d === 'up' ? 7.6 : -5.8), t.lab, 2, '#3f464c');
-  return s + nameTag(x + w / 2, y + 65, name);
+  return s + housingFinish(x,y,DEV.mcb.w,DEV.mcb.h,'pale') + nameTag(x + w / 2, y + 65, name);
 }
 const MCB_SW = () => ({ x: 8.6, y: 26, w: 18, h: 21 });   // MCB 손잡이 홈 (기구 왼쪽 위 기준)
 function dFuse(x, y, name, fz) {
-  const h = DEV.fuse.h; let s = shadow(x, y, 36, h, 1.2);
+  const h = DEV.fuse.h; let s = reliefBox(x,y,36,DEV.fuse.h,42,'graphite')+housingFinish(x,y,36,DEV.fuse.h,'graphite')+shadow(x, y, 36, h, 1.2);
   for (let p = 0; p < 2; p++) {   // 극마다: 검은 받침, 위아래 나사 칸, 가운데 퓨즈 클립
     const x0 = x + p * 18, f = fz && fz[p];
-    s += R(x0 + .4, y, 17.2, h, 'rx="1.4" fill="#1f2225" stroke="#0b0c0d" stroke-width=".45"');
+    s += R(x0 + .4, y, 17.2, h, 'rx="1.4" fill="url(#gGraphite)" stroke="#0b0c0d" stroke-width=".45"');
     s += R(x0 + 3, y + .8, 12, 10.4, 'rx=".8" fill="#0c0e0f"') + R(x0 + 3, y + h - 11.2, 12, 10.4, 'rx=".8" fill="#0c0e0f"');
     s += R(x0 + 3.4, y + 19, 11.2, 36, 'rx="1.2" fill="#121416"');
-    for (const cy of [y + 21.6, y + 49.4]) s += R(x0 + 5.2, cy, 7.6, 3.4, 'rx=".6" fill="#b9c0c5" stroke="#6f777d" stroke-width=".3"');   // 퓨즈 클립
+    for (const cy of [y + 21.6, y + 49.4]) s += R(x0 + 5.2, cy, 7.6, 3.4, 'rx=".6" fill="url(#gChrome)" stroke="#637782" stroke-width=".3"');   // 퓨즈 클립
     if (f) s += fuseGlass(x0 + 6.3, y + 23.5, 5.4, 27, f) + fuseCover(x0 + 1.2, y + 13.6, 15.6, h - 27.2) + T(x0 + 9, y + 59.6, f.startsWith('f5') ? '5A' : '3A', TX(3.4, f.startsWith('f5') ? '#ffd34d' : '#86d6ff', 'font-weight="700"'));   // 퓨즈는 투명 뚜껑과 한 몸으로 끼운다
   }
   for (const t of devTerms('fuse')) s += SCR(x + t.x, y + t.y);
-  return s + nameTag(x + 18, y + 12.6, name);
+  return s + housingFinish(x,y,36,DEV.fuse.h,'graphite') + nameTag(x + 18, y + 12.6, name);
 }
 function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −V, 아래 L N FG
   const w = DEV.smps.w, h = DEV.smps.h, on = LIVE.on && LIVE.out.smps;
-  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gSmps)" stroke="#9aa1a6" stroke-width=".5"');
+  let s = reliefBox(x,y,DEV.smps.w,DEV.smps.h,75,'finned')+housingFinish(x,y,DEV.smps.w,DEV.smps.h,'finned')+shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gSmps)" stroke="#9aa1a6" stroke-width=".5"');
   for (let i = 0; i < 11; i++) s += R(x + w - 2.9, y + 21 + i * 4.6, 1.8, 3.2, 'rx=".5" fill="#c4c9cc"');   // 옆면 방열 홈
   const blk = (yy, xs, cw) => { let t = R(x + 2.4, yy, 44.6, 12.6, 'rx="1" fill="#d3d6d8" stroke="#a7adb2" stroke-width=".35"'); for (const xx of xs) t += R(x + xx - cw / 2, yy + 1.2, cw, 10.2, 'rx=".8" fill="#2a2e32"'); return t; };
   s += blk(y + .5, [9, 19, 31, 41], 8.8) + blk(y + 82, [10, 22, 34], 10);
@@ -1218,18 +1239,18 @@ function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −
   s += nameTag(x + w / 2 - 1.2, y + 63.4, name);
   s += TS(x + 4, y + 71.6, 'INPUT', 2.1, '#2b2f33', 'font-weight="700"') + TS(x + 4, y + 75.2, '50/60Hz 100-240VAC~1.9A', 1.6, '#2b2f33');
   for (const t of devTerms('smps')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, t.d === 'up' ? y + 16.9 : y + 80.5, t.lab === '-V' ? '−V' : t.lab, 2.3, '#f2f4f5');
-  return s;
+  return s+housingFinish(x,y,DEV.smps.w,DEV.smps.h,'finned');
 }
 function plcLid(x, y, top) {   // 닫은 덮개: 단자와 거기 꽂힌 전선 끝을 덮는다 (전선보다 나중에 그림)
   const w = DEV.plc.w, yy = top ? y - .4 : y + 67.6, hh = top ? 27.6 : 27.8;
-  let t = R(x - 2.6, yy, w + 3.1, hh, 'rx="1.6" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".5"');   // 왼쪽 끝 단자의 압착단자까지 덮는다
+  let t = reliefBox(x-2.6,yy,w+3.1,hh,7,'graphite')+R(x - 2.6, yy, w + 3.1, hh, 'rx="1.6" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".5"');   // 왼쪽 끝 단자의 압착단자까지 덮는다
   for (let i = 0; i < 12; i++) t += R(x + 6 + i * 9.4, top ? yy + 3 : yy + hh - 7.5, 4.6, 4.5, 'rx=".6" fill="#3d4247"');
   t += LN(x + 1.5, top ? yy + hh - 3 : yy + 3, x + w - 1.5, top ? yy + hh - 3 : yy + 3, 'stroke="#25292d" stroke-width=".6"');
   return t + (top ? `<path d="M${F(x + 58.5)} ${F(yy + 13)}h3l-1.5 2.2z" fill="#8d949a"/>` : '');
 }
 function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래 전원·출력 단자에 여닫는 덮개
   const w = DEV.plc.w, h = DEV.plc.h, T_ = devTerms('plc'), pw = LIVE.on && LIVE.out.plc;
-  let s = shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
+  let s = reliefBox(x,y,DEV.plc.w,DEV.plc.h,65,'graphite')+housingFinish(x,y,DEV.plc.w,DEV.plc.h,'graphite')+shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
   // 단자대 두 층 (칸막이)
   const tier = (yy, hh, fill, xs) => { let t = R(x + .8, yy, w - 1.6, hh, `fill="${fill}"`), d = ''; for (const xx of xs) d += `M${F(x + xx)} ${F(yy + .6)}V${F(yy + hh - .6)}`; return t + `<path d="${d}" stroke="#4b5156" stroke-width=".45"/>`; };
   const cut = (ts, dx) => ts.map(t => t.x + dx);
@@ -1259,20 +1280,20 @@ function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래
   const bar = yy => R(x + .8, yy, w - 1.6, 5.8, 'rx="1" fill="#4a5056" stroke="#1d2023" stroke-width=".4"') + LN(x + 2, yy + 1.4, x + w - 2, yy + 1.4, 'stroke="#6b7278" stroke-width=".5"') + LN(x + 2, yy + 4.2, x + w - 2, yy + 4.2, 'stroke="#2a2e32" stroke-width=".5"');
   if (!lid.t) s += bar(y + 21.4);
   if (!lid.b) s += bar(y + 67.8);
-  return s;
+  return s+housingFinish(x,y,DEV.plc.w,DEV.plc.h,'graphite');
 }
 function dCard(x, y, type) {
   const w = DEV[type].w, h = DEV[type].h, pos = type === 'pos';
-  let s = shadow(x, y, w, h, 1.2) + R(x, y, w, h, 'rx="1.2" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
+  let s = reliefBox(x,y,22,95,55,'graphite')+housingFinish(x,y,22,95,'graphite')+shadow(x, y, w, h, 1.2) + R(x, y, w, h, 'rx="1.2" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
   s += R(x + .8, y + .8, w - 1.6, 13.8, 'rx="1" fill="#25292d"') + T(x + w / 2, y + 9.4, pos ? 'POS' : 'TR', TX(3.8, '#f0f3f5', 'font-weight="700"'));
   s += R(x + 1.5, y + 16, w - 3, 8, 'rx=".6" fill="#c3c7ca"') + C(x + 7, y + 20, 1.2, 'fill="#3be06b"') + C(x + 15, y + 20, 1.2, 'fill="#5b2a2a"');
   s += R(x + 4.5, y + 27, 13, 46, 'rx="1" fill="#1b1e21"') + R(x + 6.2, y + 29, 9.6, 42, 'fill="url(#pPins)"');
   s += T(x + w / 2, y + 81, '위치결정', TX(2.4, '#d5d9dc')) + T(x + w / 2, y + 85.5, '카드', TX(2.4, '#d5d9dc'));
-  return s;
+  return s+housingFinish(x,y,22,95,'graphite');
 }
 function dServo(x, y, bolted) {   // LS L7S 모양: 위 조작부, 왼쪽 전원 커넥터(주황 레버), 오른쪽 CN 커넥터
   const w = SERVO.w, h = SERVO.h, on = LIVE.on && LIVE.out.sv;
-  let s = shadow(x, y, w, h, 2) + R(x, y, w, h, 'rx="2" fill="url(#gGraphite)" stroke="#161b20" stroke-width=".6"');
+  let s = reliefBox(x,y,SERVO.w,SERVO.h,85,'finned')+housingFinish(x,y,SERVO.w,SERVO.h,'finned')+shadow(x, y, w, h, 2) + R(x, y, w, h, 'rx="2" fill="url(#gGraphite)" stroke="#161b20" stroke-width=".6"');
   s += R(x + 1, y + 1, w - 2, 31, 'rx="1.6" fill="#141619"');
   s += `<text x="${F(x + 4)}" y="${F(y + 16)}" font-size="6" font-weight="800" font-style="italic" fill="#f2f4f5">LS</text>` + TS(x + 35, y + 9.2, 'SERVO', 2.2, '#e8ecef', 'font-weight="700"');
   s += R(x + 26, y + 15, 20, 9.5, 'rx=".8" fill="#08090a" stroke="#2b3036" stroke-width=".4"') + T(x + 36, y + 22.3, on ? 'rdy' : '', TX(5.4, '#ff4136', 'font-weight="700"'));
@@ -1297,7 +1318,7 @@ function dServo(x, y, bolted) {   // LS L7S 모양: 위 조작부, 왼쪽 전원
   s += dsub(y + 70, 40) + TS(x + 41.6, y + 91, 'CN1', 1.5, '#c9d0d5') + dsub(y + 118, 26) + TS(x + 41.6, y + 132, 'CN2', 1.5, '#c9d0d5');
   s += R(x + 3, y + 117.2, 20, 10.4, 'rx="1" fill="#56616c"');   // 앞 커버
   for (const yy of [y + 6, y + h - 6]) s += bolted ? drawBolt(x + w / 2, yy) : C(x + w / 2, yy, 2.4, 'fill="#191c1f"');
-  return s;
+  return s+housingFinish(x,y,SERVO.w,SERVO.h,'finned');
 }
 const SOCKET_CLAMP_ART = new Map();   // 그림 전용, 위치·단자 배열별 최대 256개. 저장 상태에는 넣지 않는다.
 function socketShell(x,y,w,h) {
@@ -1321,7 +1342,7 @@ function socketClamps(x,y,terms,half,metal) {
 }
 function dRelay(x, y, name, plugged = false) {
   const w=DEV.relay.w,h=DEV.relay.h,terms=devTerms('relay');
-  let s=socketShell(x,y,w,h)+socketClamps(x,y,terms,3.4,'gContact'),rib='';
+  let s=reliefBox(x,y,DEV.relay.w,DEV.relay.h,18,'graphite')+housingFinish(x,y,DEV.relay.w,DEV.relay.h,'graphite')+socketShell(x,y,w,h)+socketClamps(x,y,terms,3.4,'gContact'),rib='';
   for(const yy of [[.8,17.4],[57.6,74.2]])for(let i=0;i<=4;i++)rib+=`M${F(x+1.2+i*7.3)} ${F(y+yy[0])}V${F(y+yy[1])}`;
   s+=`<path d="${rib}" stroke="#6b7b83" stroke-opacity=".6" stroke-width=".55"/>`
     +R(x+2,y+18,w-4,39,'rx="1" fill="url(#gSocketRim)" stroke="#0d171e" stroke-width=".45"')
@@ -1339,7 +1360,7 @@ function dRelay(x, y, name, plugged = false) {
 
 function relayBody(x, y, name) {   // 정면 투명 케이스. 소켓·단자 좌표는 그대로 두고 내부 재질만 그린다.
   const on = LIVE.on && LIVE.st && LIVE.st.rel[name];
-  let s = R(x+1.8,y+17.6,28.8,41,'rx="1.6" fill="#0f1920" fill-opacity=".35"')
+  let s = reliefBox(x+1.2,y+16.8,28.6,41,43,'glass')+R(x+1.8,y+17.6,28.8,41,'rx="1.6" fill="#0f1920" fill-opacity=".35"')
     + R(x+1.2,y+16.8,28.6,41,'rx="1.6" fill="#b3c7cd" fill-opacity=".18" stroke="#8397a3" stroke-width=".5"')
     + R(x+3.1,y+18.6,24.8,11.4,'rx=".8" fill="url(#gGraphite)"');
   for(let i=0;i<4;i++) {
@@ -1366,7 +1387,7 @@ function relayBody(x, y, name) {   // 정면 투명 케이스. 소켓·단자 �
 
 function dTimer(x, y, name, plugged = false) {
   const w=DEV.timer.w,h=DEV.timer.h,cx=x+w/2,cy=y+36,terms=devTerms('timer');
-  let s=socketShell(x,y,w,h)+socketClamps(x,y,terms,4,'gChrome');
+  let s=reliefBox(x,y,DEV.timer.w,DEV.timer.h,18,'graphite')+housingFinish(x,y,DEV.timer.w,DEV.timer.h,'graphite')+socketShell(x,y,w,h)+socketClamps(x,y,terms,4,'gChrome');
   for(const xx of [x-1.4,x+w-2])s+=R(xx,y+30,3.4,12,'rx="1" fill="url(#gClipBlue)" stroke="#194970" stroke-width=".35"')+LN(xx+.6,y+31,xx+.6,y+40.5,'stroke="#b7e7f8" stroke-opacity=".6" stroke-width=".4"');
   s+=C(cx+.25,cy+.4,10.4,'fill="#071219"')+C(cx,cy,10,'fill="url(#gSocketRim)" stroke="#788c98" stroke-width=".4"')+C(cx,cy,8.8,'fill="url(#gSocketPocket)" stroke="#061015" stroke-width=".4"');
   let bores='',edges='';
@@ -1382,7 +1403,7 @@ function dTimer(x, y, name, plugged = false) {
 
 function timerBody(x, y, name, v = name ? tsetMap()[name] || 0 : 0) {   // 한영넉스 T38N: 베이지 몸체, 다이얼(0~30초), UP/ON 램프, 단위 스위치 s
   const st = LIVE.on && LIVE.st && LIVE.st.tim[name], cx = x + 20, cy = y + 36.6, ang = v => (-135 + 270 * Math.min(v, T_MAX) / T_MAX) * Math.PI / 180;
-  let s = R(x + 1.6, y + 12.4, 37.8, 48.6, 'rx="1.8" fill="#000" fill-opacity=".25"') + R(x + 1, y + 11.6, 38, 48.6, 'rx="1.8" fill="url(#gPalePolymer)" stroke="#9a978c" stroke-width=".45"');
+  let s = reliefBox(x+1,y+11.6,38,48.6,46,'pale')+R(x + 1.6, y + 12.4, 37.8, 48.6, 'rx="1.8" fill="#000" fill-opacity=".25"') + R(x + 1, y + 11.6, 38, 48.6, 'rx="1.8" fill="url(#gPalePolymer)" stroke="#9a978c" stroke-width=".45"');
   s += `<text x="${F(x + 3.4)}" y="${F(y + 17.4)}" font-size="3.6" font-weight="800" fill="#2f4a6b">nux</text>` + TS(x + 3.4, y + 19.6, 'HANYOUNG', 1.3, '#2f4a6b', 'font-weight="700"');
   s += C(x + 31, y + 15.4, 1.1, `fill="${st && st.out ? '#ff3b30' : '#5a4560'}"`) + TS(x + 33, y + 16.1, 'UP', 1.7, '#3a3a36') + C(x + 31, y + 19.4, 1.1, `fill="${st && st.on ? '#3be06b' : '#3c4a3f'}"`) + TS(x + 33, y + 20.1, 'ON', 1.7, '#3a3a36');
   s += C(cx+.35, cy+.55, 13.7, 'fill="#2b343b" fill-opacity=".3"') + C(cx, cy, 13.4, 'fill="url(#gChrome)" stroke="#7c8a93" stroke-width=".4"');
@@ -1408,7 +1429,7 @@ function xtbLid(x, y, type, y0, y1, open = false) {   // 아이오 링크 뚜껑
   const lx0 = x + p0 - 5.25, lx1 = x + p0 + (n - 1) * 7 + 5.25, ly0 = y0 + 4.5, ly1 = y1 - 5, my = (ly0 + ly1) / 2; let g = '';
   const off = top => top !== open ? 1.75 : -1.75;   // 견출지 칸도 단자처럼 B단이 반 칸 오른쪽
   for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + off(true) + i * 7)} ${F(ly0 + .8)}V${F(my)}M${F(x + p0 - 3.5 + off(false) + i * 7)} ${F(my)}V${F(ly1 - .8)}`;
-  return R(x + 3, y0 + 1, w - 5, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"') + R(x + 2.5, y0, w - 5, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"')
+  return reliefBox(x+2.5,y0,w-5,y1-y0,6,'pale')+R(x + 3, y0 + 1, w - 5, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"') + R(x + 2.5, y0, w - 5, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"')
     + R(lx0, ly0, lx1 - lx0, ly1 - ly0, 'rx=".5" fill="#fdfdfb" stroke="#b9c2c8" stroke-width=".3"') + `<path d="${g}M${F(lx0 + .6)} ${F(my)}H${F(lx1 - .6)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`
     + (open ? Array.from({ length: n }, (_, i) => ['B', 'A'].map(r => { const top = r === 'A', cy = top ? (ly0 + my) / 2 : (my + ly1) / 2;   // 열면 단자 이름 (B단이 경첩 쪽)
         return T(x + p0 + i * 7 + off(top), cy + .85, r + (i + 1), TX(2.4, '#3d454c', 'font-weight="700"')); }).join('')).join('') : '')
@@ -1427,7 +1448,7 @@ function lidsOver() {   // 닫은 덮개, 뚜껑은 전선 위에 그린다 (전
 }
 function dXTB(x, y, type, name, closed = false) {
   const w = DEV[type].w, h = DEV[type].h, n = type === 'xtb40' ? 20 : 25, cw = type === 'xtb40' ? 74 : 89, p0 = (w - (n - 1) * 7) / 2;
-  let s = '';
+  let s = reliefBox(x,y,DEV[type].w,DEV[type].h,36,'pale')+housingFinish(x,y,DEV[type].w,DEV[type].h,'pale')+'';
   if (!closed) s += xtbLid(x, y, type, y - 30.8, y - .4, true) + R(x + 2.5, y - 3.2, DEV[type].w - 5, 2.8, 'rx="1" fill="#f6f9fa"');   // 위로 젖혀 둔 뚜껑, 아래쪽이 경첩
   // 본체, 고정 구멍, 로고
   s += shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.6" fill="#dcdad3" stroke="#a9a69c" stroke-width=".45"');
@@ -1443,10 +1464,10 @@ function dXTB(x, y, type, name, closed = false) {
   let d = ''; for (let i = 1; i < n; i++) d += `M${F(x + p0 - 1.75 + i * 7)} ${F(y + 15)}V${F(y + 29)}M${F(x + p0 - 5.25 + i * 7)} ${F(y + 29)}V${F(y + 42.5)}`;
   s += `<path d="${d}" stroke="#bcb8ad" stroke-width=".5"/>`;
   for (const t of devTerms(type)) s += SCRS(x + t.x, y + t.y);
-  return s;
+  return s+housingFinish(x,y,DEV[type].w,DEV[type].h,'pale');
 }
 function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
-  const h = DEV.tb.h; let s = shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#2a2d30"');
+  const h = DEV.tb.h; let s = reliefBox(x,y,DEV.tb.w,DEV.tb.h,28,'graphite')+housingFinish(x,y,DEV.tb.w,DEV.tb.h,'graphite')+shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#2a2d30"');
   for (let i = 0; i < TB_N; i++) {
     const x0 = x + 2 + i * 8.6, lab = tbLabel(i + 1);
     s += R(x0, y, 8.6, h, 'fill="url(#gGraphite)" stroke="#3b3f43" stroke-width=".35"');
@@ -1457,7 +1478,7 @@ function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
   }
   s += R(x + 2 + TB_N * 8.6, y, 2, h, 'fill="#2a2d30"');
   for (const t of devTerms('tb')) s += SCRS(x + t.x, y + t.y);
-  return s;
+  return s+housingFinish(x,y,DEV.tb.w,DEV.tb.h,'graphite');
 }
 function dStopper(x, cy) {   // SEOIL UA-52: 8mm 두께, 45mm 길이, 회색 플라스틱·흰 견출지 자리.
   const w=STOPPER_W,h=45,y=cy-h/2;
@@ -1482,7 +1503,7 @@ function fuseGlass(x, y, w, h, k) {   // 유리관 퓨즈 (세로): 위아래 �
   return s;
 }
 function fuseCover(x, y, w, h, st = '#d7e9f2') {   // 퓨즈 뚜껑(캐리어): 퓨즈가 끼워진 투명 뚜껑. 퓨즈와 한 몸으로 홀더에 꽂는다
-  return R(x, y, w, h, `rx="1.6" fill="#e6f2f8" fill-opacity=".18" stroke="${st}" stroke-opacity=".9" stroke-width=".5"`) + R(x + 1.1, y + 1, w - 2.2, 1.1, 'rx=".5" fill="#fff" fill-opacity=".5"')
+  return reliefBox(x,y,w,h,10,'glass')+R(x, y, w, h, `rx="1.6" fill="#e6f2f8" fill-opacity=".18" stroke="${st}" stroke-opacity=".9" stroke-width=".5"`) + R(x + 1.1, y + 1, w - 2.2, 1.1, 'rx=".5" fill="#fff" fill-opacity=".5"')
     + R(x + 1.3, y + 2.4, .9, h - 4.8, 'rx=".45" fill="#fff" fill-opacity=".32"') + R(x + w / 2 - 3, y + h - 3, 6, 1.4, 'rx=".7" fill="#c3d6df" fill-opacity=".8"');   // 아래 손잡이 홈
 }
 function fuseIcon(k) { return fuseGlass(3, 2, 6, 30, k) + fuseCover(.4, .4, 11.2, 33.2, '#7f939d'); }   // 재료함, 손에 든 퓨즈: 뚜껑과 한 몸
@@ -2162,12 +2183,13 @@ function hmiBack() {
 }
 function worldOp() {
   const lv = LIVE.on ? LIVE.out : null, W = OP.w;
-  let s = `<g transform="translate(${OPW.x} ${OPW.y})">` + plate(W, OP.h, 5) + dimH(0, W, -12, '375') + dimV(0, OP.h, -12, '270');
+  let s = `<g transform="translate(${OPW.x} ${OPW.y})">` + plate(W, OP.h, 5, OPW.x, OPW.y) + dimH(0, W, -12, '375') + dimV(0, OP.h, -12, '270');
   for (const [x, y] of OP.fix) s += C(W - x, y, 3.5, 'class="matbg" stroke="#6c747b" stroke-width=".5"');
-  if (S.op.hmi) s += hmiBack();
+  if (S.op.hmi) {const c=OP.cut;s+=reliefBox(W-c.x-c.w,c.y,c.w,c.h,48,'graphite',OPW.x,OPW.y)+hmiBack();}
   for (const [hid, [hx, y]] of Object.entries(OP.holes)) {
     const type = S.op.dev[hid]; if (!type) continue;
     const x = W - hx, sym = OP.answer[hid].sym, k = OP_KIND[type];
+    s += reliefBox(x-14,y-14,28,28,35,'graphite',OPW.x,OPW.y);
     s += k === 'lamp' ? lampBack(x, y, type.slice(-1), lv ? !!lv[sym] : null) : k === 'bz' ? bzBack(x, y, !!(lv && lv.BZ)) : swBack(x, y);
     s += T(x, y + 20.5, sym, TX(4.4, '#3b4248', 'font-weight="700"'));
   }
@@ -2177,14 +2199,14 @@ function worldOp() {
 }
 function convBody(x, y, live) {   // 위에서 본 컨베이어 (500mm): 초록 벨트, 회색 프레임, 위쪽 왼편 모터, 위쪽에 센서 S1, S2 (BRP100-DDT-P, 180mm 간격)
   const L = CONV.L, bw = CVW.bw, o = (live && LIVE.out) || {}, d = convDir(o), both = o.FR && o.BR, i = (live && LIVE.inp) || {};   // live가 아니면 멈춘 모습 (들고 있을 때, 재료함)
-  let s = R(x - 16, y - 12, L + 32, bw + 30, 'rx="6" fill="#000" fill-opacity=".16"');
+  let s = reliefBox(x-9,y-9,L+18,bw+18,35,'metal')+R(x - 16, y - 12, L + 32, bw + 30, 'rx="6" fill="#000" fill-opacity=".16"');
   const rail = yy => R(x - 9, yy, L + 18, 9, 'rx="2" fill="url(#gRail)" stroke="#8d969d" stroke-width=".5"');
   s += R(x - 9, y, 9, bw, 'rx="3" fill="#6f777e"') + R(x + L, y, 9, bw, 'rx="3" fill="#6f777e"');   // 양 끝 롤러
   s += R(x, y, L, bw, 'fill="#1f8a43"') + `<path class="wbelt ${both ? 'both' : d > 0 ? 'fwd' : d < 0 ? 'rev' : ''}" d="M${x} ${y + bw / 2}H${x + L}" stroke="#2aa457" stroke-width="${bw - 2}" stroke-dasharray="2 11"/>`;
   s += rail(y - 9) + rail(y + bw);
   // 모터: 위쪽 프레임 왼편에 세운 원통형 감속 모터 (위가 모터, 아래가 감속기)
   const mx = x + CVW.mx, mw = CVW.mw, mh = CVW.mh, mtop = y - 9 - mh;
-  s += R(mx + 1.5, mtop + 2, mw, mh, 'rx="5" fill="#000" fill-opacity=".25"') + R(mx, mtop, mw, mh, 'rx="5" fill="#2c3136" stroke="#0e1012" stroke-width=".6"');
+  s += reliefBox(mx,mtop,mw,mh,48,'finned')+R(mx + 1.5, mtop + 2, mw, mh, 'rx="5" fill="#000" fill-opacity=".25"') + R(mx, mtop, mw, mh, 'rx="5" fill="#2c3136" stroke="#0e1012" stroke-width=".6"');
   s += R(mx, mtop + mh - 30, mw, 30, 'rx="3" fill="#7c858d" stroke="#4f575e" stroke-width=".5"') + R(mx + 4, mtop + mh - 27, 5, 24, 'rx="2.5" fill="#a9b1b7"');   // 감속기
   s += R(mx + 4, mtop + 6, 5, mh - 40, 'rx="2.5" fill="#5b636b" fill-opacity=".8"') + R(mx + mw - 6, mtop + 6, 3, mh - 40, 'rx="1.5" fill="#15181b"');   // 원통 빛, 그늘
   s += `<ellipse cx="${F(mx + mw / 2)}" cy="${F(mtop + 3.5)}" rx="${F(mw / 2 - 1)}" ry="3" fill="#41474e"/>`;
@@ -2194,7 +2216,7 @@ function convBody(x, y, live) {   // 위에서 본 컨베이어 (500mm): 초록 
     const sx = x + mm, on = !!i[k.toLowerCase()], top = y - 9 - 6 - 30;
     if (on) s += R(sx - 2, y, 4, bw, 'fill="#ff3b30" fill-opacity=".45"');   // 팩에 닿은 빛
     s += R(sx - 15, y - 15, 30, 6, 'rx="1" fill="#a3abb1" stroke="#7a838a" stroke-width=".4"');
-    s += R(sx - 10, top, 20, 30, 'rx="2" fill="#2b2f33" stroke="#121416" stroke-width=".6"') + R(sx - 7, top + 24, 14, 5, 'rx="1" fill="#55151a"') + R(sx - 6, top + 25, 5, 3, 'rx=".6" fill="#8e2a30"');
+    s += reliefBox(sx-10,top,20,30,22,'graphite')+R(sx - 10, top, 20, 30, 'rx="2" fill="#2b2f33" stroke="#121416" stroke-width=".6"') + R(sx - 7, top + 24, 14, 5, 'rx="1" fill="#55151a"') + R(sx - 6, top + 25, 5, 3, 'rx=".6" fill="#8e2a30"');
     s += C(sx + 6, top + 4.5, 1.8, `fill="${on ? '#ffa31a' : '#4f3a1d'}"`) + (on ? C(sx + 6, top + 4.5, 4, 'fill="#ffa31a" fill-opacity=".35"') : '');
     s += T(sx - 1.5, top + 13.5, 'Autonics', TX(2.6, '#9aa3aa', 'font-weight="700"')) + T(sx, top + 19.5, 'BRP100', TX(3, '#d9dee2', 'font-weight="700"'));
     s += TS(sx + 13, top + 12, k, 10, '#f2f4f5', 'font-weight="800"') + TS(sx + 13, top + 19, 'BRP100-DDT-P', 4, '#dfe5e9', 'font-weight="600"');
@@ -4056,7 +4078,7 @@ function guideUnder() {
 }
 const CAB_HOLE = { x: 60, y: PANEL.h };   // 왼쪽 세로 덕트 아래 끝 구멍: 전원 케이블과 컨베이어 선이 판 밖으로 나가는 곳
 function drawOutlet(x,y) {
-  return `<g data-mains-outlet="true" transform="translate(${F(x)} ${F(y)})">`
+  return reliefBox(x-30,y-30,60,60,16,'pale')+`<g data-mains-outlet="true" transform="translate(${F(x)} ${F(y)})">`
     +R(-30,-30,60,60,'rx="2" fill="#a9a99b" stroke="#697568" stroke-width=".8"')
     +R(-27,-27,54,54,'rx="2" fill="url(#gPalePolymer)" stroke="#f7f5e5" stroke-width="1.2"')
     +C(0,0,20,'fill="#a6ab94" stroke="#dfe0c9" stroke-width="1.4"')
@@ -4114,7 +4136,7 @@ function drawPowerCable() {
 }
 
 function world0() {
-  let s = drawOpPlate();
+  let s = drawOpPlate();for(const [hid,[x,y]]of Object.entries(OP.holes))if(S.op.dev[hid])s+=reliefBox(x-15.5,y-15.5,31,31,S.op.dev[hid]==='ems'?22:12,'round-graphite',OPW.x,OPW.y);
   for (const [hid, [x, y]] of Object.entries(OP.holes)) { const type = S.op.dev[hid]; if (type) s += LIVE.on && OP_KIND[type] === 'lamp' ? drawLamp(x, y, type.slice(-1), !!LIVE.out[OP.answer[hid].sym]) : LIVE.on && type === 'ss' ? drawSS(x, y, LIVE.inp.ss) : drawOpDev(type, x, y); else if (S.guide) s += T(x, y + 1.7, OP.answer[hid].sym, TX(4.8, '#ffffff', 'font-weight="700" fill-opacity=".6"')); }
   if (S.op.hmi) {
     const c = OP.cut, b = HMI_BZ(); s += drawHMI();
@@ -5721,7 +5743,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.26.0', date: '2026.11.11', notes: ['콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.27.0', date: '2026.11.11', notes: ['기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;

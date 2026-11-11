@@ -180,6 +180,21 @@ async function clickWorld(x, y) {
   await page.mouse.click(p.x,p.y);
 }
 
+test('every fitted device and both operator-panel faces have stable relief without changing work during camera movement',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    const missing=S.inst.filter(i=>!SCENE_PARTS.get('device-'+i.id)?.querySelector('[data-relief]')).map(i=>i.type);
+    const servo=!!SCENE_PARTS.get('servo').querySelector('[data-relief]');
+    const cameras=[{x:-180,y:0,w:800,h:600},{x:440,y:70,w:800,h:600}];let stable=true,front=false,back=false;
+    for(const rear of [false,true]){S.opBack=rear;buildTerms();renderWorld(false);const before=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS),score=scoreSheet().total;
+      const op=SCENE_PARTS.get(rear?'op-back':'op-front');if(rear)back=!!op.querySelector('[data-relief-kind="graphite"]');else front=!!op.querySelector('[data-relief-kind="round-graphite"]');
+      const nodes=[...gWorld.children];for(const c of cameras){UI.cam=c;applyCam();stable&&=before===JSON.stringify({...S,elapsed:0})&&terms===JSON.stringify(TERMS)&&score===scoreSheet().total&&nodes.every(n=>n.isConnected);}
+    }
+    return {missing,servo,front,back,stable,glass:reliefNodes.some(r=>r.kind==='glass'),fins:reliefNodes.some(r=>r.kind==='finned')};
+  });
+  assert.deepEqual(result.missing,[]);for(const k of ['servo','front','back','stable','glass','fins'])assert.equal(result[k],true,k);
+});
+
 test('unplugged mains cannot energize a fully wired circuit; physical plug and outlet clicks restore supply',async()=>{
   await fullState();await page.evaluate(()=>{hideHome();S.tool='hand';fitTo({x:-65,y:660,w:360,h:245});renderTools();});
   const power=()=>page.evaluate(()=>evalOnce(staticLinks(S.wires),newSim(),{...LIVE.inp,mcb:true,cab:S.cables,fuses:fuseState(),plug:plugMap(),leads:convLeads()}).acOn);
