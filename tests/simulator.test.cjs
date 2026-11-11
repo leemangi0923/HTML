@@ -1211,6 +1211,9 @@ test('home adds practical fault drills without the retired 3D workshop or quizze
 test('old workshop bookmarks return to 2D without loading 3D assets or changing saved work', async () => {
   await fullState();
   const saved = await page.evaluate(() => {
+    // Pause the work clock before comparing saved bytes: leaving active work
+    // legitimately saves any extra elapsed second in beforeunload.
+    showHome();
     save();
     const ex = pClone(S); ex.exam = { on: true }; ex.elapsed = 123000; ex.op.labels.L_hmi = '시험';
     localStorage.setItem(STORE_EXAM, JSON.stringify(ex));
