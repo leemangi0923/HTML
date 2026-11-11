@@ -15,8 +15,11 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      - name: Check runner Chrome
+        run: /usr/bin/google-chrome --version
       - name: Simulator tests
+        env:
+          CHROMIUM_PATH: /usr/bin/google-chrome
         shell: bash
         run: npm test 2>&1 | tee simulator-tests.log
       - name: Publish test result
