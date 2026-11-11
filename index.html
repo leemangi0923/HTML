@@ -3133,7 +3133,7 @@ function xtbCoverAt(p) {   // 연 뚜껑은 기기 위로 젖혀져 있고, 닫�
     if (S.xtbClosed[i.id] ? inRect(p, { x: i.x, y: y + 12, w, h: 33 }) : inRect(p, { x: i.x + 2.5, y: y - 31, w: w - 5, h: 30.6 })) return i; }
   return null;
 }
-function cableAt(p) { const q=powerPlaced();return q && inRect(p,{x:q.x-38,y:q.y-26,w:90,h:56})?'power':null; }
+function cableAt(p) { const q=powerPlaced();return q && inRect(p,{x:q.x-46,y:q.y-32,w:146,h:76})?'power':null; }
 function dropCable(p) {
   if(powerPlaced())return say('전원 케이블이 이미 바닥에 있어요','info');
   if(p.y<PANEL.h+90 || p.y>1400 || p.x< -200 || p.x>1400)return say('전원 케이블을 제어판 아래 바닥에 내려놓아요','info');
@@ -3949,7 +3949,7 @@ function trayThumb(it) {
   else if (it.kind === 'conveyor') { vb = '-18 -98 536 168'; inner = convBody(0, 0, false); }
   else if (it.kind === 'pack') { vb = '-2 -2 44 44'; inner = packSVG(0, 0, false); }
   else if (it.kind === 'plug') { const r = k === 'relayU'; vb = r ? '0 16 31 43' : '0 11 40 50'; inner = r ? relayBody(0, 0, '') : timerBody(0, 0, ''); }
-  else if (it.kind === 'cable') { vb='0 0 50 32';inner='<ellipse cx="16" cy="22" rx="12" ry="8" fill="none" stroke="#202b34" stroke-width="4"/>'+POWER_LEADS.map(([, ,col],i)=>`<path d="M25 20Q${32+i*6} 15 ${32+i*6} 3" stroke="${col}" stroke-width="2.4" fill="none"/>`).join(''); }
+  else if (it.kind === 'cable') { vb='-49 -93 151 139';inner=powerCordBody()+powerCordLooseLeads(); }
   else if (it.kind === 'helical') { vb = '-1 -1 76 30'; inner = drawHelical({ x: 0, y: 0, w: 74, h: 28 }); }
   else inner = k === 'wire' ? '<path d="M2 18C12 18 10 6 20 6S28 18 38 18" fill="none" stroke="#4a3b00" stroke-width="3.6"/><path d="M2 18C12 18 10 6 20 6S28 18 38 18" fill="none" stroke="#f5c518" stroke-width="2.4"/>' : R(10, 8, 22, 8, 'rx="2" fill="#f5c518" stroke="#4a3b00" stroke-width=".6"') + R(3, 10.5, 7, 3, 'fill="#c8ccd0"');
   return `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${inner}</svg>`;
@@ -4038,19 +4038,50 @@ function guideUnder() {
   return s;
 }
 const CAB_HOLE = { x: 60, y: PANEL.h };   // 왼쪽 세로 덕트 아래 끝 구멍: 전원 케이블과 컨베이어 선이 판 밖으로 나가는 곳
+function powerCordStroke(d,color='#161b1b',width=5,extra='') {
+  return `<path d="${d}" fill="none" stroke="#080d0e" stroke-width="${width+1.3}" stroke-linecap="round" stroke-linejoin="round"/>`
+    +`<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`
+    +`<path d="${d}" fill="none" stroke="#edf2df" stroke-opacity=".17" stroke-width="${F(width*.15)}" stroke-linecap="round" stroke-linejoin="round" transform="translate(-.35 -.55)"/>`;
+}
+function powerCordBody() {   // 접어 묶은 검정 외피, 90도 몰딩 플러그와 둥근 2핀. 바닥·재료함·들고 있는 그림 공용.
+  const loop='M8 -3C-7 -20 -31 -23 -37 -7C-48 15 -17 28 6 8C24 -8 43 -27 50 -13C61 8 31 23 8 -3';
+  let out='<g data-power-cord-body="true">';
+  for(const [dx,dy] of [[-.8,5],[1,0],[0,-5]])out+=`<g transform="translate(${dx} ${dy})">`+powerCordStroke(loop,'#191e1d',4.8)+'</g>';
+  out+=powerCordStroke('M11 7C28 21 42 29 63 17','#171c1b',5.6)
+    +powerCordStroke('M5 -9C28 -18 47 -23 56 -39L65 -50','#191f1e',5.8)
+    +'<ellipse cx="65" cy="-50" rx="3.5" ry="1.4" fill="#69716a" transform="rotate(29 65 -50)"/>'
+    +'<g transform="rotate(-24 8 0)"><path d="M5 -14Q9 -15 12 -11L12 12Q8 16 5 12Z" fill="#101715" stroke="#353e35" stroke-width=".65"/><path d="M6 -10h4M6 -6h4M6 -2h4M6 2h4M6 6h4M6 10h4" stroke="#4a5042" stroke-width=".55"/></g>';
+  out+='<g data-power-plug="round-2pin" transform="translate(60 5) rotate(-14 18 14)">'
+    +'<path d="M12 4Q21 -4 28 4Q32 8 32 19V23Q31 28 25 28H15Q10 27 10 21V15H0V6H12Z" transform="translate(1 1.7)" fill="#091110" fill-opacity=".3"/>'
+    +'<g data-power-pin="1"><rect x="15.8" y="25" width="2.6" height="12" rx="1.25" fill="url(#gChrome)" stroke="#657579" stroke-width=".35"/><path d="M16.5 27v8" stroke="#fff" stroke-width=".6"/></g>'
+    +'<g data-power-pin="2"><rect x="25" y="25" width="2.6" height="12" rx="1.25" fill="url(#gChrome)" stroke="#657579" stroke-width=".35"/><path d="M25.7 27v8" stroke="#fff" stroke-width=".6"/></g>'
+    +'<path d="M12 4Q21 -4 28 4Q32 8 32 19V23Q31 28 25 28H15Q10 27 10 21V15H0V6H12ZM19 4Q22 1.7 25 5Q27 8 24 8Q21 7 19 4Z" fill="#202824" fill-rule="evenodd" stroke="#101a17" stroke-width=".7"/>'
+    +'<path d="M13.5 5Q17 1.8 19 1M29 10v12Q29 25 25 25H15" fill="none" stroke="#647268" stroke-opacity=".65" stroke-width=".7"/>'
+    +'<path d="M3 6v9M5.8 6v9M8.6 6v9" stroke="#070f0c" stroke-width="1.1"/>'
+    +'<path d="M3.5 7v6M6.3 7v6M9.1 7v6" stroke="#687267" stroke-opacity=".4" stroke-width=".4"/>'
+    +'<path d="M15 10h11M15 12h11M15 14h11" stroke="#0b1410" stroke-width=".65"/>'
+    +'<path d="M11 19v5M31 17v5" stroke="url(#gChrome)" stroke-width="1.2" stroke-linecap="round"/>'
+    +'</g></g>';
+  return out;
+}
+function powerCordLeadD(i,px=0,py=0) {
+  const x=px+45+i*20;
+  return `M${F(px+65+(i-1)*1.6)} ${F(py-50)}C${F(px+65+(i-1)*3)} ${F(py-60)} ${F(x)} ${F(py-69)} ${F(x)} ${F(py-85)}`;
+}
+function powerCordLooseLeads() {
+  return POWER_LEADS.map(([, ,color],i)=>powerCordStroke(powerCordLeadD(i),color,2.2)).join('');
+}
 function drawPowerCable() {
-  const p=powerPlaced();if(!p)return '';const b={x:p.x+65,y:p.y-50};
-  let out=`<g data-power-cable="true"><ellipse cx="${p.x}" cy="${p.y}" rx="32" ry="20" fill="none" stroke="#171d23" stroke-width="7"/>`+
-    `<path d="M${p.x+27} ${p.y-8}Q${b.x} ${p.y+10} ${b.x} ${b.y}" fill="none" stroke="#242e37" stroke-width="7"/>`+
-    R(p.x-38,p.y-8,17,15,'rx="3" fill="#343f48"')+R(p.x-44,p.y-5,6,3,'fill="#c7d6de"')+R(p.x-44,p.y+2,6,3,'fill="#c7d6de"');
+  const p=powerPlaced();if(!p)return '';
+  let out=`<g data-power-cable="true"><g transform="translate(${F(p.x)} ${F(p.y)})">${powerCordBody()}</g>`;
   POWER_LEADS.forEach(([k,name,color],i)=>{
     const e=powerLeadEnd(k),to=TERM[powerLeadMap(S.cables)[k]];
-    out+=`<path data-power-lead="${k}" d="M${b.x} ${b.y}Q${e.x} ${b.y-10} ${e.x} ${e.y}" fill="none" stroke="${color}" stroke-width="2.4"/>`;
-    if(to){const hx=CAB_HOLE.x-9-i*3,yd=DUCT_Y.dB+5+i*3,lx=to.x-(to.r+.25);out+=`<path d="M${e.x} ${e.y}Q${hx} ${e.y-30} ${hx} ${CAB_HOLE.y}V${yd}H${lx}V${to.y+ferLen(to)-1.8}" stroke="${color}" stroke-width="2.4" stroke-linejoin="round" fill="none"/>`+ferruleAt(lx,to.y,0,1,to)+scrUse(to);}
-    else out+=ferruleAt(e.x,e.y-4,0,1);
-    out+=C(e.x,e.y,3.5,`fill="${color}" stroke="#edf3f6" stroke-width=".5"`)+T(e.x,e.y-10,k,TX(7,'#fff','font-weight="800"'));
+    out+=powerCordStroke(powerCordLeadD(i,p.x,p.y),color,2.2,`data-power-lead="${k}"`);
+    if(to){const hx=CAB_HOLE.x-9-i*3,yd=DUCT_Y.dB+5+i*3,lx=to.x-(to.r+.25);out+=powerCordStroke(`M${e.x} ${e.y}Q${hx} ${e.y-30} ${hx} ${CAB_HOLE.y}V${yd}H${lx}V${to.y+ferLen(to)-1.8}`,color,2.2)+ferruleAt(lx,to.y,0,1,to)+scrUse(to);}
+    else out+=R(e.x-.7,e.y,1.4,4,'rx=".5" fill="url(#gChrome)" stroke="#667571" stroke-width=".25"')+R(e.x-1.25,e.y+3.8,2.5,1.9,`rx=".5" fill="${color}" stroke="#14221a" stroke-width=".25"`);
+    out+=C(e.x,e.y,.85,'fill="#d9e1d6" stroke="#39483f" stroke-width=".25"')+T(e.x,e.y-7,k,TX(5.5,'#fff','font-weight="800" stroke="#172a20" stroke-width="1" paint-order="stroke"'));
   });
-  out+=T(p.x+40,p.y+36,'전원 케이블 · 갈 R / 파 T / 초 E',TX(7,'#dce7ef','font-weight="700"'));
+  out+=T(p.x+27,p.y+52,'전원 케이블 · 갈 R / 파 T / 초 E',TX(6,'#dce7ef','font-weight="700"'));
   return out+'</g>';
 }
 
@@ -4165,7 +4196,7 @@ function ghost(p) {
   if (c.kind === 'plug') { const g = PLUGS[c.key], ins = instAt(p), body = (x, y) => g.sock === 'relay' ? relayBody(x, y, '') : timerBody(x, y, '');
     if (ins && ins.type === g.sock && !S.plug[ins.id]) return `<g opacity=".75">${body(ins.x, devY(ins))}</g>`;
     return `<g opacity=".8">${body(p.x - DEV[g.sock].w / 2, p.y - 36)}</g>`; }
-  if (c.kind === 'cable') return `<g transform="translate(${F(p.x - 20)} ${F(p.y - 12)})" opacity=".8">${trayThumb(c).replace(/^<svg[^>]*>|<\/svg>$/g, '')}</g>`;   // 꽂을 자리는 가이드로 보여준다
+  if (c.kind === 'cable') return `<g transform="translate(${F(p.x)} ${F(p.y)})" opacity=".8">${powerCordBody()+powerCordLooseLeads()}</g>`;   // 놓는 위치와 같은 크기로 미리 보기
   if (c.kind === 'op') {
     const lp = opLocal(p), tr = `translate(${OPW.x} ${OPW.y})`;
     if (c.key === 'hmi') return !S.opBack && inRect(lp, OP.cut, 20) ? `<g opacity=".6" transform="${tr}">${drawHMI()}</g>` : R(p.x - 40, p.y - 28, 80, 56, 'rx="3" fill="#30353a" opacity=".6"');
@@ -5658,7 +5689,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.24.0', date: '2026.11.11', notes: ['기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.25.0', date: '2026.11.11', notes: ['전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
