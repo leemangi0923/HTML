@@ -180,6 +180,47 @@ async function clickWorld(x, y) {
   await page.mouse.click(p.x,p.y);
 }
 
+test('main-board relief changes only shallow sides on pan and preserves terminals, wiring, score and SVG nodes',async()=>{
+  await fullState();await page.evaluate(()=>hideHome());
+  const result=await page.evaluate(()=>{
+    const state=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS),score=scoreSheet().total,w=S.wires[0],path=wirePts(w,0),node=SCENE_PARTS.get('stoppers');
+    const part=reliefNodes.find(r=>r.kind==='stopper'),[x,y,width,height]=part.box,cam={...UI.cam};
+    UI.cam={...cam,x:x+width/2-250-cam.w/2};applyCam();const left=Number(part.node.dataset.sideX),leftPath=part.profile.getAttribute('transform');
+    UI.cam={...cam,x:x+width/2+250-cam.w/2};applyCam();const right=Number(part.node.dataset.sideX),rightPath=part.profile.getAttribute('transform');
+    return{left,right,changed:leftPath!==rightPath,shallow:reliefNodes.every(r=>Math.abs(Number(r.node.dataset.sideX))<=r.box[4]*.09+.011),state:state===JSON.stringify({...S,elapsed:0}),terms:terms===JSON.stringify(TERMS),score:score===scoreSheet().total,path:path===wirePts(w,0),node:node===SCENE_PARTS.get('stoppers'),pointer:part.node.getAttribute('pointer-events'),iframe:document.querySelectorAll('iframe,canvas').length};
+  });
+  assert.ok(result.left<0);assert.ok(result.right>0);
+  for(const key of ['changed','shallow','state','terms','score','path','node'])assert.equal(result[key],true,key);
+  assert.equal(result.pointer,'none');assert.equal(result.iframe,0);assert.equal(await page.locator('[data-home="preview25"]').count(),0);
+});
+
+test('UA-52 stopper has a white label and plastic side profile and installs through the existing top-view coordinates',async()=>{
+  await fullState();const p=await page.evaluate(()=>{
+    hideHome();LIVE.inp.mcb=false;S.tool='stopper';renderTools();
+    const s=S.stoppers[0],cy=ROW[RAIL_ROW[s.rail]].cy;
+    fitTo({x:s.x-55,y:cy-75,w:160,h:150});return{x:s.x+STOPPER_W/2,y:cy,n:S.stoppers.length};
+  });
+  const art=await page.evaluate(()=>{
+    const r=reliefNodes.find(r=>r.kind==='stopper'),model=gWorld.querySelector('[data-stopper-model="UA-52"]');
+    return{width:r.box[2],length:r.box[3],height:r.box[4],screws:model.querySelectorAll('use').length,label:!!model.querySelector('rect[fill="#fffef6"]'),profile:r.profile.textContent.includes('UA-52')};
+  });
+  assert.deepEqual(art,{width:8,length:45,height:30,screws:0,label:true,profile:true});
+  await clickWorld(p.x,p.y);assert.equal(await page.evaluate(()=>S.stoppers.length),p.n-1);
+  await clickWorld(p.x,p.y);assert.equal(await page.evaluate(()=>S.stoppers.length),p.n);assert.equal(await page.evaluate(()=>groupEnds().every(e=>e.ok)),true);
+});
+
+test('subtle relief setting persists and changes no work or grading',async()=>{
+  await fullState();await page.evaluate(()=>{hideHome();showSettings();});
+  const before=await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),score:scoreSheet().total}));
+  await page.locator('[data-set="relief"]').uncheck();
+  assert.equal(await page.evaluate(()=>reliefNodes.every(r=>r.node.getAttribute('display')==='none')),true);
+  assert.deepEqual(await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),score:scoreSheet().total})),before);
+  await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.SIM);
+  assert.equal(await page.evaluate(()=>SET.relief),false);
+  await page.locator('[data-home="set"]').click();await page.locator('[data-set="relief"]').check();
+  assert.equal(await page.evaluate(()=>reliefNodes.every(r=>!r.node.hasAttribute('display'))),true);
+});
+
 test('relay live diagram follows actual coil and all four contact poles through PB1 toggle', async () => {
   await fullState();
   await page.evaluate(() => { const d = deviceCatalog().find(d=>d.name==='R3'); openDevicePanel(d.key); LIVE.inp.mcb=true; liveStep(0); });

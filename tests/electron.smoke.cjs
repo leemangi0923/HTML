@@ -24,20 +24,10 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     const preferences=await app.evaluate(({BrowserWindow})=>{const p=BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences();return{sandbox:p.sandbox,contextIsolation:p.contextIsolation,nodeIntegration:p.nodeIntegration};});
     assert.deepEqual(preferences,{sandbox:true,contextIsolation:true,nodeIntegration:false});
     await page.context().setOffline(true);await page.reload();await page.waitForFunction(()=>window.SIM);await page.evaluate(()=>clearInterval(LIVE.timer));
-    const previewBefore=await page.evaluate(()=>JSON.stringify(S));
-    await page.locator('[data-home="preview25"]').click();
-    await page.waitForFunction(()=>document.querySelector('#preview25 iframe').contentWindow.PREVIEW25D);
-    const previewFrame=page.frameLocator('#preview25 iframe');
-    assert.deepEqual(await previewFrame.locator('body').evaluate(()=>({node:typeof require,process:typeof process})),{node:'undefined',process:'undefined'});
-    const previewReady=await previewFrame.locator('body').evaluate(()=>PREVIEW25D.snapshot().available);
-    if(previewReady){await previewFrame.locator('#front').click();assert.equal(await previewFrame.locator('#lock').isChecked(),true);}
-    else assert.equal(await previewFrame.locator('#unavailable').isVisible(),true);
-    const previewPolicy=await previewFrame.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
-    assert.match(previewPolicy,/connect-src 'none'/);assert.match(previewPolicy,/script-src 'sha256-/);
-    await previewFrame.locator('#view').press('Escape');await page.locator('#preview25').waitFor({state:'hidden'});
-    assert.equal(await page.evaluate(()=>JSON.stringify(S)),previewBefore);
     await page.evaluate(()=>{setMode('free',pClone(pracRef()));S.selfChk={'1-4':true};S.usedFill=false;S.elapsed=1000;S.tbLabels[0]='앱 저장 확인';buildTerms();renderAll();save();});
     assert.equal(await page.evaluate(()=>scoreSheet().total),30);
+    assert.equal(await page.locator('iframe,canvas').count(),0);
+    assert.equal(await page.evaluate(()=>gWorld.querySelectorAll('[data-stopper-model="UA-52"]').length===S.stoppers.length),true);
     const destination=path.join(temp,'배선 목록.csv');
     await app.evaluate(({dialog},destination)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:destination});},destination);
     await page.locator('#btnWires').click();await page.locator('[data-act="wl-csv"]').click();

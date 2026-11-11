@@ -644,11 +644,12 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 #desktopUpdate p { margin:8px 0; }
 #desktopUpdate button { padding:7px 10px; margin:3px; border:1px solid var(--line); border-radius:7px; background:var(--panel2); cursor:pointer; }
 #desktopUpdate .primary { background:var(--accent); color:#261f00; }
-.preview25 { position:fixed; inset:0; z-index:90; background:#101c1b; }
-.preview25[hidden] { display:none; }
-.preview25 iframe { display:block; width:100%; height:100%; border:0; }
-.preview25-close { position:absolute; top:22px; right:24px; padding:9px 14px; border:1px solid #3d514a; border-radius:8px; background:#142321; color:#e5edeb; font:13px var(--font); cursor:pointer; }
-.preview25-close:focus-visible { outline:2px solid #f2cd60; outline-offset:3px; }
+.relief { pointer-events:none; }
+.relief .relief-x { fill:#91a6b1; stroke:#59717f; stroke-width:.25; }
+.relief .relief-y { fill:#647d8c; stroke:#4f6979; stroke-width:.25; }
+.relief[data-relief-kind="duct"] .relief-x,.relief[data-relief-kind="cover"] .relief-x { fill:#d0d3c6; stroke:#89988c; }
+.relief[data-relief-kind="duct"] .relief-y,.relief[data-relief-kind="cover"] .relief-y { fill:#a4b0a2; stroke:#7d907f; }
+.relief .relief-shadow { fill:#13262b; fill-opacity:.2; }
 </style>
 </head>
 <body>
@@ -737,7 +738,7 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
             <pattern id="pSteelFine" width="38" height="11" patternUnits="userSpaceOnUse"><path d="M1 2h6m12 3h11M6 9h15m9 1h4" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width=".2"/><path d="M3 3h11m10 5h7" stroke="#4e6977" stroke-opacity=".07" stroke-width=".2"/></pattern>
             <linearGradient id="gDuctWallV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#929e9d"/><stop offset=".4" stop-color="#d2d4cb"/><stop offset=".82" stop-color="#efeee5"/><stop offset="1" stop-color="#fffdf4"/></linearGradient>
             <linearGradient id="gDuctLidV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#788885"/><stop offset=".06" stop-color="#bcc5c0"/><stop offset=".3" stop-color="#e3e7df"/><stop offset=".65" stop-color="#eeefe7"/><stop offset=".84" stop-color="#fffdf5"/><stop offset=".955" stop-color="#f8f7ef"/><stop offset="1" stop-color="#8c9899"/></linearGradient>
-            <linearGradient id="gStopperBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#314650"/><stop offset=".16" stop-color="#84969f"/><stop offset=".33" stop-color="#bcc8ca"/><stop offset=".6" stop-color="#8d9fa6"/><stop offset=".86" stop-color="#637d89"/><stop offset="1" stop-color="#324b58"/></linearGradient>
+            <linearGradient id="gStopperBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f998b"/><stop offset=".18" stop-color="#c1c7b8"/><stop offset=".48" stop-color="#dedfd2"/><stop offset=".82" stop-color="#b8bfb0"/><stop offset="1" stop-color="#8c9989"/></linearGradient>
             <g id="scr"><circle r="2.6" fill="#4c5358"/><circle r="2.2" fill="url(#gScrew)"/><path d="M-1.4 0H1.4M0 -1.4V1.4" stroke="#5a6167" stroke-width=".5"/></g>
             <g id="scrS"><circle r="2.05" fill="#4c5358"/><circle r="1.7" fill="url(#gScrew)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#5a6167" stroke-width=".4"/></g>
             <g id="scrY"><circle r="2.05" fill="#4a3c1c"/><circle r="1.7" fill="url(#gScrewY)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#6b5420" stroke-width=".4"/></g>
@@ -980,6 +981,41 @@ const TS = (x, y, str, sz, fill, extra = '') => `<text x="${F(x)}" y="${F(y)}" f
 const LN = (x1, y1, x2, y2, a = '') => `<line x1="${F(x1)}" y1="${F(y1)}" x2="${F(x2)}" y2="${F(y2)}" ${a}/>`;
 const TX = (sz, fill, extra = '') => `font-size="${sz}" fill="${fill}" text-anchor="middle" ${extra}`;
 const shadow = (x, y, w, h, rx = 1.5) => R(x + 1.3, y + 1.8, w, h, `rx="${rx}" fill="#142127" fill-opacity=".16"`) + R(x + .65, y + .9, w, h, `rx="${rx}" fill="#101a20" fill-opacity=".24"`);
+// Shallow sides only: the original top face, terminals and all work coordinates stay in place.
+function stopperProfile() {
+  return '<path d="M3 25V12L7.4 2Q8 .5 10 .5H37Q39 .5 39.8 2L44 12V28.7Q44 30 42.5 30H39.5L38.5 28V25H12L9.2 28.2Q8 30 6 30H1Q.2 30 .3 28L1 24.4Q1.6 22.8 2.3 24Z" fill="#b8bfb0" stroke="#7d8b7b" stroke-width=".45"/>'
+    +'<path d="M10 4H21V9H7.5ZM25 4H36L38.5 9H25ZM26 12H39.3L40 15H26ZM26 18H40V21H26ZM26 23H40V24.5H26Z" fill="#8b9987" stroke="#d4d8c9" stroke-width=".4"/>'
+    +'<path d="M7 12V17L10 24M12 12H19Q23 12 23 16Q23 20 19 20H13L11.5 17H19Q20.8 17 20.8 15.7Q20.8 14.5 19 14.5H12" fill="none" stroke="#7f8e7b" stroke-width="1.2" stroke-linejoin="round"/>'
+    +'<path d="M22.8 5V24M6 12V18L9 25" fill="none" stroke="#dde0d0" stroke-width=".6"/>'
+    +'<path d="M16 1h2v1.7h-2ZM30 1h2v1.7h-2Z" fill="#6f7d6b"/>'
+    +'<rect x="20" y="24.8" width="11" height=".9" fill="#c9cec6" stroke="#66745f" stroke-width=".25"/>'
+    +'<text x="15" y="6.2" fill="#64745f" font-size="2.2" font-family="sans-serif" text-anchor="middle">SEOIL</text><text x="15" y="8.5" fill="#64745f" font-size="2.2" font-family="sans-serif" text-anchor="middle">UA-52</text>';
+}
+function reliefBox(x,y,w,h,height,kind='metal',ox=0,oy=0) {
+  return `<g class="relief" data-relief="${[x,y,w,h,height,ox,oy].join(',')}" data-relief-kind="${kind}" pointer-events="none"><path class="relief-shadow"/><path class="relief-x"/><path class="relief-y"/>${kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:''}</g>`;
+}
+const RELIEF_CACHE=new WeakMap();let reliefNodes=[];
+function refreshRelief() {
+  reliefNodes=[...gWorld.querySelectorAll('[data-relief]')].map(node=>{
+    let r=RELIEF_CACHE.get(node);if(!r){r={node,box:node.dataset.relief.split(',').map(Number),kind:node.dataset.reliefKind,shadow:node.children[0],sideX:node.children[1],sideY:node.children[2],profile:node.children[3],key:''};RELIEF_CACHE.set(node,r);}return r;
+  });
+  updateRelief();
+}
+function updateRelief() {
+  const enabled=SET.relief!==false,cx=UI.cam.x+UI.cam.w/2,cy=UI.cam.y+UI.cam.h/2;
+  const polygon=points=>'M'+points.map(([x,y])=>`${F(x)} ${F(y)}`).join('L')+'Z';
+  for(const r of reliefNodes){
+    if(!enabled){if(r.key!=='off'){r.node.setAttribute('display','none');r.key='off';}continue;}
+    const [x,y,w,h,height,ox,oy]=r.box,dx=F(height*clamp((cx-ox-x-w/2)/2400,-.09,.09)),dy=F(height*clamp((cy-oy-y-h/2)/2400,-.065,.065));
+    const key=dx+','+dy;if(r.key===key)continue;r.key=key;r.node.removeAttribute('display');
+    const ex=dx>=0?x+w:x,ey=dy>=0?y+h:y;
+    r.node.dataset.sideX=String(dx);r.node.dataset.sideY=String(dy);
+    r.shadow.setAttribute('d',polygon([[x+1,y+1.4],[x+w+1,y+1.4],[x+w+dx+1,y+h+dy+1.4],[x+dx+1,y+h+dy+1.4]]));
+    r.sideX.setAttribute('d',r.profile?'':polygon([[ex,y],[ex,y+h],[ex+dx,y+h+dy],[ex+dx,y+dy]]));
+    r.sideY.setAttribute('d',polygon([[x,ey],[x+w,ey],[x+w+dx,ey+dy],[x+dx,ey+dy]]));
+    if(r.profile){r.profile.setAttribute('display',Math.abs(dx)<.02?'none':'inline');r.profile.setAttribute('transform',`matrix(0 1 ${dx/30} ${dy/30} ${ex} ${y})`);}
+  }
+}
 function screw(x, y, r = 2.2) {
   const k = r * 0.62;
   return C(x, y, r + 0.4, 'fill="#4c5358"') + C(x, y, r, 'fill="url(#gScrew)"') +
@@ -991,8 +1027,8 @@ const tl = (x, y, s, sz = 2, fill = '#e8ecef', anchor = 'middle') => `<text clas
 const drawMat = () => R(-4000, -4000, 9000, 9000, 'class="matbg"') + R(-4000, -4000, 9000, 9000, 'fill="url(#pGrid)"');
 function dimH(x1, x2, y, label) { return `<g class="dim"><path d="M${F(x1)} ${F(y)}H${F(x2)}M${F(x1)} ${F(y - 3)}V${F(y + 3)}M${F(x2)} ${F(y - 3)}V${F(y + 3)}"/>${T((x1 + x2) / 2, y - 3, label, 'text-anchor="middle" font-size="9"')}</g>`; }
 function dimV(y1, y2, x, label) { const cy = (y1 + y2) / 2; return `<g class="dim"><path d="M${F(x)} ${F(y1)}V${F(y2)}M${F(x - 3)} ${F(y1)}H${F(x + 3)}M${F(x - 3)} ${F(y2)}H${F(x + 3)}"/>${T(x - 3, cy, label, `text-anchor="middle" font-size="9" transform="rotate(-90 ${F(x - 3)} ${F(cy)})"`)}</g>`; }
-function plate(w, h, rx) {   // 평판 절단면: 실제 작업 영역과 구멍 위치는 그대로 유지한다.
-  return R(2.5,3.6,w,h,`rx="${rx}" fill="#142129" fill-opacity=".23"`)
+function plate(w, h, rx, ox=0, oy=0) {   // 평판 절단면: 실제 작업 영역과 구멍 위치는 그대로 유지한다.
+  return reliefBox(0,0,w,h,3.5,'metal',ox,oy)+R(2.5,3.6,w,h,`rx="${rx}" fill="#142129" fill-opacity=".23"`)
     + R(0,0,w,h,`rx="${rx}" fill="url(#gSteelEdge)" stroke="#526674" stroke-width=".6"`)
     + R(1.5,1.2,w-3,h-3,`rx="${Math.max(1,rx-.8)}" fill="url(#gAlu)"`)
     + R(1.5,1.2,w-3,h-3,`rx="${Math.max(1,rx-.8)}" fill="url(#pBrush)"`)
@@ -1003,7 +1039,7 @@ function plate(w, h, rx) {   // 평판 절단면: 실제 작업 영역과 구멍
 
 const drawPanelPlate = () => plate(PANEL.w, PANEL.h, 2.5) + dimH(0, PANEL.w, -14, '760') + dimV(0, PANEL.h, -14, '600');
 function drawOpPlate() {
-  const c = OP.cut; let s = plate(OP.w, OP.h, 5);
+  const c = OP.cut; let s = plate(OP.w, OP.h, 5, OPW.x, OPW.y);
   s += R(c.x, c.y, c.w, c.h, 'class="matbg" stroke="url(#gSteelEdge)" stroke-width="1.1"');
   for (const [x, y] of OP.fix) s += C(x, y, 3.5, 'class="matbg" stroke="url(#gSteelEdge)" stroke-width=".85"');
   for (const [x, y] of Object.values(OP.holes)) s += C(x, y, 12.5, 'class="matbg" stroke="url(#gSteelEdge)" stroke-width=".9"');
@@ -1022,7 +1058,7 @@ function drawDuct(r, loose) {
     cuts+=`M${F(p)} .5v6M${F(p+3.4)} ${F(W-6.5)}v6`;
     highlights+=`M${F(p+3.4)} .6h${F(Math.min(6.6,L-p-3.4))}M${F(p+3.8)} ${F(W-6.1)}h${F(Math.min(6.2,L-p-3.8))}`;
   }
-  let s=loose?'':R(x+.9,y+1.7,w,h,'rx="1.2" fill="#263c40" fill-opacity=".22"');
+  let s=loose?'':reliefBox(x,y,w,h,40,'duct')+R(x+.9,y+1.7,w,h,'rx="1.2" fill="#263c40" fill-opacity=".22"');
   s+=`<g${loose?' opacity=".8"':''}><g transform="${frameLocal(r)}">`
     + R(0,6.5,L,W-13,'fill="url(#gDuctWell)"')
     + `<path d="${rectD(0,0,L,6.5)+rectD(0,W-6.5,L,6.5)+slots}" fill-rule="evenodd" fill="url(#${o==='v'?'gDuctWallV':'gDuctWall'})"/>`
@@ -1040,7 +1076,7 @@ function drawDuct(r, loose) {
 }
 function drawDuctCover(r, ghost) {
   const {x,y,w,h,o}=r,L=o==='h'?w:h,W=o==='h'?h:w;
-  let s=ghost?'':R(x+1,y+1.8,w,h,'rx="1.6" fill="#182e32" fill-opacity=".28"');
+  let s=ghost?'':reliefBox(x,y,w,h,40,'cover')+R(x+1,y+1.8,w,h,'rx="1.6" fill="#182e32" fill-opacity=".28"');
   s+=`<g${ghost?' opacity=".75"':''} transform="${frameLocal(r)}">`
     +R(-.4,-.4,L+.8,W+.8,`rx="1.6" fill="url(#${o==='v'?'gDuctLidV':'gDuctLid'})" stroke="#71817e" stroke-width=".6"`)
     +`<path d="M1.3 2.1H${F(L-1.3)}M1.3 ${F(W-2.1)}H${F(L-1.3)}" stroke="#fffdf4" stroke-opacity=".7" stroke-width=".6"/>`
@@ -1051,7 +1087,7 @@ function drawDuctCover(r, ghost) {
 function drawRail(r, loose) {
   const {x,y,w}=r;let holes='';
   for(let p=12.5;p<w-6;p+=25)holes+=`M${F(p-7.5)} 14.9h15a2.6 2.6 0 0 1 0 5.2h-15a2.6 2.6 0 0 1 0-5.2z`;
-  let s=loose?'':R(x+.8,y+1.6,w,35,'fill="#182c36" fill-opacity=".23"');
+  let s=loose?'':reliefBox(x,y,w,35,7.5)+R(x+.8,y+1.6,w,35,'fill="#182c36" fill-opacity=".23"');
   s+=`<g${loose?' opacity=".82"':''} transform="translate(${F(x)} ${F(y)})">`
     +`<path d="${rectD(0,0,w,35)+holes}" fill-rule="evenodd" fill="url(#gRail)" stroke="#768994" stroke-width=".4"/>`
     +`<path d="${rectD(.7,8,w-1.4,19)+holes}" fill-rule="evenodd" fill="url(#gRailValley)"/>`
@@ -1422,21 +1458,16 @@ function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
   for (const t of devTerms('tb')) s += SCRS(x + t.x, y + t.y);
   return s;
 }
-function dStopper(x, cy) {   // 8mm 끝 고정구: 찬넬 걸림턱·중앙 고정 나사·성형 외장.
-  const w=STOPPER_W,h=44,y=cy-h/2,cx=x+w/2;
-  const outline=`M${F(x+1.1)} ${F(y)}h${F(w-2.2)}l1.1 1.3v${F(h-2.6)}l-1.1 1.3h${F(-w+2.2)}l-1.1-1.3V${F(y+1.3)}z`;
-  let ribs='';for(const yy of [y+7.5,y+10.5,y+h-10.5,y+h-7.5])ribs+=`M${F(x+1.7)} ${F(yy)}h${F(w-3.4)}`;
-  return shadow(x,y,w,h,1)
-    +`<path d="${outline}" fill="url(#gStopperBody)" stroke="#263f4e" stroke-width=".4"/>`
-    +R(x+1.35,y+3,w-2.7,h-6,'rx=".65" fill="url(#gPLCPolymer)" stroke="#4e6977" stroke-width=".35"')
-    +`<path d="${rectD(x+.65,y+3.4,w-1.3,2.1)+rectD(x+.65,y+h-5.5,w-1.3,2.1)}" fill="url(#gChrome)" stroke="#526b76" stroke-width=".3"/>`
-    +`<path d="${ribs}" stroke="#496471" stroke-opacity=".55" stroke-width=".6"/>`
-    +`<path d="${ribs}" transform="translate(0 .55)" stroke="#e6eff0" stroke-opacity=".7" stroke-width=".35"/>`
-    +R(cx-1.9,cy-7,3.8,14,'rx="1.5" fill="url(#gSocketPocket)" stroke="#5a7483" stroke-width=".35"')
-    +C(cx,cy+.3,2.7,'fill="#233b48"')+C(cx,cy,2.45,'fill="url(#gChrome)" stroke="#405c6a" stroke-width=".35"')
-    +SCRS(cx,cy)
-    +R(cx-1.45,y+h-3,2.9,1.3,'rx=".35" fill="#263d4a"')
-    +`<path d="M${F(x+.85)} ${F(y+2)}V${F(y+h-2)}M${F(x+1.5)} ${F(y+.8)}H${F(x+w-1.5)}" fill="none" stroke="#e2eef0" stroke-opacity=".65" stroke-width=".4"/>`;
+function dStopper(x, cy) {   // SEOIL UA-52: 8mm 두께, 45mm 길이, 회색 플라스틱·흰 견출지 자리.
+  const w=STOPPER_W,h=45,y=cy-h/2;
+  const outline=`M${F(x+1)} ${F(y+1.5)}h${F(w-2)}l1 2v${F(h-7)}l-1 2H${F(x+1)}l-1-2V${F(y+3.5)}z`;
+  return reliefBox(x,y,w,h,30,'stopper')+shadow(x,y,w,h,1)
+    +`<g data-stopper-model="UA-52"><path d="${outline}" fill="url(#gStopperBody)" stroke="#7b8977" stroke-width=".4"/>`
+    +R(x+1.15,y+6.6,w-2.3,h-13.2,'rx=".35" fill="#7d8977" stroke="#dce0ce" stroke-width=".25"')
+    +R(x+1.65,y+7.15,w-3.3,h-14.3,'rx=".2" fill="#fffef6" stroke="#b4bda9" stroke-width=".25"')
+    +R(x+.2,y+2,1.05,4.8,'rx=".25" fill="#b6bfae"')+R(x+w-1.25,y+h-6.8,1.05,4.8,'rx=".25" fill="#b6bfae"')
+    +`<path d="M${F(x+1.4)} ${F(y+4)}h${F(w-2.8)}M${F(x+1.4)} ${F(y+h-4)}h${F(w-2.8)}" fill="none" stroke="#77866f" stroke-width=".5"/>`
+    +`<path d="M${F(x+.8)} ${F(y+4.5)}V${F(y+h-4.5)}" stroke="#f0f0df" stroke-width=".45"/></g>`;
 }
 
 function fuseGlass(x, y, w, h, k) {   // 유리관 퓨즈 (세로): 위아래 크롬 마개, 투명 유리관, 가는 퓨즈선, 용량 글씨. k 끝이 x면 끊어진 퓨즈 (유리가 검게 타고 퓨즈선이 끊김)
@@ -2213,7 +2244,7 @@ const UI = { cam: { x: 0, y: 0, w: 800, h: 600 }, ckPop: {}, carry: null, pointe
   ptrs: new Map(), flash: null, peek: false, peekKey: '', press: null, lastDone: null, chooserZone: null, onOk: null, modalClosable: true, nm: {}, trayOpen: new Set() };
 let S = null, undoStack = [];
 const STORE = 't1sim', STORE_EXAM = STORE + '.exam', STORE_PRAC = STORE + '.prac', STORE_FAULT = STORE + '.fault';   // 자유·시험 작업, 연습 기록, 실전 고장 실습을 분리 저장
-const SET_DEF = { recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, bigLab: true, termName: true, lens: true, autoDress: false, prepTime: true, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
+const SET_DEF = { relief: true, recent1: true, recent2: true, net: true, opChk: true, hold: true, toolArt: true, bigLab: true, termName: true, lens: true, autoDress: false, prepTime: true, theme: 'auto' };   // 설정: 표시 기능 켜고 끄기 (모든 모드 공통)
 let SET = (() => { try { return { ...SET_DEF, ...(JSON.parse(localStorage.getItem(STORE + '.set') || '{}') || {}) }; } catch (e) { return { ...SET_DEF }; } })();
 const setSave = () => { try { localStorage.setItem(STORE + '.set', JSON.stringify(SET)); } catch (e) { /* 저장할 수 없는 환경 */ } };
 const applyTheme = () => { const r = document.documentElement; if (SET.theme === 'light' || SET.theme === 'dark') r.dataset.theme = SET.theme; else r.removeAttribute('data-theme'); };
@@ -4070,6 +4101,7 @@ function setSceneParts(parts) {
     setMarkup(node, html); at = node.nextElementSibling;
   }
   for (const [key, node] of SCENE_PARTS) if (!alive.has(key)) { node.remove(); SCENE_PARTS.delete(key); }
+  refreshRelief();
 }
 let FRONT_TERMS = { tv: -1, terms: null };
 function opFrontTerms() {   // 앞면일 때: 뒷면 단자 자리를 좌우로 되돌려 앞에서 본 자리 (조작판에 가려진다)
@@ -4731,6 +4763,7 @@ function applyCam(rect) {
   const width=rect?rect.width:svg.clientWidth, view=`${F(c.x)} ${F(c.y)} ${F(c.w)} ${F(c.h)}`;
   if(svg.getAttribute('viewBox')!==view)svg.setAttribute('viewBox',view);
   const det = width / c.w > 4.2; if (det !== UI.detail) { UI.detail = det; renderWorld(false); }
+  updateRelief();
 }
 let cameraFrame=0, cameraRect=null;
 function cameraGestureActive() { const g=UI.gesture;return !!g && (g.type==='pan'||g.type==='pinch'||(g.type==='press'&&g.moved&&!g.live)); }
@@ -5343,6 +5376,7 @@ window.addEventListener('blur', () => { if (UI.lens) { UI.lens = false; lensUpda
 
 /* ---------- 설정: 표시 기능 켜고 끄기 ---------- */
 const SET_ITEMS = [
+  ['relief', '은은한 입체감', '기존 작업판에서 화면을 옮기면 철판·덕트·찬넬·스토퍼의 옆면이 조금씩 달라져요'],
   ['recent1', '방금 꽂은 선', '전선·니퍼·테스터를 들면 방금 꽂은 선을 주황으로 (자유·시험 모드)'],
   ['recent2', '그 전에 꽂은 선', '그 전에 꽂은 선을 하늘색으로 (자유·시험 모드)'],
   ['net', '테스터: 같은 줄 표시', '테스터를 단자에 대면 같은 줄의 선과 단자를 초록으로'],
@@ -5568,7 +5602,6 @@ function tzFromPt(q) {   // 다이얼 가운데(20, 36.6)에서 본 각도 → �
   el.addEventListener('wheel', e => { if (!TZ.id) return; e.preventDefault(); tzSet((S.tset[TZ.id] || 0) + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 1 : .1), true); }, { passive: false });
 }
 document.addEventListener('keydown', e => {
-  if ($('#preview25') && !$('#preview25').hidden) { if (e.key === 'Escape') close25DPreview(); return; }
   if (!$('#modal').hidden) { if (e.key === 'Escape' && UI.modalClosable) closeModal(); return; }
   if (e.key === 'Escape' && !$('#devicePanel').hidden) { closeDevicePanel(); return; }
   if (e.key === 'Escape' && !$('#termSearch').hidden) { closeTermSearch(); $('#btnFind').focus(); return; }
@@ -5625,7 +5658,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.23.0', date: '2026.11.11', notes: ['2.5D 1차 미리보기: 철판·덕트·찬넬·스토퍼 입체 외형, 화면 이동 시 시점 변화·정면·각도 고정·확대와 지점 선택', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.24.0', date: '2026.11.11', notes: ['기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -6622,7 +6655,7 @@ function homeMainHTML() {
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
     + `<button class="hm-card fault" data-home="fault">${hmIc('fault')}<b>실전 고장 실습</b><p>증상만 보고 테스터로 찾아 고쳐요. 10개 선택 학습부터 무힌트 랭크까지</p><small>측정 → 수리 → 동작 검사</small></button>`
-    + '</div><div class="hm-foot"><button class="hm-chip" data-home="ranks">🏆 랭킹</button><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="preview25">◇ 2.5D 미리보기 · 1차</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
+    + '</div><div class="hm-foot"><button class="hm-chip" data-home="ranks">🏆 랭킹</button><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
 }
@@ -6668,25 +6701,6 @@ function showHome(page = 'main') {
   const b = $('#home').querySelector(page === 'prac' ? '.hm-go, .ls' : '.hm-card, .hm-back'); if (b) setTimeout(() => { if (b.isConnected && !$('#modal').hidden && !$('#modalCard').contains(document.activeElement)) b.focus({ preventScroll: true }); }, 30);
 }
 function hideHome() { $('#home').hidden = true; }
-function open25DPreview() {
-  let panel=$('#preview25');
-  if(!panel){
-    panel=document.createElement('div');panel.id='preview25';panel.className='preview25';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','2.5D 작업판 1차 미리보기');
-    panel.innerHTML='<iframe title="2.5D 작업판 1차 미리보기"></iframe><button class="preview25-close" type="button">← 메인으로 · Esc</button>';
-    panel.querySelector('button').addEventListener('click',close25DPreview);document.body.appendChild(panel);
-  }
-  closeModal();panel.hidden=false;$('.app').inert=true;$('#home').inert=true;
-  panel.querySelector('iframe').src='preview25d.html';panel.querySelector('button').focus();
-}
-function close25DPreview() {
-  const panel=$('#preview25');if(!panel||panel.hidden)return;
-  panel.hidden=true;panel.querySelector('iframe').removeAttribute('src');$('.app').inert=false;$('#home').inert=false;
-  $('#home [data-home="preview25"]')?.focus({preventScroll:true});
-}
-window.addEventListener('message',event=>{
-  const panel=$('#preview25');
-  if(panel&&!panel.hidden&&event.source===panel.querySelector('iframe').contentWindow&&event.data?.type==='task1:preview25-close')close25DPreview();
-});
 $('#home').addEventListener('input',e=>{if(e.target.id==='rankName')UI.rankDraft=e.target.value;});
 $('#home').addEventListener('click', e => {
   const rank = e.target.closest('[data-rank]'); if (rank) return rankAction(rank);
@@ -6699,7 +6713,6 @@ $('#home').addEventListener('click', e => {
   if (a === 'free') return goFree();
   if (a === 'exam') return goExam();
   if (a === 'demo') { goFree(); return demoOpen(); }
-  if (a === 'preview25') return open25DPreview();
   if (a === 'xp') return xpOpen();
   if (a === 'set') return showSettings();
   if (a === 'ver') openModal(`<h2>현재 버전 ${APP_VER.v}</h2><p class="muted">${APP_VER.date}</p><ul>${APP_VER.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">닫기</button></div>`);
