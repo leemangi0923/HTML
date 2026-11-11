@@ -518,6 +518,65 @@ test('UA-52 stopper has a white label and plastic side profile and installs thro
   await clickWorld(p.x,p.y);assert.equal(await page.evaluate(()=>S.stoppers.length),p.n);assert.equal(await page.evaluate(()=>groupEnds().every(e=>e.ok)),true);
 });
 
+test('graphics effects switch independently and restore without changing the circuit or work',async()=>{
+  await fullState();await page.evaluate(()=>showSettings());
+  const snapshot=()=>page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS),score:scoreSheet().total,undo:undoStack.length}));
+  const before=await snapshot();
+  const count=selector=>page.locator('#gWorld '+selector).count();
+  assert.ok(await count('.wire-shine')>0);
+  await page.locator('[data-set="wireShine"]').uncheck();assert.equal(await count('.wire-shine'),0);assert.ok(await count('.edge-light')>0);
+  await page.locator('[data-set="wireShine"]').check();assert.ok(await count('.wire-shine')>0);
+  await page.locator('[data-set="shadows"]').uncheck();assert.equal(await count('.effect-shadow'),0);
+  assert.equal(await page.evaluate(()=>reliefNodes.every(r=>r.shadow.getAttribute('display')==='none'&&!r.shadow.getAttribute('d'))),true);
+  assert.ok(await count('.edge-light')>0);assert.ok(await count('.housing-side-art')>0);
+  await page.locator('[data-set="lighting"]').uncheck();assert.equal(await count('.edge-light,.side-light'),0);
+  await page.locator('[data-set="sideDetail"]').uncheck();assert.equal(await count('.housing-side-art,.relief-detail,.buzzer-side-slots'),0);
+  assert.ok(await count('.relief-x[d]')>0);
+  await page.locator('[data-set="materials"]').uncheck();
+  assert.equal(await page.evaluate(()=>[...gWorld.querySelectorAll('[fill],[stroke]')].some(n=>/url\(#(?:g|pBrush|pSteelFine|pZinc|pHMIGrain|pCopperTurns)/.test((n.getAttribute('fill')||'')+(n.getAttribute('stroke')||'')))),false);
+  assert.equal(await page.locator('#scr circle[fill*="url("]').count(),0);
+  await page.locator('[data-set="animations"]').uncheck();assert.equal(await page.evaluate(()=>document.body.classList.contains('gfx-no-animations')),true);
+  await page.locator('[data-act="graphics-high"]').click();
+  assert.equal(await page.evaluate(()=>GRAPHICS_KEYS.every(k=>SET[k]===true)),true);
+  assert.ok(await count('.wire-shine')>0);assert.ok(await count('.edge-light')>0);assert.ok(await count('.housing-side-art')>0);
+  assert.equal(await page.locator('#scr circle[fill*="url("]').count(),1);
+  assert.deepEqual(await snapshot(),before);
+});
+
+test('all graphics off skips projection work, preserves wiring clicks and survives restart on narrow screens',async()=>{
+  await fullState();await page.evaluate(()=>showSettings());
+  const before=await page.evaluate(()=>({nodes:gWorld.querySelectorAll('*').length,state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS),score:scoreSheet().total}));
+  await page.locator('[data-act="graphics-low"]').click();
+  const low=await page.evaluate(()=>({nodes:gWorld.querySelectorAll('*').length,state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS),score:scoreSheet().total,
+    allOff:GRAPHICS_KEYS.every(k=>SET[k]===false),primitives:reliefNodes.reduce((n,r)=>n+r.node.children.length,0),paths:PROJECTION.paths.length,models:PROJECTION.models.length,over:PROJECTION.over.length}));
+  assert.ok(low.nodes<before.nodes*.85);assert.equal(low.state,before.state);assert.equal(low.terms,before.terms);assert.equal(low.score,30);
+  assert.equal(low.allOff,true);assert.equal(low.primitives,0);assert.equal(low.paths,0);assert.equal(low.models,0);assert.equal(low.over,0);
+  const calls=await page.evaluate(()=>{
+    let faces=0,paths=0,order=0;const a=updateSurfaceProjection,b=projectedPath,c=updateDepthOrder;
+    updateSurfaceProjection=(...args)=>{faces++;return a(...args);};projectedPath=(...args)=>{paths++;return b(...args);};updateDepthOrder=(...args)=>{order++;return c(...args);};
+    try{UI.cam.x+=180;UI.cam.y-=60;applyCam();return{faces,paths,order};}finally{updateSurfaceProjection=a;projectedPath=b;updateDepthOrder=c;}
+  });assert.deepEqual(calls,{faces:0,paths:0,order:0});
+  await page.locator('[data-act="close"]').click();
+  const points=await page.evaluate(()=>{
+    frList().find(([,q])=>q.slot==='d1')[1].covered=false;
+    const a='R3.5',b='PLC.N';S.wires=S.wires.filter(w=>pairKey(w.a,w.b)!==pairKey(a,b));renderAll();setTool('wire');fitTo({x:70,y:80,w:520,h:360});
+    return [TERM[a],TERM[b]].map(({x,y})=>({x,y}));
+  });
+  for(const p of points)await clickWorld(p.x,p.y);
+  assert.equal(await page.evaluate(()=>S.plcLid.b),false,'clicking the closed PLC cover opens it in flat mode');
+  await clickWorld(points[1].x,points[1].y);
+  assert.equal(await page.evaluate(()=>S.wires.some(w=>pairKey(w.a,w.b)===pairKey('R3.5','PLC.N'))),true);
+  await page.evaluate(()=>{frList().find(([,q])=>q.slot==='d1')[1].covered=true;renderAll();});
+  assert.equal(await page.evaluate(()=>scoreSheet().total),30);
+  await page.evaluate(()=>{showHome();save();});await page.reload();await page.waitForFunction(()=>window.SIM);
+  assert.equal(await page.evaluate(()=>GRAPHICS_KEYS.every(k=>SET[k]===false)),true);
+  await page.setViewportSize({width:390,height:844});await page.locator('[data-home="set"]').click();
+  const bounds=await page.locator('.graphics-presets').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=390);
+  assert.equal(await page.locator('[data-set="relief"]').isChecked(),false);
+  await page.locator('[data-act="set-reset"]').click();assert.equal(await page.evaluate(()=>GRAPHICS_KEYS.every(k=>SET[k]===true)),true);
+  assert.ok(await page.locator('#gWorld .edge-light').count()>0);assert.equal(await page.evaluate(()=>scoreSheet().total),30);
+});
+
 test('subtle relief setting persists and changes no work or grading',async()=>{
   await fullState();await page.evaluate(()=>{hideHome();showSettings();});
   const before=await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),score:scoreSheet().total}));

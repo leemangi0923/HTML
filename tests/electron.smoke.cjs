@@ -28,6 +28,9 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     assert.equal(await page.evaluate(()=>scoreSheet().total),30);
     assert.equal(await page.locator('iframe,canvas').count(),0);
     assert.equal(await page.evaluate(()=>gWorld.querySelectorAll('[data-stopper-model="UA-52"]').length===S.stoppers.length),true);
+    await page.locator('#btnSet').click();await page.locator('[data-act="graphics-low"]').click();
+    assert.equal(await page.evaluate(()=>GRAPHICS_KEYS.every(k=>SET[k]===false)&&PROJECTION.paths.length===0&&scoreSheet().total===30),true);
+    await page.locator('#modal [data-act="close"]').click();
     const destination=path.join(temp,'배선 목록.csv');
     await app.evaluate(({dialog},destination)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:destination});},destination);
     await page.locator('#btnWires').click();await page.locator('[data-act="wl-csv"]').click();
@@ -73,6 +76,7 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.getURL()),'task1://app/index.html');
     await app.close();app=null;
     page=await launch();await page.locator('[data-home="free"]').click();
+    assert.equal(await page.evaluate(()=>GRAPHICS_KEYS.every(k=>SET[k]===false)&&PROJECTION.models.length===0),true);
     assert.deepEqual(await page.evaluate(()=>S.tbLabels.slice(0,2)),['앱 저장 확인','종료 직전 저장']);
     await page.locator('#btnHome').click();await page.locator('[data-home="fault"]').click();await page.locator('[data-fd="resume"]').click();
     assert.deepEqual(await page.evaluate(()=>S.fault.ids),faultIds);assert.deepEqual(await page.evaluate(()=>S.fault.hints),[1]);
