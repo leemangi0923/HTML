@@ -195,6 +195,52 @@ test('every fitted device and both operator-panel faces have stable relief witho
   assert.deepEqual(result.missing,[]);for(const k of ['servo','front','back','stable','glass','fins'])assert.equal(result[k],true,k);
 });
 
+test('photo-based IO-link covers open and close at their original coordinates without changing wiring',async()=>{
+  await fullState();await page.evaluate(()=>{hideHome();S.finished=true;S.opBack=false;S.tool='hand';UI.carry=null;buildTerms();renderAll();});
+  const initial=await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires),devices:S.inst.filter(i=>i.type.startsWith('xtb')).map(i=>({id:i.id,type:i.type,x:i.x,y:devY(i),w:DEV[i.type].w}))}));
+  for(const i of initial.devices){
+    await page.evaluate(i=>fitTo({x:i.x-12,y:i.y-45,w:i.w+24,h:120}),i);
+    await clickWorld(i.x+i.w/2,i.y+28);
+    assert.equal(await page.evaluate(id=>S.xtbClosed[id],i.id),false);
+    const body=page.locator(`[data-scene-part="device-${i.id}"]`);
+    assert.equal(await body.locator('[data-xtb-terminal]').count(),i.type==='xtb40'?40:50);
+    assert.equal(await body.locator('[data-xtb-lid="open"]').count(),1);
+    assert.equal(await body.locator('[data-xtb-release]').count(),1);
+    await clickWorld(i.x+i.w/2,i.y-15);
+    assert.equal(await page.evaluate(id=>S.xtbClosed[id],i.id),true,await page.evaluate(()=>$('#toast').textContent));
+    assert.equal(await body.locator('[data-xtb-lid="open"]').count(),0);
+  }
+  assert.deepEqual(await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires)})),{terms:initial.terms,wires:initial.wires});
+  assert.deepEqual(await page.evaluate(()=>Object.entries(getChecks().res).filter(([,r])=>!r.ok).map(([id])=>id)),[]);
+  await page.evaluate(()=>{showHome();save();});await page.reload();await page.waitForFunction(()=>window.SIM);
+  assert.equal(await page.locator('[data-scene-part="lids"] [data-xtb-lid="closed"]').count(),2);
+});
+
+test('ducts and both rail lengths receive tape on the back, then mount face up and undo correctly',async()=>{
+  for(const type of ['duct','ch500','ch575']){
+    const target=await page.evaluate(type=>{setMode('free',newState(false));hideHome();S.marginSide='L';S.stage=1;UI.trayOpen.add('fr');renderAll();const r=type==='duct'?SLOT.d1:ROWS.find(r=>r.ch===type);return type==='duct'?{x:r.x+r.w/2,y:r.y+r.h/2,slot:r.id}:{x:300,y:r.cy,slot:r.rail};},type);
+    await page.waitForTimeout(80);await page.evaluate(()=>fitTo({x:-20,y:-20,w:800,h:920}));
+    await page.locator(`[data-key="${type}"]`).click();await clickWorld(380,740);
+    if(await page.evaluate(()=>!!UI.carry))await page.locator(`[data-key="${type}"]`).click();
+    const id=await page.evaluate(()=>S.floor.at(-1).pid);
+    assert.equal(await page.locator('#gWorld [data-frame-face="back"]').count(),1);
+    assert.equal(await page.locator('#gWorld [data-frame-tape]').count(),0);
+    await page.locator('[data-tool="hand"]').click();await clickWorld(380,740);await clickWorld(target.x,target.y);
+    assert.equal(await page.evaluate(id=>S.fr[id].stuck,id),false,'untaped back must not adhere');
+    await clickWorld(380,740);await page.locator('[data-tool="tape"]').click();await clickWorld(380,740);
+    assert.equal(await page.evaluate(id=>S.fr[id].taped,id),true);assert.equal(await page.locator('#gWorld [data-frame-tape="back"]').count(),1);
+    await page.evaluate(()=>{showHome();save();});await page.reload();await page.waitForFunction(()=>window.SIM);
+    await page.locator('[data-home="free"]').click();await page.waitForTimeout(80);await page.evaluate(()=>fitTo({x:-20,y:-20,w:800,h:920}));
+    assert.equal(await page.locator('#gWorld [data-frame-tape="back"]').count(),1,'saved loose part stays back up');
+    await page.locator('[data-tool="hand"]').click();await clickWorld(380,740);await clickWorld(target.x,target.y);
+    assert.equal(await page.evaluate(id=>S.fr[id].slot,id),target.slot);assert.equal(await page.evaluate(id=>S.fr[id].stuck,id),true);
+    assert.equal(await page.locator('#gWorld [data-frame-face="back"]').count(),0);assert.equal(await page.locator('#gWorld [data-frame-tape]').count(),0,'tape is beneath the fitted part');
+    assert.ok(await page.locator('#gWorld [data-frame-face="front"]').count()>0);
+    await page.evaluate(()=>undo());assert.equal(await page.evaluate(id=>S.fr[id].stuck,id),false);
+    await page.evaluate(()=>undo());assert.equal(await page.locator('#gWorld [data-frame-face="back"]').count(),1);assert.equal(await page.locator('#gWorld [data-frame-tape="back"]').count(),1);
+  }
+});
+
 test('broken duct junctions stay visibly open through undo and reload',async()=>{
   await fullState();
   const junctions=await page.evaluate(()=>{hideHome();S.guide=false;S.tool='hand';S.dbreak={};S.wires=[];S.helical=0;for(const[,q]of frList())q.covered=false;renderAll();return JUNC;});

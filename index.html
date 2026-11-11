@@ -751,9 +751,17 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
             <linearGradient id="gDuctWallV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#929e9d"/><stop offset=".4" stop-color="#d2d4cb"/><stop offset=".82" stop-color="#efeee5"/><stop offset="1" stop-color="#fffdf4"/></linearGradient>
             <linearGradient id="gDuctLidV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#788885"/><stop offset=".06" stop-color="#bcc5c0"/><stop offset=".3" stop-color="#e3e7df"/><stop offset=".65" stop-color="#eeefe7"/><stop offset=".84" stop-color="#fffdf5"/><stop offset=".955" stop-color="#f8f7ef"/><stop offset="1" stop-color="#8c9899"/></linearGradient>
             <linearGradient id="gStopperBody" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8f998b"/><stop offset=".18" stop-color="#c1c7b8"/><stop offset=".48" stop-color="#dedfd2"/><stop offset=".82" stop-color="#b8bfb0"/><stop offset="1" stop-color="#8c9989"/></linearGradient>
+            <linearGradient id="gXTBHousing" x2="0" y2="1"><stop stop-color="#f4f3e9"/><stop offset=".17" stop-color="#e5e5d9"/><stop offset=".62" stop-color="#d2d7c9"/><stop offset="1" stop-color="#aeb9aa"/></linearGradient>
+            <linearGradient id="gXTBCage" x2=".8" y2="1"><stop stop-color="#fcfced"/><stop offset=".21" stop-color="#c3cbbd"/><stop offset=".38" stop-color="#f1f3df"/><stop offset=".69" stop-color="#8f9f93"/><stop offset="1" stop-color="#d4dcce"/></linearGradient>
+            <linearGradient id="gXTBWell" x2="0" y2="1"><stop stop-color="#73816e"/><stop offset=".33" stop-color="#b6c0ad"/><stop offset="1" stop-color="#e9ebdd"/></linearGradient>
+            <linearGradient id="gXTBClip" x2="0" y2="1"><stop stop-color="#ffe665"/><stop offset=".35" stop-color="#f5bf13"/><stop offset=".76" stop-color="#e4a500"/><stop offset="1" stop-color="#b87b00"/></linearGradient>
             <g id="scr"><circle r="2.6" fill="#4c5358"/><circle r="2.2" fill="url(#gScrew)"/><path d="M-1.4 0H1.4M0 -1.4V1.4" stroke="#5a6167" stroke-width=".5"/></g>
             <g id="scrS"><circle r="2.05" fill="#4c5358"/><circle r="1.7" fill="url(#gScrew)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#5a6167" stroke-width=".4"/></g>
             <g id="scrY"><circle r="2.05" fill="#4a3c1c"/><circle r="1.7" fill="url(#gScrewY)"/><path d="M-1.05 0H1.05M0 -1.05V1.05" stroke="#6b5420" stroke-width=".4"/></g>
+            <linearGradient id="gDuctBack" x2="0" y2="1"><stop stop-color="#9aa69b"/><stop offset=".13" stop-color="#dedfd1"/><stop offset=".46" stop-color="#eff0e4"/><stop offset=".83" stop-color="#c7cebf"/><stop offset="1" stop-color="#8c9a8b"/></linearGradient>
+            <linearGradient id="gRailBack" x2="0" y2="1"><stop stop-color="#73848b"/><stop offset=".07" stop-color="#f8fbf0"/><stop offset=".3" stop-color="#c9d3ce"/><stop offset=".65" stop-color="#dbe2d8"/><stop offset=".93" stop-color="#eff4e8"/><stop offset="1" stop-color="#6d8085"/></linearGradient>
+            <linearGradient id="gTapeLiner" x2="0" y2="1"><stop stop-color="#f6ecc8"/><stop offset=".18" stop-color="#fff6d9"/><stop offset=".65" stop-color="#e7d5a5"/><stop offset="1" stop-color="#d1ba7e"/></linearGradient>
+            <pattern id="pZinc" patternTransform="scale(.45)" width="6.7" height="5.3" patternUnits="userSpaceOnUse"><path d="m.1 1.5 2-1 1.6 1.1-1.3 1.9zm3.8 1.2 2.1-.3.5 1.8-2 1z" fill="#6f958e" fill-opacity=".12"/><path d="m.3 4 1.4.8L3 3.5M4 .4l1.6.8" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width=".25"/></pattern>
           </defs>
           <g id="gMat"></g><g id="gWorld"></g><g id="gLive" pointer-events="none"></g><g id="gOver" pointer-events="none"></g>
         </svg>
@@ -1100,7 +1108,7 @@ function drawDuct(r, loose) {
     s+=R(j.x-.5,y0,j.w+1,y1-y0,'fill="url(#gDuctWellV)"')+`<path d="${z(y0,1.1)}${z(y1,-1.1)}" fill="none" stroke="#637976" stroke-width=".6"/>`;
   }
   if(loose)s+=R(x-1.5,y-1.5,w+3,h+3,'rx="2" fill="none" stroke="#fff" stroke-width=".9" stroke-dasharray="4 3"');
-  return s+'</g>';
+  return '<g data-frame-face="front" data-frame-type="duct">'+s+'</g></g>';
 }
 function drawDuctCover(r, ghost) {
   const {x,y,w,h,o}=r,L=o==='h'?w:h,W=o==='h'?h:w;
@@ -1110,6 +1118,26 @@ function drawDuctCover(r, ghost) {
     +`<path d="M1.3 2.1H${F(L-1.3)}M1.3 ${F(W-2.1)}H${F(L-1.3)}" stroke="#fffdf4" stroke-opacity=".7" stroke-width=".6"/>`
     +`<path d="M1.5 3.7H${F(L-1.5)}M1.5 ${F(W-3.7)}H${F(L-1.5)}" stroke="#7d8f8b" stroke-opacity=".24" stroke-width=".4"/>`
     +`<path d="M.6 2V${F(W-2)}M${F(L-.6)} 2V${F(W-2)}" stroke="#7a8984" stroke-opacity=".48" stroke-width=".55"/>`;
+  return s+'</g>';
+}
+function drawFrameBack(r,type,taped=false) {
+  const duct=type==='duct',L=r.o==='v'?r.h:r.w,W=duct?40:35;
+  let s=`<g data-frame-face="back" data-frame-type="${type}" transform="${frameLocal({...r,o:r.o||'h'})}">`;
+  if(duct){
+    let edge='';for(let p=0;p<L;p+=10)edge+=rectD(p,0,Math.min(6,L-p),2.2)+rectD(p,W-2.2,Math.min(6,L-p),2.2);
+    s+=`<path d="${edge}" fill="url(#gDuctWall)"/>`+R(0,2.2,L,W-4.4,'rx=".7" fill="url(#gDuctBack)" stroke="#8c9992" stroke-width=".4"')
+      +R(.6,6,L-1.2,W-12,'rx=".5" fill="url(#gPalePolymer)"')
+      +`<path d="M.6 5H${F(L-.6)}M.6 35H${F(L-.6)}" stroke="#f7f6e8" stroke-width=".7"/><path d="M.6 7H${F(L-.6)}M.6 33H${F(L-.6)}" stroke="#88958c" stroke-width=".4"/>`;
+  }else{
+    let holes='';for(let p=12.5;p<L-6;p+=25)holes+=`M${F(p-7.5)} 14.9h15a2.6 2.6 0 0 1 0 5.2h-15a2.6 2.6 0 0 1 0-5.2z`;
+    s+=`<path d="${rectD(0,0,L,W)+holes}" fill-rule="evenodd" fill="url(#gRail)" stroke="#72858d" stroke-width=".4"/><path d="${rectD(.5,8,L-1,19)+holes}" fill-rule="evenodd" fill="url(#gRailBack)"/><path d="${rectD(.5,8,L-1,19)+holes}" fill-rule="evenodd" fill="url(#pZinc)"/>`
+      +`<path d="M.5 7.5H${F(L-.5)}M.5 27H${F(L-.5)}" stroke="#fafdf5" stroke-width=".8"/><path d="M.5 9H${F(L-.5)}M.5 28.4H${F(L-.5)}" stroke="#647b86" stroke-width=".7"/><path d="${holes}" fill="none" stroke="#647a85" stroke-width=".45"/>`;
+  }
+  if(taped){const ty=W/2-6;
+    s+=`<g data-frame-tape="back">`+R(8,ty+.65,L-16,12,'rx=".6" fill="#8a794b" fill-opacity=".35"')+R(8,ty,L-16,11.5,'rx=".5" fill="url(#gTapeLiner)" stroke="#c4ae72" stroke-width=".35"')
+      +R(8,ty+10.7,L-16,.8,'fill="#fffef2"')+`<path d="M10 ${F(ty+1.2)}H${F(L-10)}" stroke="#fff9dd" stroke-width=".4"/>`;
+    s+='</g>';
+  }
   return s+'</g>';
 }
 function drawRail(r, loose) {
@@ -1126,7 +1154,7 @@ function drawRail(r, loose) {
     +`<path d="${holes}" transform="translate(0 .65)" fill="none" stroke="#eff5ef" stroke-opacity=".65" stroke-width=".4"/>`
     +`<path d="M.5 .5V34.5M${F(w-.5)} .5V34.5" stroke="#8197a3" stroke-width=".7"/></g>`;
   if(loose)s+=R(x-1.5,y-1.5,w+3,38,'rx="2" fill="none" stroke="#fff" stroke-width=".9" stroke-dasharray="4 3"');
-  return s;
+  return '<g data-frame-face="front" data-frame-type="rail">'+s+'</g>';
 }
 
 const drawHole = (x, y) => C(x,y,3,'fill="url(#gChrome)" stroke="#788b95" stroke-width=".25"')+C(x,y,2.6,'fill="url(#gSocketPocket)" stroke="#344b58" stroke-width=".3"');
@@ -1435,15 +1463,19 @@ function xtbLid(x, y, type, y0, y1, open = false) {   // 아이오 링크 뚜껑
   const lx0 = x + p0 - 5.25, lx1 = x + p0 + (n - 1) * 7 + 5.25, ly0 = y0 + 4.5, ly1 = y1 - 5, my = (ly0 + ly1) / 2; let g = '';
   const off = top => top !== open ? 1.75 : -1.75;   // 견출지 칸도 단자처럼 B단이 반 칸 오른쪽
   for (let i = 0; i <= n; i++) g += `M${F(x + p0 - 3.5 + off(true) + i * 7)} ${F(ly0 + .8)}V${F(my)}M${F(x + p0 - 3.5 + off(false) + i * 7)} ${F(my)}V${F(ly1 - .8)}`;
-  return reliefBox(x+2.5,y0,w-5,y1-y0,6,'pale')+R(x + 3, y0 + 1, w - 5, y1 - y0, 'rx="1.4" fill="#000" fill-opacity=".12"') + R(x + 2.5, y0, w - 5, y1 - y0, 'rx="1.4" fill="#e6ebee" stroke="#9fb0ba" stroke-width=".45"')
+  return `<g data-xtb-lid="${open?'open':'closed'}">`+reliefBox(x+2.5,y0,w-5,y1-y0,2,'glass')+R(x+2.5,y0,w-5,y1-y0,'rx="1.4" fill="url(#gRelayShell)" stroke="#a3b5b0" stroke-width=".45"')
+    +R(x+3.1,y0+.6,w-6.2,y1-y0-1.2,'rx="1" fill="none" stroke="#fff" stroke-opacity=".82" stroke-width=".3"')
     + R(lx0, ly0, lx1 - lx0, ly1 - ly0, 'rx=".5" fill="#fdfdfb" stroke="#b9c2c8" stroke-width=".3"') + `<path d="${g}M${F(lx0 + .6)} ${F(my)}H${F(lx1 - .6)}" stroke="#aab3b9" stroke-width=".25" fill="none"/>`
     + (open ? Array.from({ length: n }, (_, i) => ['B', 'A'].map(r => { const top = r === 'A', cy = top ? (ly0 + my) / 2 : (my + ly1) / 2;   // 열면 단자 이름 (B단이 경첩 쪽)
         return T(x + p0 + i * 7 + off(top), cy + .85, r + (i + 1), TX(2.4, '#3d454c', 'font-weight="700"')); }).join('')).join('') : '')
     + Object.entries(open ? {} : XTB_MARK[type] || {}).map(([k, txt]) => { const top = k[0] === 'B', cy = top ? (ly0 + my) / 2 : (my + ly1) / 2;   // 닫으면 견출지 (B단이 위)
       const fs = txt.length === 1 ? 6 : txt.length === 2 ? 3.6 : 2.7, col = txt === '+' ? '#c8102e' : txt === '−' ? '#1f5fbf' : '#1d2125';   // 칸 폭 7mm에 맞춰 글자 크기
-      return T(x + p0 + (+k.slice(1) - 1) * 7 + off(top), cy + fs * .35, txt, TX(fs, col, 'font-weight="900"' + (txt.includes('0') ? ` style="font-family: Consolas, Menlo, 'DejaVu Sans Mono', monospace"` : ''))); }).join('');   // 0이 든 글자는 0과 O가 구분되는 고정폭 글꼴
+      return T(x + p0 + (+k.slice(1) - 1) * 7 + off(top), cy + fs * .35, txt, TX(fs, col, 'font-weight="900"' + (txt.includes('0') ? ` style="font-family: Consolas, Menlo, 'DejaVu Sans Mono', monospace"` : ''))); }).join('')
+    +(!open?Array.from({length:n},(_,i)=>['B','A'].map(r=>{const top=r==='B',cy=top?ly0+2:my+2;return T(x+p0+i*7+off(top),cy,r+(i+1),TX(1.35,'#6d766d'));}).join('')).join(''):'')
+    +`<path d="M${F(x+4)} ${F(y0+1.3)}h${F(w-8)}M${F(x+4)} ${F(y1-1)}h${F(w-8)}" stroke="#fff" stroke-opacity=".65" stroke-width=".6"/>`
+    +[x+5,x+w-9].map(xx=>R(xx,y0-.5,4,2.2,'rx=".6" fill="url(#gRelayShell)" stroke="#8f9f96" stroke-width=".35"')).join('')+'</g>';
 }
-function xtbLidClosed(x, y, type) { const w = DEV[type].w, h = DEV[type].h; return xtbLid(x, y, type, y + 13.3, y + h - .6) + R(x + 2.5, y + 13.3, w - 5, 3, 'rx="1.4" fill="#f6f9fa"') + R(x + 4.5, y + h - 3.2, w - 9, .9, 'fill="#fff" fill-opacity=".7"'); }
+function xtbLidClosed(x, y, type) { return xtbLid(x,y,type,y+13.3,y+DEV[type].h-.6); }
 function lidsOver() {   // 닫은 덮개, 뚜껑은 전선 위에 그린다 (전선이 덮개 밑으로 들어간다)
   let s = '';
   for (const i of S.inst) {
@@ -1452,25 +1484,38 @@ function lidsOver() {   // 닫은 덮개, 뚜껑은 전선 위에 그린다 (전
   }
   return s;
 }
+function xtbTerminalWell(x,y,key) {
+  return `<g data-xtb-terminal="${key}">`+R(x-3.1,y-6.1,6.2,12,'rx=".6" fill="url(#gXTBHousing)" stroke="#a8b49e" stroke-width=".3"')
+    +`<path d="M${F(x-2.55)} ${F(y-5.5)}h5.1v9.6h-5.1Z" fill="url(#gXTBWell)"/>`
+    +R(x-2.35,y-3.4,4.7,6.6,'rx=".45" fill="url(#gXTBCage)" stroke="#879580" stroke-width=".25"')
+    +`<path d="M${F(x-2.5)} ${F(y+2.5)}v-6.2h1v5.1h3v-5.1h1v6.2Z" fill="url(#gXTBCage)" stroke="#8a9c88" stroke-width=".25"/>`
+    +R(x-1.85,y+4,3.7,1.3,'rx=".4" fill="#64725c"')
+    +`<path d="M${F(x-2.6)} ${F(y-5.3)}h5.2M${F(x-2.6)} ${F(y-5.3)}v10.9" fill="none" stroke="#fffef1" stroke-width=".4"/>`+SCRS(x,y)+'</g>';
+}
 function dXTB(x, y, type, name, closed = false) {
   const w = DEV[type].w, h = DEV[type].h, n = type === 'xtb40' ? 20 : 25, cw = type === 'xtb40' ? 74 : 89, p0 = (w - (n - 1) * 7) / 2;
-  let s = reliefBox(x,y,DEV[type].w,DEV[type].h,36,'pale');
-  if (!closed) s += xtbLid(x, y, type, y - 30.8, y - .4, true) + R(x + 2.5, y - 3.2, DEV[type].w - 5, 2.8, 'rx="1" fill="#f6f9fa"');   // 위로 젖혀 둔 뚜껑, 아래쪽이 경첩
+  let s = `<g data-xtb-body="${type}">`+reliefBox(x,y,w,h,36,'pale');
+  if(!closed)s+=xtbLid(x,y,type,y-30.8,y-.4,true);
   // 본체, 고정 구멍, 로고
-  s += shadow(x, y, w, h, 1.4) + R(x, y, w, h, 'rx="1.6" fill="#dcdad3" stroke="#a9a69c" stroke-width=".45"');
-  s += C(x + 11, y + 8, 2.6, 'fill="#bdb9af" stroke="#97938a" stroke-width=".3"') + C(x + w - 11, y + 8, 2.6, 'fill="#bdb9af" stroke="#97938a" stroke-width=".3"');
+  s += shadow(x,y,w,h,1.4)+R(x,y,w,h,'rx="1.6" fill="url(#gXTBHousing)" stroke="#9fac98" stroke-width=".45"')
+    +R(x+.7,y+.7,w-1.4,h-1.4,'rx="1.2" fill="none" stroke="#fffef4" stroke-opacity=".7" stroke-width=".45"');
+  for(const xx of [x+11,x+w-11])s+=R(xx-2.5,y+4.4,5,7.2,'rx="2.5" fill="url(#gXTBWell)" stroke="#a9b4a3" stroke-width=".35"')+R(xx-1.4,y+5.5,2.8,5.1,'rx="1.3" fill="#6b7966"');
   s += `<text x="${F(x + 4)}" y="${F(y + 4.2)}" font-size="2.8" font-weight="800" font-style="italic" fill="#1f6fd1">IOLINK</text>`;
   s += R(x + w - 12, y + 1, 9, 4.2, 'rx=".7" fill="#e2412b"') + T(x + w - 7.5, y + 4.1, 'XTB', TX(2.9, '#fff', 'font-weight="800"'));
   // 가운데 위: 커넥터 (40핀 / 50핀)
   const c0 = x + (w - cw) / 2;
-  s += R(c0, y + 2.5, cw, 10, 'rx="1" fill="#1b1e21"') + R(c0 + 3, y + 4.6, cw - 6, 5.6, 'fill="url(#pPins)"') + R(c0 + cw / 2 - 5, y + 2.5, 10, 1.8, 'fill="#3b4045"');
-  s += T(x + ((w - cw) / 2 + 14) / 2, y + 12.4, name ? 'IO LINK ' + name.slice(-1) : 'IO LINK', TX(2.7, '#2a2f33', 'font-weight="700"'));
+  s+=`<g data-xtb-connector="${n*2}">`+R(c0,y+2.5,cw,10,'rx=".8" fill="url(#gGraphite)" stroke="#10191a" stroke-width=".45"')+R(c0+2,y+4.2,cw-4,6.6,'rx=".35" fill="#101b1c"');
+  for(let k=0;k<n;k++)for(const yy of [y+5.1,y+8.4])s+=R(c0+3+k*(cw-6)/(n-1),yy,.65,1.8,'rx=".1" fill="url(#gContact)"');
+  for(const xx of [c0-1.2,c0+cw-3])s+=R(xx,y+1.2,4.2,12.1,'rx=".6" fill="url(#gGraphite)" stroke="#263430" stroke-width=".35"')+R(xx+.75,y+3.2,2.7,5,'rx=".3" fill="#152021"');
+  s+=R(c0+cw/2-3,y+9.8,6,2.7,'fill="url(#gXTBHousing)"')+'</g>';
   // 아래: 단자 두 단 (위 단 B, 아래 단 A)
-  s += R(x + p0 - 1.75, y + 14, n * 7, 15, 'rx=".6" fill="#e9e7e0" stroke="#b5b1a6" stroke-width=".3"') + R(x + p0 - 5.25, y + 29, n * 7, 14.5, 'rx=".6" fill="#d3d0c7" stroke="#b5b1a6" stroke-width=".3"');   // 위 단(B)이 아래 단(A)보다 반 칸 오른쪽
-  let d = ''; for (let i = 1; i < n; i++) d += `M${F(x + p0 - 1.75 + i * 7)} ${F(y + 15)}V${F(y + 29)}M${F(x + p0 - 5.25 + i * 7)} ${F(y + 29)}V${F(y + 42.5)}`;
-  s += `<path d="${d}" stroke="#bcb8ad" stroke-width=".5"/>`;
-  for (const t of devTerms(type)) s += SCRS(x + t.x, y + t.y);
-  return s;
+  s+=R(x+2,y+14,w-4,29,'rx=".8" fill="#b7c2ad"');
+  for(const t of devTerms(type))s+=xtbTerminalWell(x+t.x,y+t.y,t.k);
+  s+=`<g data-xtb-release="true">`+R(x+w/2-8,y+h-.4,16,4.5,'rx=".8" fill="url(#gXTBClip)" stroke="#b88505" stroke-width=".35"');
+  for(let k=0;k<13;k++)s+=LN(x+w/2-6.8+k*1.1,y+h+.5,x+w/2-6.8+k*1.1,y+h+3.4,'stroke="#fff085" stroke-width=".3"');
+  s+='</g>';
+  for(const xx of [x+3,x+w-6])s+=R(xx,y+12.4,3,2.7,'rx=".7" fill="url(#gRelayShell)" stroke="#9ba99a" stroke-width=".35"');
+  return s+'</g>';
 }
 function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
   const h = DEV.tb.h; let s = reliefBox(x,y,DEV.tb.w,DEV.tb.h,28,'graphite')+shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#2a2d30"');
@@ -2284,7 +2329,7 @@ let MODE = 'free';   // free: 자유, exam: 시험, prac: 연습, fault: 실전 
 const EXAM_LIMIT = 3.5 * 3600 * 1000;   // 경기 시간 3.5시간 (ms)
 const TOOL_HELP = {
   inspect: '기구를 눌러 단자 결선도, 코일과 접점의 현재 상태를 확인해요',
-  hand: '부품을 들어서 놓아요. 판을 끌면 화면이 움직여요', tape: '재료함의 덕트·찬넬을 눌러 양면테이프를 붙여요', pen: '판 끝에 댄 덕트나 서보 구멍 자리를 눌러 빨간 선을 그어요',
+  hand: '부품을 들어서 놓아요. 판을 끌면 화면이 움직여요', tape: '바닥에서 뒤집힌 덕트·찬넬의 뒷면에 양면테이프를 붙여요', pen: '판 끝에 댄 덕트나 서보 구멍 자리를 눌러 빨간 선을 그어요',
   ruler: '붙인 첫 덕트에 자를 대고 덕트, 찬넬 간격을 표시해요', glove: '장갑을 끼고 벗어요', drill: '붙인 덕트·찬넬을 눌러 구멍을 뚫어요. 장갑 필수',
   driver: '볼트를 조여요', stopper: '찬넬의 기구 묶음 끝을 눌러 스톱퍼를 끼워요. 끼운 스톱퍼를 다시 누르면 빠져요', label: '조작판 기기 아래에 견출지를 붙이거나 단자대의 흰 견출지를 눌러 편집해요', wire: '단자 두 개를 차례로 눌러 연결해요. 꽂은 선은 늘어져 있다가 선 정리(J)로 덕트에 넣어요', dress: '단자 쪽 전선 끝을 둘러싸게 끌어서 고르고(단자를 눌러도 돼요) 가까운 덕트의 회색 구멍을 누르면 그 구멍으로 들어가요. 두 끝을 넣으면 남는 선 고리를 잡고(여러 개는 가로질러) 위나 아래로 끌어 덕트 안에 접어 넣어요', cut: '전선, 부품, 견출지를 빼요', tie: '조작판 뒷면에서 누른 채로 묶을 전선들을 가로질러 끌었다 놓아요 (8cm 안). 묶은 타이는 손으로 끌면 묶인 그대로 움직여요', meter: '단자에 대면 그 단자와 같은 줄의 선이 모두 초록으로 보여요. 두 번째 단자에 대면 MCB ON은 전압, OFF는 도통'
 };
@@ -3086,9 +3131,7 @@ function floorAt(p) { for (let i = S.floor.length - 1; i >= 0; i--) if (inRect(p
 function drawFloorItem(f) {
   const r = floorRect(f);
   if (f.kind === 'fr') {
-    let s = f.key === 'duct' ? drawDuct({ ...r, o: 'h' }, false) : drawRail({ x: r.x, y: r.y, w: r.w }, false);
-    if (S.fr[f.pid] && S.fr[f.pid].taped) s += R(r.x + 8, r.y + r.h / 2 - 6, r.w - 16, 12, 'rx="1.5" fill="#efe6c8" fill-opacity=".9" stroke="#c9bd94" stroke-width=".5" stroke-dasharray="5 2"') + T(f.x, f.y + 2.4, '양면테이프', TX(6, '#7a6c3e', 'font-weight="700"'));
-    return s;
+    return drawFrameBack({...r,o:'h'},f.key,!!S.fr[f.pid]?.taped);
   }
   if (f.kind === 'op') return f.key === 'hmi' ? `<g transform="translate(${F(f.x - 146.75)} ${F(f.y - 100)})">${drawHMI()}</g>` : drawOpDev(f.key, f.x, f.y);
   if (f.kind === 'fuse') return `<g transform="translate(${F(r.x)} ${F(r.y)})">${fuseIcon(f.key)}</g>`;
@@ -3108,7 +3151,7 @@ function floorSVG() {
 }
 function tapeFloor(f) {
   const q = S.fr[f.pid]; if (q.taped) return say('이미 붙였어요', 'info');
-  snap(); q.taped = true; say(`${FRAME_TYPES[f.key].name}에 양면테이프를 붙였어요`, 'ok'); commit();
+  snap(); q.taped = true; say(`${FRAME_TYPES[f.key].name} 뒷면에 양면테이프를 붙였어요. 철판에 놓으면 접착면이 아래로 가고 정면이 보여요`, 'ok'); commit();
 }
 
 /* ---------- 놓기 ---------- */
@@ -3301,12 +3344,12 @@ function dropFrame(p) {
   else { row = rowAt(p); if (!row) return dropOnFloor(p); }
   const id = (UI.carry.ids && UI.carry.ids[0]) || availPart(type); if (!id) { UI.carry = null; return renderAll(); }
   const q = S.fr[id];
-  if (!q.taped) return say('테이프가 없어서 안 붙어요. 바닥에 내려놓고 양면테이프로 눌러서 붙여요', 'info');
-  if (type === 'duct') { snap(); Object.assign(q, { slot: slot.id, stuck: true }); say(`${slot.name}를 붙였어요`, 'ok'); }
+  if (!q.taped) return say('뒷면에 테이프가 없어서 안 붙어요. 바닥에 내려놓고 뒷면에 양면테이프를 붙여요', 'info');
+  if (type === 'duct') { snap(); Object.assign(q, { slot: slot.id, stuck: true }); say(`${slot.name}를 뒤집어 붙였어요. 열린 정면이 위로 보여요`, 'ok'); }
   else {
     if (slotTaken(row.rail)) return say('이 단에는 이미 찬넬이 있어요', 'info');
     if (row.ch !== type) return mistake(S.guide ? (row.id === 'r1' ? '1단은 500 찬넬이에요. 오른쪽에 서보 드라이버 자리가 남아야 해요' : `${row.name}은 575 찬넬이에요`) : '찬넬 길이가 맞지 않아요');
-    snap(); Object.assign(q, { slot: row.rail, stuck: true }); say(`${row.name}에 찬넬을 붙였어요`, 'ok');
+    snap(); Object.assign(q, { slot: row.rail, stuck: true }); say(`${row.name}에 찬넬을 뒤집어 붙였어요. 기구를 끼우는 정면이 위로 보여요`, 'ok');
   }
   consumeCarry(); commit();
 }
@@ -3984,7 +4027,7 @@ function renderTools() {
 function trayThumb(it) {
   const k = it.key; let vb = '0 0 40 24', inner = '';
   if (it.kind === 'op') { if (k === 'hmi') { vb = '0 0 60 44'; inner = R(1, 1, 58, 42, 'rx="3" fill="#30353a"') + R(5, 5, 50, 34, 'fill="#173246"'); } else { vb = '-17 -17 34 34'; inner = drawOpDev(k, 0, 0); } }
-  else if (it.kind === 'fr') { vb = k === 'duct' ? '0 0 90 40' : '0 -2 90 39'; inner = k === 'duct' ? drawDuct({ x: 0, y: 0, w: 90, h: 40, o: 'h' }, false) : drawRail({ x: 0, y: 0, w: 90 }, false); }
+  else if (it.kind === 'fr') { vb = k === 'duct' ? '0 0 90 40' : '0 -2 90 39'; inner = drawFrameBack({x:0,y:0,w:90,h:k==='duct'?40:35,o:'h'},k,false); }
   else if (it.kind === 'dev') { const d = k === 'servo' ? SERVO : DEV[k]; vb = `-2 -2 ${d.w + 4} ${d.h + 4}`; inner = k === 'servo' ? dServo(0, 0, false) : drawDevice(k, 0, 0, '', null); }
   else if (it.kind === 'fuse') { vb = '0 0 12 34'; inner = fuseIcon(k); }
   else if (it.kind === 'cover') { vb = '-2 -2 94 46'; inner = drawDuctCover({ x: 0, y: 0, w: 90, h: 40, o: 'h' }); }
@@ -4002,7 +4045,7 @@ function trayThumb(it) {
 function trayItemHTML(it) {
   const held = UI.carry && UI.carry.key === it.key, empty = it.left === 0, pick = MODE === 'prac' && PRAC.cur && PRAC.cur.tray === it.key && !held && !empty, cnt = it.left !== undefined ? `<span class="tcount">${it.left}/${it.total}</span>` : '';
   const tape = it.taped !== undefined ? `<span class="ttape">양면테이프 ${it.taped}/${it.total}</span>` : `<span class="tspec">${esc(it.spec)}</span>`;
-  return `<button class="titem${it.kind === 'conveyor' ? ' wide' : ''}${held ? ' held' : ''}${empty ? ' empty' : ''}${pick ? ' pick' : ''}" data-key="${it.key}"${empty ? ' aria-disabled="true"' : ''}><span class="thumb">${trayThumb(it)}</span><span class="tname">${esc(it.name)}</span>${tape}${cnt}</button>`;
+  return `<button class="titem${it.kind === 'conveyor' ? ' wide' : ''}${held ? ' held' : ''}${empty ? ' empty' : ''}${pick ? ' pick' : ''}" data-key="${it.key}"${empty && !held ? ' aria-disabled="true"' : ''}><span class="thumb">${trayThumb(it)}</span><span class="tname">${esc(it.name)}</span>${tape}${cnt}</button>`;
 }
 function renderTray() {
   const tr = document.querySelector('.tray'); tr.classList.toggle('dropzone', !!UI.carry); tr.querySelector('.ph').textContent = UI.carry ? '재료함 (누르면 들고 있는 걸 다시 넣어요)' : '재료함';
@@ -4170,7 +4213,7 @@ function world123Parts() {
   const fr = frList().filter(([, q]) => q.slot);
   for (const [, q] of fr) if (q.type === 'duct') s += drawDuct(frRect(q), !q.stuck);
   for (const [, q] of fr) if (q.type !== 'duct') s += drawRail(frRect(q), !q.stuck);
-  if (S.gauge) s += drawDuct(gaugeRect(S.gauge), true);
+  if (S.gauge) s += drawFrameBack(gaugeRect(S.gauge),'duct');
   if (S.rulerPlaced) s += drawRulerTool(S.rulerSide || 'L');
   for (const [, q] of fr) for (const [x, y] of q.holes) s += q.bolted ? drawBolt(x, y) : drawHole(x, y);
   SERVO.holes.forEach(([x, y], i) => { if (S.svHoles[i] && !S.servo.placed) s += drawHole(x, y); });
@@ -4270,14 +4313,16 @@ function ghost(p) {
     return `<g opacity=".7">${drawOpDev(c.key, p.x, p.y)}</g>`;
   }
   if (c.kind === 'fr') {
+    const id=c.ids?.[0]||availPart(c.key),taped=!!S.fr[id]?.taped;
     if (c.key === 'duct') {
-      let sl = null; const onPlate = inRect(p, { x: 0, y: 0, w: PANEL.w, h: PANEL.h });
-      if (onPlate && !S.marginSide && !S.gauge && (p.x < 40 || p.x > 720)) sl = gaugeRect(p.x < 40 ? 'L' : 'R');
-      else if (onPlate) sl = nearestFreeSlot(p, 50);
-      return sl ? `<g opacity=".65">${drawDuct(sl, true)}</g>` : `<g opacity=".7">${drawDuct({ x: p.x - 60, y: p.y - 20, w: 120, h: 40, o: 'h' }, true)}</g>`;
+      const onPlate=inRect(p,{x:0,y:0,w:PANEL.w,h:PANEL.h});
+      const gauge=onPlate&&!S.marginSide&&!S.gauge&&(p.x<40||p.x>720)?gaugeRect(p.x<40?'L':'R'):null;
+      const sl=onPlate&&!gauge?nearestFreeSlot(p,50):null;
+      const r=gauge||sl||{x:p.x-60,y:p.y-20,w:120,h:40,o:'h'};
+      return `<g opacity=".8">${sl&&taped?drawDuct(sl,true):drawFrameBack(r,'duct',taped)}</g>`;
     }
-    const row = rowAt(p), len = FRAME_TYPES[c.key].len;
-    return row && !slotTaken(row.rail) ? `<g opacity=".65">${drawRail({ x: CH_X, y: row.cy - 17.5, w: len }, true)}</g>` : `<g opacity=".7">${drawRail({ x: p.x - 60, y: p.y - 17.5, w: 120 }, true)}</g>`;
+    const row=rowAt(p),len=FRAME_TYPES[c.key].len,valid=row&&!slotTaken(row.rail)&&row.ch===c.key;
+    return valid&&taped?`<g opacity=".75">${drawRail({x:CH_X,y:row.cy-17.5,w:len},true)}</g>`:`<g opacity=".8">${drawFrameBack({x:p.x-60,y:p.y-17.5,w:120,h:35,o:'h'},c.key,taped)}</g>`;
   }
   if (c.kind === 'tbcover') { const r = tbRect(); return r && inRect(p, r, 12) && !S.tbCover ? drawTBCover(r, true) : drawTBCover({ x: p.x - 60, y: p.y - 10, w: 120, h: 20 }, true); }
   if (c.kind === 'tie') return drawTieIcon(p.x + 6, p.y - 6, true);
@@ -5756,7 +5801,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.27.1', date: '2026.11.11', notes: ['덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.28.0', date: '2026.11.11', notes: ['사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -5913,7 +5958,7 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
     next: () => S.gauge ? { tx: '빨간 펜으로 댄 덕트 누르기', sub: '도구 줄의 빨간 펜을 들고 판 끝에 댄 덕트를 눌러요', tool: 'pen', hl: { box: gaugeRect(S.gauge) } }
       : UI.carry && UI.carry.key === 'duct' ? { tx: '판 왼쪽 끝 바깥에 덕트 대기', sub: '빨간 테두리(여백 40mm 자리)를 눌러요', hl: { box: gaugeRect('L') } }
       : { tx: '덕트 꺼내기', sub: "재료함 '덕트·찬넬'에서 덕트를 눌러 들어요", tray: 'duct', hl: { box: gaugeRect('L') } } });
-  L(1, '양면테이프 붙이기', '덕트 6개, 찬넬 3개를 바닥에 내려놓고 양면테이프로 하나씩 눌러요', { keys: ['taped'], focus: P_V.floor,
+  L(1, '양면테이프 붙이기', '뒤집힌 덕트 6개·찬넬 3개를 바닥에 놓고, 뒷면에 양면테이프를 붙여요. 철판에 붙일 때 정면으로 뒤집혀요', { keys: ['taped'], focus: P_V.floor,
     fill: () => { for (const [, q] of frList()) q.taped = true; S.floor = FRAME_INIT.map(([id, type], k) => ({ id: 'f' + (900 + k), kind: 'fr', key: type, pid: id, x: 380, y: 670 + k * 50 })); },
     prog: () => [nTaped(), 9], goal: () => nTaped() === 9,
     next: () => {
