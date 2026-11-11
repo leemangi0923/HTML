@@ -367,6 +367,32 @@ test('terminal strip clear cover follows its body while terminal screws and conn
   assert.equal(result.cells,40);for(const[k,v]of Object.entries(result))if(k!=='cells')assert.equal(v,true,k);
 });
 
+test('real iXP2 rear housing has recessed aligned power terminals and exposes its real connector wall only from below',async()=>{
+  await fullState();await page.evaluate(()=>{hideHome();S.finished=true;S.opBack=true;S.tool='wire';UI.carry=null;buildTerms();renderAll();});
+  const initial=await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS)}));
+  const result=await page.evaluate(()=>{
+    const root=gWorld.querySelector('[data-depth-object="hmi"]'),ports=[...root.querySelectorAll('[data-hmi-port]')].map(n=>n.dataset.hmiPort),usb=root.querySelectorAll('[data-hmi-usb-socket]').length;
+    let aligned=true,inverse=true,recessed=true,edge=true;
+    for(const sign of [-1,1])for(const vertical of [-160,160]){
+      UI.cam={x:OPW.x+OP.w/2+sign*210-450,y:OPW.y+OP.h/2+vertical-350,w:900,h:700};applyCam();
+      for(const key of ['+','-','FG']){const t=TERM['OP.HMI.'+key],p={x:t.x-OPW.x,y:t.y-OPW.y},screw=root.querySelector(`use[x="${F(p.x)}"][y="${F(p.y)}"]`),wire=[...gWorld.querySelectorAll('[data-project-at] use')].find(n=>+n.getAttribute('x')===t.x&&+n.getAttribute('y')===t.y);
+        const a=new DOMPoint(p.x,p.y).matrixTransform(svgLocalMatrix(screw)),q=projectWorkPoint(t),picked=unprojectWorkPoint(q);aligned&&=Math.hypot(a.x-q.x,a.y-q.y)<.04;
+        if(wire){const b=new DOMPoint(t.x,t.y).matrixTransform(svgLocalMatrix(wire));aligned&&=Math.hypot(a.x-b.x,a.y-b.y)<.04;}
+        inverse&&=Math.hypot(t.x-picked.x,t.y-picked.y)<.04;recessed&&=projectionBinding(t.x,t.y).r.z===38;
+      }
+      const wall=root.querySelector('[data-hmi-connector-wall]').closest('[data-housing-cap-bottom]');edge&&=wall.getAttribute('display')===(vertical>0?'inline':'none');
+    }
+    return{ports,usb,aligned,inverse,recessed,edge,features:['[data-hmi-vent-panel]','[data-hmi-battery-cover]','[data-hmi-cf-bay]','[data-hmi-rating-plate]'].every(q=>!!root.querySelector(q)),text:root.textContent};
+  });
+  assert.deepEqual(result.ports,['serial','lan1','lan2','usb','hdmi','audio']);assert.equal(result.usb,2);
+  for(const key of ['aligned','inverse','recessed','edge','features'])assert.equal(result[key],true,key);
+  assert.match(result.text,/iXP2-0800D/);assert.doesNotMatch(result.text,/ASU/);
+  assert.deepEqual(await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS)})),initial);
+  const t=await page.evaluate(()=>({x:TERM['OP.HMI.+'].x,y:TERM['OP.HMI.+'].y}));await clickWorld(t.x,t.y);
+  assert.equal(await page.evaluate(()=>UI.pending),'OP.HMI.+');
+  assert.deepEqual(await page.evaluate(()=>Object.entries(getChecks().res).filter(([,r])=>!r.ok).map(([id])=>id)),[]);
+});
+
 test('ducts and both rail lengths receive tape on the back, then mount face up and undo correctly',async()=>{
   for(const type of ['duct','ch500','ch575']){
     const target=await page.evaluate(type=>{setMode('free',newState(false));hideHome();S.marginSide='L';S.stage=1;UI.trayOpen.add('fr');renderAll();const r=type==='duct'?SLOT.d1:ROWS.find(r=>r.ch===type);return type==='duct'?{x:r.x+r.w/2,y:r.y+r.h/2,slot:r.id}:{x:300,y:r.cy,slot:r.rail};},type);
