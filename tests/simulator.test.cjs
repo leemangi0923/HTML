@@ -393,6 +393,22 @@ test('real iXP2 rear housing has recessed aligned power terminals and exposes it
   assert.deepEqual(await page.evaluate(()=>Object.entries(getChecks().res).filter(([,r])=>!r.ok).map(([id])=>id)),[]);
 });
 
+test('fixed upper-left light distinguishes raised lever edges from recessed ports and keeps its direction during camera movement',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    hideHome();S.finished=true;renderAll();const servo=SCENE_PARTS.get('servo'),before=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS);
+    const lever=servo.querySelector('rect[fill="url(#gOrangeLever)"]').closest('[data-shape-depth]'),port=servo.querySelector('rect[fill="#03090c"]').closest('[data-shape-depth]');
+    const edgeHit=(g,which,where)=>{const r=[...g.children].find(n=>n.tagName==='rect'&&n.getAttribute('fill')!=='#08151d'),x=+r.getAttribute('x'),y=+r.getAttribute('y'),w=+r.getAttribute('width'),h=+r.getAttribute('height');return g.querySelector('.edge-'+which).isPointInFill(new DOMPoint(x+w/2,where==='top'?y+.1:y+h-.1));};
+    const volume=edgeHit(lever,'bright','top')&&edgeHit(lever,'dark','bottom')&&edgeHit(port,'dark','top')&&edgeHit(port,'bright','bottom');
+    const r=reliefNodes.find(r=>r.kind==='servo'),nodes=[...r.sideLight.children],face=servo.querySelector('.surface-top > .edge-light')||servo.querySelector('.edge-light'),faceBefore=face.innerHTML;let direction=true;
+    for(const sign of [-1,1]){UI.cam={x:380+sign*260-450,y:300-350,w:900,h:700};applyCam();const[x,y,w,h]=r.box,dx=+r.node.dataset.sideX,p=new DOMPoint((dx>0?x+w:x)+dx/2,y+h/2);
+      direction&&=nodes[sign>0?3:1].isPointInFill(p)&&!nodes[sign>0?1:3].isPointInFill(p);
+    }
+    return{volume,direction,fixed:faceBefore===face.innerHTML,reused:nodes.every(n=>n.isConnected),state:before===JSON.stringify({...S,elapsed:0}),terms:terms===JSON.stringify(TERMS),pointer:getComputedStyle(r.sideLight).pointerEvents};
+  });
+  for(const[k,v]of Object.entries(result))assert.equal(v,k==='pointer'?'none':true,k);
+});
+
 test('ducts and both rail lengths receive tape on the back, then mount face up and undo correctly',async()=>{
   for(const type of ['duct','ch500','ch575']){
     const target=await page.evaluate(type=>{setMode('free',newState(false));hideHome();S.marginSide='L';S.stage=1;UI.trayOpen.add('fr');renderAll();const r=type==='duct'?SLOT.d1:ROWS.find(r=>r.ch===type);return type==='duct'?{x:r.x+r.w/2,y:r.y+r.h/2,slot:r.id}:{x:300,y:r.cy,slot:r.rail};},type);
