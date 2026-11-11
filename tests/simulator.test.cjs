@@ -176,9 +176,47 @@ test('every available score location on an empty board has finite visible marks'
 });
 
 async function clickWorld(x, y) {
-  const p = await page.evaluate(({x,y}) => { const r = svg.getBoundingClientRect(); return { x:r.left+(x-UI.cam.x)/UI.cam.w*r.width, y:r.top+(y-UI.cam.y)/UI.cam.h*r.height }; }, {x,y});
+  const p = await page.evaluate(({x,y}) => { const r = svg.getBoundingClientRect(),p=projectWorkPoint({x,y}); return { x:r.left+(p.x-UI.cam.x)/UI.cam.w*r.width, y:r.top+(p.y-UI.cam.y)/UI.cam.h*r.height }; }, {x,y});
   await page.mouse.click(p.x,p.y);
 }
+
+test('elevated faces move around fixed bases and their wire terminal hardware stays aligned on both views',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    hideHome();S.finished=true;UI.detail=false;renderWorld(false);
+    const i=S.inst.find(i=>i.type==='smps'),r=PROJECTION.owners.get('device-'+i.id),before=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS),wire=S.wires[0],route=wirePts(wire,0),nodes=[...gWorld.children];
+    const t=TERM['SMPS.L'],terminal=SCENE_PARTS.get('device-'+i.id).querySelector(`use[x="${F(t.x)}"][y="${F(t.y)}"]`),extra=[...gWorld.querySelectorAll('[data-project-at] use')].find(n=>+n.getAttribute('x')===t.x&&+n.getAttribute('y')===t.y);
+    const at=n=>new DOMPoint(t.x,t.y).matrixTransform(svgLocalMatrix(n));let aligned=true,anchored=true,inverse=true;const offsets=[];
+    for(const sign of [-1,1]){
+      const b=r.world,w=900,h=700;UI.cam={x:b.x+b.w/2+sign*260-w/2,y:b.y+b.h/2-h/2,w,h};applyCam();offsets.push(r.tx);
+      const a=at(terminal),c=at(extra);aligned&&=Math.hypot(a.x-c.x,a.y-c.y)<.04;const shown=projectWorkPoint(t),picked=unprojectWorkPoint(shown);inverse&&=Math.hypot(picked.x-t.x,picked.y-t.y)<.04;
+      const baseX=sign>0?b.x+b.w:b.x,m=svgLocalMatrix(r.sideX),vertices=projectionCommands(r.sideX.getAttribute('d')).flatMap(c=>{const p=[];for(let k=0;k<c.v.length;k+=2)p.push(new DOMPoint(c.v[k],c.v[k+1]).matrixTransform(m));return p;});
+      anchored&&=vertices.some(p=>Math.abs(p.x-baseX)<.04)&&Math.abs(svgLocalMatrix(r.node).e)<.001;
+    }
+    const moved=offsets[0]>0&&offsets[1]<0;
+    return{moved,anchored,aligned,inverse,state:before===JSON.stringify({...S,elapsed:0}),terms:terms===JSON.stringify(TERMS),route:route===wirePts(wire,0),nodes:nodes.every(n=>n.isConnected)};
+  });
+  for(const[k,v]of Object.entries(result))assert.equal(v,true,k);
+});
+
+test('connected duct top faces meet at every junction after horizontal and vertical camera movement',async()=>{
+  await fullState();
+  const errors=await page.evaluate(()=>{
+    hideHome();for(const[,q]of frList())q.covered=false;UI.detail=false;renderWorld(false);const errors=[];
+    for(const[x,y]of [[-300,-160],[500,500]]){UI.cam={x,y,w:900,h:700};applyCam();
+      for(const j of JUNC){const vertical=PROJECTION.models.find(r=>r.kind==='duct'&&r.box[0]===SLOT[j.v].x&&r.box[1]===SLOT[j.v].y),horizontal=PROJECTION.models.find(r=>r.kind==='duct'&&r.box[0]===SLOT[j.d].x&&r.box[1]===SLOT[j.d].y),p=new DOMPoint(j.id.endsWith('L')?j.x+j.w:j.x,j.y+j.h/2),a=p.matrixTransform(svgLocalMatrix(vertical.face)),b=p.matrixTransform(svgLocalMatrix(horizontal.face));if(Math.hypot(a.x-b.x,a.y-b.y)>.02)errors.push(j.id);}
+    }return errors;
+  });
+  assert.deepEqual(errors,[]);
+});
+
+test('projected terminals and the raised MCB handle accept their visible positions after a wide pan',async()=>{
+  await fullState();
+  const target=await page.evaluate(()=>{hideHome();S.finished=true;S.opBack=false;S.xtbClosed={};S.tool='wire';buildTerms();renderAll();const t=TERM['XTB1.A1'];UI.cam={x:t.x-140,y:t.y-300,w:900,h:700};applyCam();return{x:t.x,y:t.y};});
+  await clickWorld(target.x,target.y);assert.equal(await page.evaluate(()=>UI.pending),'XTB1.A1');
+  const handle=await page.evaluate(()=>{UI.pending=null;S.tool='hand';LIVE.inp.mcb=false;renderAll();const i=S.inst.find(i=>i.type==='mcb'),b=mcbSwRect(i);UI.cam={x:i.x-35,y:devY(i)-50,w:140,h:170};applyCam();return{x:b.x+b.w-1,y:b.y+b.h/2};});
+  await clickWorld(handle.x,handle.y);assert.equal(await page.evaluate(()=>LIVE.inp.mcb),true);
+});
 
 test('every fitted device and both operator-panel faces have stable relief without changing work during camera movement',async()=>{
   await fullState();
@@ -296,11 +334,11 @@ test('wire dressing accepts a position beneath a duct tooth and keeps covered du
   await clickWorld(point.x,point.y);assert.equal(await page.evaluate(({a,b})=>!!S.wires.find(w=>w.a===a&&w.b===b).ha,point),false);
 });
 
-test('main-board relief changes only shallow sides on pan and preserves terminals, wiring, score and SVG nodes',async()=>{
+test('camera movement preserves model terminals, wiring, score and SVG nodes while projecting height',async()=>{
   await fullState();await page.evaluate(()=>hideHome());
   const result=await page.evaluate(()=>{
     const state=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS),score=scoreSheet().total,w=S.wires[0],path=wirePts(w,0),node=SCENE_PARTS.get('stoppers');
-    const part=reliefNodes.find(r=>r.kind==='stopper'),[x,y,width,height]=part.box,cam={...UI.cam};
+    const part=reliefNodes.find(r=>r.kind==='stopper'),{x,y,w:width,h:height}=projectionReference(part.world),cam={...UI.cam};
     UI.cam={...cam,x:x+width/2-250-cam.w/2};applyCam();const left=Number(part.node.dataset.sideX),leftPath=part.profile.getAttribute('transform');
     UI.cam={...cam,x:x+width/2+250-cam.w/2};applyCam();const right=Number(part.node.dataset.sideX),rightPath=part.profile.getAttribute('transform');
     return{left,right,changed:leftPath!==rightPath,shallow:reliefNodes.every(r=>Math.abs(Number(r.node.dataset.sideX))<=r.box[4]*.09+.011),state:state===JSON.stringify({...S,elapsed:0}),terms:terms===JSON.stringify(TERMS),score:score===scoreSheet().total,path:path===wirePts(w,0),node:node===SCENE_PARTS.get('stoppers'),pointer:part.node.getAttribute('pointer-events'),iframe:document.querySelectorAll('iframe,canvas').length};
@@ -701,7 +739,7 @@ test('pointer bursts draw once per animation frame and keep the final pointer po
     for(let i=0;i<80;i++)svg.dispatchEvent(new PointerEvent('pointermove',{clientX:box.left+40+i,clientY:box.top+50,pointerId:1,pointerType:'mouse',bubbles:true}));
     const before=calls;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
     const pointer={...UI.pointer};renderOver=original;
-    return{before,calls,pointer,expected:toWorld(box.left+119,box.top+50)};
+    return{before,calls,pointer,expected:toWorkWorld(box.left+119,box.top+50)};
   });
   assert.equal(r.before,0);assert.equal(r.calls,1);assert.deepEqual(r.pointer,r.expected);
 });
@@ -758,8 +796,9 @@ test('pointer cancel clears a pending selection rectangle without a stale next-f
     const b=svg.getBoundingClientRect();S.tool='dress';UI.overBoard=true;UI.gesture={type:'dbox',moved:true,p0:toWorld(b.left+20,b.top+20)};
     svg.dispatchEvent(new PointerEvent('pointermove',{clientX:b.left+80,clientY:b.top+80,pointerId:1,pointerType:'mouse',bubbles:true}));
     svg.dispatchEvent(new PointerEvent('pointercancel',{pointerId:1,pointerType:'mouse',bubbles:true}));
-    const html=gOver.innerHTML;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-    return{gesture:UI.gesture,pending:overlayFrame,stable:html===gOver.innerHTML};
+    // A legitimate ResizeObserver update can change projection transforms after the hint bar changes height.
+    const html=gOver._markup;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    return{gesture:UI.gesture,pending:overlayFrame,stable:html===gOver._markup};
   });
   assert.deepEqual(r,{gesture:null,pending:0,stable:true});
 });
@@ -1211,11 +1250,11 @@ test('tie input bursts calculate once per frame, retain unrelated SVG, and save 
     const original=tieDrag;let calls=0;tieDrag=(...args)=>{calls++;return original(...args);};
     for(let i=1;i<=120;i++)svg.dispatchEvent(new PointerEvent('pointermove',{clientX:sx+i*.04,clientY:sy,pointerId:1,pointerType:'mouse',buttons:1,bubbles:true}));
     const beforeFrame=calls;await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));const afterFrame=calls;
-    const end=toWorld(sx+5.4,sy),expected={x:Math.round((g.c0.x+end.x-g.p0.x)*100)/100,y:Math.round((g.c0.y+end.y-g.p0.y)*100)/100};
+    const end=toWorkWorld(sx+5.4,sy),expected={x:Math.round((g.c0.x+end.x-g.p0.x)*100)/100,y:Math.round((g.c0.y+end.y-g.p0.y)*100)/100};
     svg.dispatchEvent(new PointerEvent('pointerup',{clientX:sx+5.4,clientY:sy,pointerId:1,pointerType:'mouse',button:0,bubbles:true}));
     tieDrag=original;const saved=loadKey(STORE).ties[0].c;
     const retained=panel===gWorld.querySelector('[data-scene-part="panel"] path'),connected=wireSig0===wireSig(),atEnd={...S.ties[0].c};
-    const finalMarkup=gWorld.innerHTML;await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));const stable=finalMarkup===gWorld.innerHTML;
+    const finalMarkup=[...gWorld.children].map(n=>n._markup).join('');await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));const stable=finalMarkup===[...gWorld.children].map(n=>n._markup).join('');
     undo();return{beforeFrame,afterFrame,expected,atEnd,saved,retained,connected,stable,undone:JSON.stringify(before)===JSON.stringify(S.ties[0].c)};
   });
   assert.equal(result.beforeFrame,0);assert.equal(result.afterFrame,1);
@@ -1230,13 +1269,13 @@ test('tie release, cancellation, lost capture and focus loss flush pending motio
       S.finished=true;fitOp();const t=S.ties[0];tieToNew(t);snap();
       const geo=tieGeo(t),r=svg.getBoundingClientRect(),sx=r.left+(geo.M.x-UI.cam.x)/UI.cam.w*r.width,sy=r.top+(geo.M.y-UI.cam.y)/UI.cam.h*r.height;
       const g={type:'tiemove',t,sx,sy,p0:{...geo.M},c0:{...t.c},rank:geo.rank,moved:true,rect:r};UI.gesture=g;
-      const cx=sx+5,point=toWorld(cx,sy),expected={x:Math.round((g.c0.x+point.x-g.p0.x)*100)/100,y:Math.round((g.c0.y+point.y-g.p0.y)*100)/100};
+      const cx=sx+5,point=toWorkWorld(cx,sy),expected={x:Math.round((g.c0.x+point.x-g.p0.x)*100)/100,y:Math.round((g.c0.y+point.y-g.p0.y)*100)/100};
       svg.dispatchEvent(new PointerEvent('pointermove',{clientX:cx,clientY:sy,pointerId:1,pointerType:'mouse',buttons:1,bubbles:true}));
       if(end==='blur')window.dispatchEvent(new Event('blur'));
       else svg.dispatchEvent(new PointerEvent(end,{clientX:cx,clientY:sy,pointerId:1,pointerType:'mouse',bubbles:true}));
-      const after={...S.ties[0].c},html=gWorld.innerHTML;
+      const after={...S.ties[0].c},html=[...gWorld.children].map(n=>n._markup).join('');
       await new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done)));
-      return{expected,after,gesture:UI.gesture,pending:g.raf,stable:html===gWorld.innerHTML,saved:loadKey(STORE).ties[0].c};
+      return{expected,after,gesture:UI.gesture,pending:g.raf,stable:html===[...gWorld.children].map(n=>n._markup).join(''),saved:loadKey(STORE).ties[0].c};
     },end);
     assert.deepEqual(result.after,result.expected,end);assert.deepEqual(result.saved,result.expected,end);
     assert.equal(result.gesture,null,end);assert.equal(result.pending,0,end);assert.equal(result.stable,true,end);
