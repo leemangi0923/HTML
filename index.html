@@ -644,6 +644,11 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 #desktopUpdate p { margin:8px 0; }
 #desktopUpdate button { padding:7px 10px; margin:3px; border:1px solid var(--line); border-radius:7px; background:var(--panel2); cursor:pointer; }
 #desktopUpdate .primary { background:var(--accent); color:#261f00; }
+.preview25 { position:fixed; inset:0; z-index:90; background:#101c1b; }
+.preview25[hidden] { display:none; }
+.preview25 iframe { display:block; width:100%; height:100%; border:0; }
+.preview25-close { position:absolute; top:22px; right:24px; padding:9px 14px; border:1px solid #3d514a; border-radius:8px; background:#142321; color:#e5edeb; font:13px var(--font); cursor:pointer; }
+.preview25-close:focus-visible { outline:2px solid #f2cd60; outline-offset:3px; }
 </style>
 </head>
 <body>
@@ -5563,6 +5568,7 @@ function tzFromPt(q) {   // 다이얼 가운데(20, 36.6)에서 본 각도 → �
   el.addEventListener('wheel', e => { if (!TZ.id) return; e.preventDefault(); tzSet((S.tset[TZ.id] || 0) + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 1 : .1), true); }, { passive: false });
 }
 document.addEventListener('keydown', e => {
+  if ($('#preview25') && !$('#preview25').hidden) { if (e.key === 'Escape') close25DPreview(); return; }
   if (!$('#modal').hidden) { if (e.key === 'Escape' && UI.modalClosable) closeModal(); return; }
   if (e.key === 'Escape' && !$('#devicePanel').hidden) { closeDevicePanel(); return; }
   if (e.key === 'Escape' && !$('#termSearch').hidden) { closeTermSearch(); $('#btnFind').focus(); return; }
@@ -5619,7 +5625,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.22.0', date: '2026.11.11', notes: ['스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.23.0', date: '2026.11.11', notes: ['2.5D 1차 미리보기: 철판·덕트·찬넬·스토퍼 입체 외형, 화면 이동 시 시점 변화·정면·각도 고정·확대와 지점 선택', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -6616,7 +6622,7 @@ function homeMainHTML() {
     + (() => { const d = stripData(), avg = stripAvg(d); return `<button class="hm-card strip" data-home="strip">${hmIc('strip')}<b>선 따기 연습</b><p>실제 전선으로 ${STRIP_N}가닥씩. 시간과 불량을 기록해요</p><small>${d.cur ? '재는 중' : avg ? `최근 평균 ${fmt(avg)} · 가닥당 ${perWire(avg)}` : '기록 없음'}</small></button>`; })()
     + `<button class="hm-card help" data-home="help">${hmIc('help')}<b>도움말</b><p>처음이라면 여기부터. 화면, 조작법, 작업 순서</p><small>2분이면 읽어요</small></button>`
     + `<button class="hm-card fault" data-home="fault">${hmIc('fault')}<b>실전 고장 실습</b><p>증상만 보고 테스터로 찾아 고쳐요. 10개 선택 학습부터 무힌트 랭크까지</p><small>측정 → 수리 → 동작 검사</small></button>`
-    + '</div><div class="hm-foot"><button class="hm-chip" data-home="ranks">🏆 랭킹</button><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
+    + '</div><div class="hm-foot"><button class="hm-chip" data-home="ranks">🏆 랭킹</button><button class="hm-chip" data-home="demo">▶ 시연 먼저 보기</button><button class="hm-chip" data-home="preview25">◇ 2.5D 미리보기 · 1차</button><button class="hm-chip" data-home="xp">회로 해설</button><button class="hm-chip" data-home="set">설정</button>'
     + `<button class="hm-chip" data-home="ver" title="이번 버전에서 바뀐 점">현재 버전 <b>${APP_VER.v}</b> · ${APP_VER.date}</button></div></div>`
     + `<div>${homeArt()}</div></div>`;
 }
@@ -6662,6 +6668,25 @@ function showHome(page = 'main') {
   const b = $('#home').querySelector(page === 'prac' ? '.hm-go, .ls' : '.hm-card, .hm-back'); if (b) setTimeout(() => { if (b.isConnected && !$('#modal').hidden && !$('#modalCard').contains(document.activeElement)) b.focus({ preventScroll: true }); }, 30);
 }
 function hideHome() { $('#home').hidden = true; }
+function open25DPreview() {
+  let panel=$('#preview25');
+  if(!panel){
+    panel=document.createElement('div');panel.id='preview25';panel.className='preview25';panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label','2.5D 작업판 1차 미리보기');
+    panel.innerHTML='<iframe title="2.5D 작업판 1차 미리보기"></iframe><button class="preview25-close" type="button">← 메인으로 · Esc</button>';
+    panel.querySelector('button').addEventListener('click',close25DPreview);document.body.appendChild(panel);
+  }
+  closeModal();panel.hidden=false;$('.app').inert=true;$('#home').inert=true;
+  panel.querySelector('iframe').src='preview25d.html';panel.querySelector('button').focus();
+}
+function close25DPreview() {
+  const panel=$('#preview25');if(!panel||panel.hidden)return;
+  panel.hidden=true;panel.querySelector('iframe').removeAttribute('src');$('.app').inert=false;$('#home').inert=false;
+  $('#home [data-home="preview25"]')?.focus({preventScroll:true});
+}
+window.addEventListener('message',event=>{
+  const panel=$('#preview25');
+  if(panel&&!panel.hidden&&event.source===panel.querySelector('iframe').contentWindow&&event.data?.type==='task1:preview25-close')close25DPreview();
+});
 $('#home').addEventListener('input',e=>{if(e.target.id==='rankName')UI.rankDraft=e.target.value;});
 $('#home').addEventListener('click', e => {
   const rank = e.target.closest('[data-rank]'); if (rank) return rankAction(rank);
@@ -6674,6 +6699,7 @@ $('#home').addEventListener('click', e => {
   if (a === 'free') return goFree();
   if (a === 'exam') return goExam();
   if (a === 'demo') { goFree(); return demoOpen(); }
+  if (a === 'preview25') return open25DPreview();
   if (a === 'xp') return xpOpen();
   if (a === 'set') return showSettings();
   if (a === 'ver') openModal(`<h2>현재 버전 ${APP_VER.v}</h2><p class="muted">${APP_VER.date}</p><ul>${APP_VER.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">닫기</button></div>`);

@@ -15,7 +15,9 @@ files:
   - desktop/updater.cjs
   - desktop/ranking-policy.cjs
   - desktop/generated/index.html
+  - desktop/generated/preview25d.html
   - desktop/assets/icon.png
+  - preview25d/licenses/three.txt
   - package.json
 win:
   target:

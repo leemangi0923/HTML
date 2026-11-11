@@ -58,11 +58,13 @@ else {
   app.on('second-instance', ()=>{if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();}});
   app.whenReady().then(async()=>{
     const html = await readFile(path.join(__dirname,'generated','index.html'),'utf8');
-    protocol.handle('task1',request=>new Response(request.url===APP_URL && request.method==='GET' ? html : 'Not found', {
-      status:request.url===APP_URL && request.method==='GET'?200:404,
+    const preview=await readFile(path.join(__dirname,'generated','preview25d.html'),'utf8');
+    const pages=new Map([[APP_URL,html],['task1://app/preview25d.html',preview]]);
+    protocol.handle('task1',request=>new Response(request.method==='GET'&&pages.has(request.url)?pages.get(request.url):'Not found', {
+      status:request.method==='GET'&&pages.has(request.url)?200:404,
       headers:{'Content-Type':'text/html; charset=utf-8','X-Content-Type-Options':'nosniff'}
     }));
-    // Game pictures are embedded. Only the configured ranking endpoints may leave the app.
+    // Both pages and their pictures are embedded. Only ranking endpoints may leave the app.
     session.defaultSession.webRequest.onBeforeRequest((details,callback)=>callback({cancel:!details.url.startsWith('task1://app/')&&!details.url.startsWith('data:')&&!details.url.startsWith('blob:task1://app/')&&!allowedRankingRequest(details.url,details.method)}));
     session.defaultSession.setPermissionRequestHandler((contents,permission,callback)=>callback(contents===mainWindow?.webContents && contents.getURL()===APP_URL && permission==='clipboard-sanitized-write'));
     session.defaultSession.setPermissionCheckHandler((contents,permission)=>contents===mainWindow?.webContents && contents.getURL()===APP_URL && permission==='clipboard-sanitized-write');
