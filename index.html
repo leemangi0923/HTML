@@ -1157,8 +1157,9 @@ function reliefBox(x,y,w,h,height,kind='metal',ox=0,oy=0) {
   if(!SET.relief)return start+'</g>'; // Keep only the footprint metadata for optional face lighting.
   return start+`<path class="relief-shadow"${SET.shadows?'':' display="none"'}/><path class="relief-x"/><path class="relief-y"/>${kind==='round-buzzer'&&SET.sideDetail?'<path class="buzzer-side-slots" fill="#4a554a"/>':kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:CASE_SIDE_KINDS.has(kind)?(SET.sideDetail?'<g class="housing-side-art"/>':''):(SET.sideDetail?`<path class="relief-detail" fill="none" stroke="#17232a" stroke-opacity=".48" stroke-width=".45"/>`:'')}</g>`;
 }
-const RELIEF_CACHE=new WeakMap();let reliefNodes=[];
+const RELIEF_CACHE=new WeakMap();let reliefNodes=[],reliefView='';
 function refreshRelief() {
+  reliefView='';
   reliefNodes=[...gWorld.querySelectorAll('[data-relief]')].map(node=>{
     let r=RELIEF_CACHE.get(node);if(!r){const surface=node.closest('.raised-surface'),face=surface&&[...surface.children].find(n=>n.classList.contains('surface-top'));r={node,surface,face,box:node.dataset.relief.split(',').map(Number),kind:node.dataset.reliefKind,shadow:node.children[0],sideX:node.children[1],sideY:node.children[2],profile:node.querySelector('.relief-profile'),detail:node.querySelector('.relief-detail'),key:''};RELIEF_CACHE.set(node,r);if(face)face._surfaceModel=r;}prepareSurfaceLight(r);prepareSideLight(r);return r;
   });
@@ -1166,6 +1167,7 @@ function refreshRelief() {
   updateRelief();
 }
 function updateRelief() {
+  const view=Object.values(UI.cam).join(',')+'|'+graphicsKey();if(view===reliefView)return;reliefView=view;
   if(!SET.relief){
     // Direct view-only toggles flatten the mounted scene once. The settings UI
     // rebuilds a flat scene and marks it ready, so subsequent pans do no work.
@@ -1184,7 +1186,8 @@ function updateRelief() {
     const shadeFacet=(path,nx,ny)=>{if(!SET.lighting)return;const l=Math.hypot(nx,ny)||1,v=(nx*WORK_LIGHT.x+ny*WORK_LIGHT.y)/l;shade[(v>=0?0:2)+(Math.abs(v)>.5?1:0)]+=path;};
     const sx=Math.min(3.1,.35+Math.abs(height)*.032),sy=Math.min(4.2,.5+Math.abs(height)*.044);
     r.node.dataset.sideX=String(dx);r.node.dataset.sideY=String(dy);
-    if(SET.shadows)r.shadow.setAttribute('d',polygon([[x+sx,y+sy],[x+w+sx,y+sy],[x+w+sx,y+h+sy],[x+sx,y+h+sy]]));
+    const shadowNeeded=SET.shadows&&!r.shadowReady;
+    if(shadowNeeded)r.shadow.setAttribute('d',polygon([[x+sx,y+sy],[x+w+sx,y+sy],[x+w+sx,y+h+sy],[x+sx,y+h+sy]]));
     r.sideX.setAttribute('d',r.profile?'':polygon([[ex,y],[ex,y+h],[ex+dx,y+h+dy],[ex+dx,y+dy]]));
     r.sideY.setAttribute('d',polygon([[x,ey],[x+w,ey],[x+w+dx,ey+dy],[x+dx,ey+dy]]));
     if(!r.profile){shadeFacet(r.sideX.getAttribute('d'),dx>=0?1:-1,0);shadeFacet(r.sideY.getAttribute('d'),0,dy>=0?1:-1);}
@@ -1192,13 +1195,13 @@ function updateRelief() {
       const radius=Math.min(r.kind==='rounded-graphite'?2.5:1.4,w/4,h/4),contour=[];
       for(const [cx,cy,start] of [[x+w-radius,y+radius,-Math.PI/2],[x+w-radius,y+h-radius,0],[x+radius,y+h-radius,Math.PI/2],[x+radius,y+radius,Math.PI]])for(let n=0;n<=5;n++){const a=start+n*Math.PI/10;contour.push([cx+Math.cos(a)*radius,cy+Math.sin(a)*radius]);}
       shade.fill('');let sides='';for(let i=0;i<contour.length;i++){const a=contour[i],b=contour[(i+1)%contour.length];if((b[1]-a[1])*dx-(b[0]-a[0])*dy>1e-8){const d=polygon([a,b,[b[0]+dx,b[1]+dy],[a[0]+dx,a[1]+dy]]);sides+=d;shadeFacet(d,b[1]-a[1],a[0]-b[0]);}}
-      r.sideX.setAttribute('d',sides);r.sideY.setAttribute('d','');if(SET.shadows)r.shadow.setAttribute('d',polygon(contour.map(([a,b])=>[a+sx,b+sy])));
+      r.sideX.setAttribute('d',sides);r.sideY.setAttribute('d','');if(shadowNeeded)r.shadow.setAttribute('d',polygon(contour.map(([a,b])=>[a+sx,b+sy])));
     }
     if(r.kind.startsWith('round-')){
       shade.fill('');
       const a=Math.atan2(dy,dx),arc=[];for(let k=0;k<=16;k++){const t=a-Math.PI/2+k*Math.PI/16;arc.push([x+w/2+Math.cos(t)*w/2,y+h/2+Math.sin(t)*h/2]);}
       if(SET.lighting)for(let i=0;i<arc.length-1;i++){const a=arc[i],b=arc[i+1];shadeFacet(polygon([a,b,[b[0]+dx,b[1]+dy],[a[0]+dx,a[1]+dy]]),b[1]-a[1],a[0]-b[0]);}
-      r.sideX.setAttribute('d',polygon([...arc,...arc.slice().reverse().map(([a,b])=>[a+dx,b+dy])]));r.sideY.setAttribute('d','');if(SET.shadows){const shadow=[];for(let k=0;k<24;k++){const t=k*Math.PI/12;shadow.push([x+w/2+sx+Math.cos(t)*w/2,y+h/2+sy+Math.sin(t)*h/2]);}r.shadow.setAttribute('d',polygon(shadow));}
+      r.sideX.setAttribute('d',polygon([...arc,...arc.slice().reverse().map(([a,b])=>[a+dx,b+dy])]));r.sideY.setAttribute('d','');if(shadowNeeded){const shadow=[];for(let k=0;k<24;k++){const t=k*Math.PI/12;shadow.push([x+w/2+sx+Math.cos(t)*w/2,y+h/2+sy+Math.sin(t)*h/2]);}r.shadow.setAttribute('d',polygon(shadow));}
     }
     if(r.kind==='round-buzzer'&&SET.sideDetail){
       let d='';const a=Math.atan2(dy,dx);
@@ -1219,6 +1222,7 @@ function updateRelief() {
     if(r.sideLight){r.sideLight.setAttribute('transform',`translate(${-dx} ${-dy})`);for(let k=0;k<4;k++)r.sideLight.children[k].setAttribute('d',shade[k]);}
     if(r.profileLight)r.profileLight.setAttribute('fill',dx<0?'#fff5df':'#07131b');
     if(r.profile){r.profile.setAttribute('display',Math.abs(dx)<.02?'none':'inline');r.profile.setAttribute('transform',`translate(${-dx} ${-dy}) matrix(0 1 ${dx/30} ${dy/30} ${ex} ${y})`);}
+    if(shadowNeeded)r.shadowReady=true;
   }
   updateProjectedArtwork();updateDepthOrder();
 }
@@ -1240,7 +1244,7 @@ function projectionOffset(box){
 function prepareProjection(){
   if(!SET.relief){
     for(const a of PROJECTION.over)if(a.node.isConnected){if(a.original)a.node.setAttribute('transform',a.original);else a.node.removeAttribute('transform');}
-    Object.assign(PROJECTION,{flat:true,models:[],owners:new Map(),byKey:new Map(),bindings:new Map(),signature:'',points:[],objects:[],faces:[],paths:[],over:[]});
+    Object.assign(PROJECTION,{flat:true,padding:8,culledPaths:0,models:[],owners:new Map(),byKey:new Map(),bindings:new Map(),signature:'',points:[],objects:[],faces:[],paths:[],over:[]});
     DEPTH.groups=[];DEPTH.lastPairs=[];return;
   }
   PROJECTION.models=reliefNodes.filter(r=>r.face);PROJECTION.owners=new Map();
@@ -1259,6 +1263,10 @@ function prepareProjection(){
   }
   prepareDepthOrder();
   PROJECTION.byKey=new Map(PROJECTION.models.map(r=>[r.projectionKey,r]));
+  // Bound every possible height offset, including the previous view. This
+  // overscan keeps a skipped path's old drawing outside the visible viewport.
+  const maxZ=Math.max(0,...PROJECTION.models.map(r=>Math.abs(r.z))),maxScale=Math.max(1,...PROJECTION.models.map(r=>Math.max(Math.abs(r.matrix.a)+Math.abs(r.matrix.c),Math.abs(r.matrix.b)+Math.abs(r.matrix.d))));
+  PROJECTION.padding=8+maxZ*maxScale*.18;
   const signature=[...PROJECTION.byKey.keys()].join('|');if(signature!==PROJECTION.signature){PROJECTION.bindings.clear();PROJECTION.signature=signature;}
   PROJECTION.points=[...gWorld.querySelectorAll('[data-project-at]')].filter(n=>!n.closest('.surface-top')).map(node=>({node,p:node.dataset.projectAt.split(',').map(Number),matrix:svgLocalMatrix(node.parentNode)}));
   PROJECTION.objects=[...gWorld.querySelectorAll('[data-project-local-at]')].map(node=>{let a=PROJECTION_ART.get(node);if(!a){const[x,y]=node.dataset.projectLocalAt.split(',').map(Number),m=svgLocalMatrix(node),p=new DOMPoint(x,y).matrixTransform(m);a={node,x:p.x,y:p.y,matrix:svgLocalMatrix(node.parentNode),original:node.getAttribute('transform')||''};PROJECTION_ART.set(node,a);}return a;});
@@ -1326,10 +1334,11 @@ function updateDepthOrder(){
 function updateSurfaceProjection(r,x,y){
   if(!r.face)return;
   const parent=r.parents?.reduce((v,p)=>({x:v.x+(p.localX||0),y:v.y+(p.localY||0)}),{x:0,y:0})||{x:0,y:0};
-  if(r.support){parent.x+=r.support.tx||0;parent.y+=r.support.ty||0;r.supportNode.setAttribute('transform',`translate(${F(r.support.tx||0)} ${F(r.support.ty||0)})`);}
+  if(r.support){parent.x+=r.support.tx||0;parent.y+=r.support.ty||0;svgAttr(r.supportNode,'transform',`translate(${F(r.support.tx||0)} ${F(r.support.ty||0)})`);}
   const m=r.matrix||{a:1,b:0,c:0,d:1};r.localX=m.a*x+m.c*y;r.localY=m.b*x+m.d*y;r.tx=r.localX+parent.x;r.ty=r.localY+parent.y;
-  r.face.setAttribute('transform',`translate(${F(x)} ${F(y)})`);r.face.dataset.offsetX=String(r.tx);r.face.dataset.offsetY=String(r.ty);
+  svgAttr(r.face,'transform',`translate(${F(x)} ${F(y)})`);svgAttr(r.face,'data-offset-x',String(r.tx));svgAttr(r.face,'data-offset-y',String(r.ty));
 }
+function svgAttr(node,name,value){if(node.getAttribute(name)!==value)node.setAttribute(name,value);}
 function projectionBinding(x,y,soft=false){
   const key=x+','+y+','+soft,cached=PROJECTION.bindings.get(key);
   if(cached!==undefined)return cached&&{r:PROJECTION.byKey.get(cached.key),w:cached.w};
@@ -1369,36 +1378,49 @@ function projectedPath(art){
   const m=art.matrix,det=m.a*m.d-m.b*m.c||1;
   let plan=art.plan;
   if(!plan||plan.signature!==PROJECTION.signature){
-    const keys=new Map(),commands=art.commands.map(c=>{
-      const points=[];for(let k=c.cmd==='A'?5:0;k<c.v.length;k+=2){
+    const bounds=[Infinity,Infinity,-Infinity,-Infinity];let hasArc=false;
+    const keys=new Map(),points=[],tokens=[];
+    for(const c of art.commands){
+      if(c.cmd==='A')hasArc=true; // SVG may rescale ellipse radii to join endpoints.
+      tokens.push(c.cmd);if(c.cmd==='A')tokens.push(c.v.slice(0,5).join(' ')+' ');
+      const first=c.cmd==='A'?5:0;
+      for(let k=first;k<c.v.length;k+=2){
         const x=c.v[k],y=c.v[k+1],wx=m.a*x+m.c*y+m.e,wy=m.b*x+m.d*y+m.f,a=projectionBinding(wx,wy,true);
+        bounds[0]=Math.min(bounds[0],wx);bounds[1]=Math.min(bounds[1],wy);bounds[2]=Math.max(bounds[2],wx);bounds[3]=Math.max(bounds[3],wy);
         if(a&&!keys.has(a.r.projectionKey))keys.set(a.r.projectionKey,keys.size);
-        points.push({k,x,y,wx,wy,index:a?keys.get(a.r.projectionKey):-1,weight:a?.w||0});
-      }return{cmd:c.cmd,values:c.v,points};
-    });
-    plan=art.plan={signature:PROJECTION.signature,commands,keys:[...keys.keys()],offsets:null,path:''};
+        if(k>first)tokens.push(' ');const slot=tokens.length;tokens.push(0,' ',0);
+        points.push({slot,x,y,wx,wy,index:a?keys.get(a.r.projectionKey):-1,weight:a?.w||0});
+      }
+    }
+    plan=art.plan={signature:PROJECTION.signature,points,tokens,keys:[...keys.keys()],offsets:null,path:undefined,bounds:hasArc?null:bounds};
   }
-  const offsets=plan.keys.flatMap(key=>{const r=SET.relief&&PROJECTION.byKey.get(key);return[r?.tx||0,r?.ty||0];});
-  if(plan.offsets&&offsets.every((v,i)=>v===plan.offsets[i]))return plan.path;
-  plan.offsets=offsets;
-  plan.path=plan.commands.map(c=>{
-    const v=[...c.values];for(const p of c.points){
-      // Preserve the original arithmetic and rounding, including curve controls
-      // and arc endpoints; only the camera-independent binding is cached.
-      const dx=p.index<0?0:(p.wx+offsets[p.index*2]*p.weight)-p.wx,dy=p.index<0?0:(p.wy+offsets[p.index*2+1]*p.weight)-p.wy;
-      v[p.k]=F(p.x+(m.d*dx-m.c*dy)/det);v[p.k+1]=F(p.y+(-m.b*dx+m.a*dy)/det);
-    }return c.cmd+v.join(' ');
-  }).join('');return plan.path;
+  const offsets=plan.offsets||(plan.offsets=new Float64Array(plan.keys.length*2));let changed=plan.path===undefined;
+  for(let i=0;i<plan.keys.length;i++){const r=SET.relief&&PROJECTION.byKey.get(plan.keys[i]),x=r?.tx||0,y=r?.ty||0;if(offsets[i*2]!==x||offsets[i*2+1]!==y)changed=true;offsets[i*2]=x;offsets[i*2+1]=y;}
+  if(!changed)return plan.path;
+  for(const p of plan.points){
+    // Keep the original operation order and rounding; reuse the output slots.
+    const dx=p.index<0?0:(p.wx+offsets[p.index*2]*p.weight)-p.wx,dy=p.index<0?0:(p.wy+offsets[p.index*2+1]*p.weight)-p.wy;
+    plan.tokens[p.slot]=F(p.x+(m.d*dx-m.c*dy)/det);plan.tokens[p.slot+2]=F(p.y+(-m.b*dx+m.a*dy)/det);
+  }
+  plan.path=plan.tokens.join('');return plan.path;
 }
 function translateProjected(node,m,dx,dy,original=''){
   const det=m.a*m.d-m.b*m.c||1,x=(m.d*dx-m.c*dy)/det,y=(-m.b*dx+m.a*dy)/det;
   const t=`translate(${F(x)} ${F(y)})${original?' '+original:''}`;if(node.getAttribute('transform')!==t)node.setAttribute('transform',t);
 }
 function updateProjectedArtwork(){
-  for(const f of PROJECTION.faces){const p=projectionOffset(f.box);f.node.setAttribute('transform',`translate(${p.x} ${p.y})`);}
+  for(const f of PROJECTION.faces){const p=projectionOffset(f.box);svgAttr(f.node,'transform',`translate(${p.x} ${p.y})`);}
   for(const a of PROJECTION.points){const[x,y]=a.p,p=projectWorkPoint({x,y});translateProjected(a.node,a.matrix,p.x-x,p.y-y);}
   for(const a of PROJECTION.objects){const p=projectWorkPoint({x:a.x,y:a.y});translateProjected(a.node,a.matrix,p.x-a.x,p.y-a.y,a.original);}
-  const memo=new Map();for(const a of PROJECTION.paths){let d=memo.get(a.key);if(d===undefined){d=projectedPath(a);memo.set(a.key,d);}if(d!==a.last){a.node.setAttribute('d',d);a.last=d;}}
+  const pad=(PROJECTION.padding||8)+4*UI.cam.w/Math.max(1,UI.boardWidth||1),left=UI.cam.x-pad,top=UI.cam.y-pad,right=UI.cam.x+UI.cam.w+pad,bottom=UI.cam.y+UI.cam.h+pad;
+  PROJECTION.culledPaths=0;
+  const memo=new Map();for(const a of PROJECTION.paths){
+    let d=memo.get(a.key);if(d===null){PROJECTION.culledPaths++;continue;}
+    if(d===undefined){const plan=a.plan,b=plan?.signature===PROJECTION.signature&&plan.bounds;
+      if(b&&(b[2]<left||b[0]>right||b[3]<top||b[1]>bottom)){memo.set(a.key,null);PROJECTION.culledPaths++;continue;}
+      d=projectedPath(a);memo.set(a.key,d);
+    }if(d!==a.last){a.node.setAttribute('d',d);a.last=d;}
+  }
   updateProjectionOverlays();
 }
 function refreshProjectionOverlays(){
@@ -4814,7 +4836,7 @@ function setSceneParts(parts) {
       node.dataset.scenePart = key; SCENE_PARTS.set(key, node);
       changed=true;
     }
-    if(/^(frame-|stopper-|device-|servo$|outlet$)/.test(key))node.dataset.depthObject=key;
+    if(/^(frame-|stopper-|device-|servo$|outlet$)/.test(key)&&node.dataset.depthObject!==key)node.dataset.depthObject=key;
     if (node !== at) gWorld.insertBefore(node, at);
     if(setMarkup(node, html))changed=true; at = node.nextElementSibling;
   }
@@ -6396,7 +6418,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.34.0', date: '2026.11.11', notes: ['최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.35.0', date: '2026.11.11', notes: ['최고 그래픽 추가 최적화: 전선 경로 출력 버퍼 재사용, 화면 밖 경로의 투영 지연과 재진입 즉시 갱신, 고정 그림자와 동일 화면의 SVG 속성 쓰기 생략', '최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;

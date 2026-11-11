@@ -531,6 +531,37 @@ test('full graphics reuse vertex bindings and unchanged scene preparation withou
   assert.deepEqual(result,{searches:0,prepares:0,reads:0,retained:true,state:true,terms:true,graphics:true,lightsPreserved:true});
 });
 
+test('offscreen wire paths defer projection and refresh before returning into view at full quality',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.finished=true;UI.cam={x:-100,y:-100,w:1800,h:1300};renderAll();applyCam(svg.getBoundingClientRect());
+    const before=JSON.stringify(S),terms=JSON.stringify(TERMS),nodes=[...gWorld.querySelectorAll('*')];
+    const art=PROJECTION.paths.find(a=>a.plan?.bounds&&a.plan.keys.length&&a.plan.bounds[0]>700&&a.plan.bounds[2]-a.plan.bounds[0]<250);
+    if(!art)return{found:false};const d=art.node.getAttribute('d'),b=art.plan.bounds;
+    UI.cam={x:2600,y:1600,w:500,h:600};applyCam();
+    const skipped=PROJECTION.culledPaths>0&&art.node.getAttribute('d')===d;
+    UI.cam={x:b[0]-50,y:b[1]-50,w:500,h:600};applyCam();
+    const fresh=art.node.getAttribute('d')===projectedPath(art),changed=art.node.getAttribute('d')!==d;
+    const arc={commands:projectionCommands('M900 100A1 300 45 1 0 1200 110'),matrix:new DOMMatrix()};projectedPath(arc);
+    return{found:true,skipped,fresh,changed,arcConservative:arc.plan.bounds===null,retained:nodes.length===gWorld.querySelectorAll('*').length&&nodes.every(n=>n.isConnected),
+      state:before===JSON.stringify(S),terms:terms===JSON.stringify(TERMS),graphics:GRAPHICS_KEYS.every(k=>SET[k])};
+  });assert.deepEqual(result,{found:true,skipped:true,fresh:true,changed:true,arcConservative:true,retained:true,state:true,terms:true,graphics:true});
+});
+
+test('stationary full-quality scenes do not rewrite SVG attributes and camera pans reuse fixed shadows',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.finished=true;UI.cam={x:-200,y:-150,w:1300,h:976};renderAll();applyCam(svg.getBoundingClientRect());
+    const shadows=new Set(reliefNodes.map(r=>r.shadow)),before=[...shadows].map(n=>n.getAttribute('d')),observer=new MutationObserver(()=>{});
+    observer.observe(gWorld,{attributes:true,subtree:true});
+    for(let i=0;i<8;i++)applyCam();for(let i=0;i<3;i++)renderWorld(false);
+    const stationaryWrites=observer.takeRecords().length;
+    for(let i=0;i<6;i++){UI.cam.x+=25;UI.cam.y-=8;applyCam();}
+    const records=observer.takeRecords(),shadowWrites=records.filter(r=>shadows.has(r.target)&&r.attributeName==='d').length;
+    observer.disconnect();return{stationaryWrites,shadowWrites,moved:records.length>0,sameShadows:before.every((d,i)=>d===[...shadows][i].getAttribute('d')),graphics:GRAPHICS_KEYS.every(k=>SET[k])};
+  });assert.deepEqual(result,{stationaryWrites:0,shadowWrites:0,moved:true,sameShadows:true,graphics:true});
+});
+
 test('camera movement preserves model terminals, wiring, score and SVG nodes while projecting height',async()=>{
   await fullState();await page.evaluate(()=>hideHome());
   const result=await page.evaluate(()=>{
