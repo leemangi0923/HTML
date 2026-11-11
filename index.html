@@ -660,6 +660,12 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 .relief[data-relief-kind="glass"] .relief-detail { stroke:#e5f8ff; stroke-opacity:.65; }
 .relief[data-relief-kind="finned"] .relief-x { fill:#8c9fa8; stroke:#425b6a; }
 .relief[data-relief-kind="finned"] .relief-y { fill:#566f7d; stroke:#324e60; }
+.relief[data-relief-kind="mcb"] .relief-x,.relief[data-relief-kind="smps"] .relief-x { fill:#c4c7bf; }
+.relief[data-relief-kind="mcb"] .relief-y,.relief[data-relief-kind="smps"] .relief-y { fill:#afb6ae; }
+.relief[data-relief-kind="plc"] .relief-x { fill:#61656e; }
+.relief[data-relief-kind="plc"] .relief-y { fill:#484d57; }
+.relief[data-relief-kind="servo"] .relief-x { fill:#64747a; }
+.relief[data-relief-kind="servo"] .relief-y { fill:#465c64; }
 [data-power-cable][data-plugged="true"] [data-power-pin] { display:none; }
 .relief:not([data-relief-kind="metal"]):not([data-relief-kind="duct"]):not([data-relief-kind="cover"]):not([data-relief-kind="stopper"]) .relief-x,.relief:not([data-relief-kind="metal"]):not([data-relief-kind="duct"]):not([data-relief-kind="cover"]):not([data-relief-kind="stopper"]) .relief-y { stroke:none; }
 </style>
@@ -728,6 +734,14 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
             <radialGradient id="gBtn" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></radialGradient>
             <radialGradient id="gEms" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ff7474"/><stop offset="1" stop-color="#a50e16"/></radialGradient>
             <linearGradient id="gSmps" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c3c8cc"/><stop offset=".5" stop-color="#e0e3e6"/><stop offset="1" stop-color="#bec3c7"/></linearGradient>
+            <linearGradient id="gMCBRocker" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#70786c"/><stop offset=".35" stop-color="#303b30"/><stop offset=".7" stop-color="#202c24"/><stop offset="1" stop-color="#7b8172"/></linearGradient>
+            <linearGradient id="gMCBHandle" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b6b5a8"/><stop offset=".3" stop-color="#85887b"/><stop offset="1" stop-color="#646d5d"/></linearGradient>
+            <linearGradient id="gPLCCover" x1="0" y1="0" x2=".2" y2="1"><stop stop-color="#69717c"/><stop offset=".1" stop-color="#535b68"/><stop offset=".8" stop-color="#4b535f"/><stop offset="1" stop-color="#3e4753"/></linearGradient>
+            <linearGradient id="gSMPSLabel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3f4942"/><stop offset="1" stop-color="#2d3834"/></linearGradient>
+            <linearGradient id="gTerminalShield" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#ffffff" stop-opacity=".45"/><stop offset=".14" stop-color="#e8f0dc" stop-opacity=".12"/><stop offset=".7" stop-color="#a7b5a6" stop-opacity=".06"/><stop offset="1" stop-color="#ffffff" stop-opacity=".35"/></linearGradient>
+            <linearGradient id="gServoCase" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#647c84"/><stop offset=".12" stop-color="#506973"/><stop offset=".8" stop-color="#3b535b"/><stop offset="1" stop-color="#657d81"/></linearGradient>
+            <linearGradient id="gServoPanel" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#202c2d"/><stop offset=".15" stop-color="#080f12"/><stop offset="1" stop-color="#080c0e"/></linearGradient>
+            <linearGradient id="gOrangeLever" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ad5b0d"/><stop offset=".3" stop-color="#ffd578"/><stop offset=".55" stop-color="#f2a433"/><stop offset="1" stop-color="#c46912"/></linearGradient>
             <pattern id="pPins" width="2.54" height="2.54" patternUnits="userSpaceOnUse"><circle cx="1.27" cy="1.27" r=".55" fill="#b9a46a"/></pattern>
             <linearGradient id="gGraphite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5c656b"/><stop offset="0.16" stop-color="#434d54"/><stop offset="0.5" stop-color="#2e363d"/><stop offset="0.82" stop-color="#242b32"/><stop offset="1" stop-color="#191f24"/></linearGradient>
             <linearGradient id="gPalePolymer" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="0.16" stop-color="#f1f0e9"/><stop offset="0.5" stop-color="#dfdfd7"/><stop offset="0.88" stop-color="#d0d4cf"/><stop offset="1" stop-color="#b5bebd"/></linearGradient>
@@ -873,7 +887,7 @@ const FRAME_INIT = [['D1','duct'],['D2','duct'],['D3','duct'],['D4','duct'],['D5
 
 /* --- 기구 (치수 mm: 검색한 제조사 자료 / 없으면 근사치) --- */
 const DEV = {
-  mcb:   { name: '차단기 MCB', spec: 'LS BKM-b 2P 6A (폭 35.2)', w: 35.2, h: 82, qty: 1 },
+  mcb:   { name: '차단기 MCB', spec: 'LS BK63H 2P 6A (폭 35.2)', w: 35.2, h: 82, qty: 1 },
   fuse:  { name: '퓨즈 홀더', spec: '250V 15A 2P, 30mm 퓨즈', w: 36, h: 80, qty: 2 },
   smps:  { name: 'SMPS', spec: 'DC24V 찬넬용 (지참)', w: 50, h: 95, qty: 1 },
   plc:   { name: 'PLC', spec: '입력16 / 출력16 (지참)', w: 120, h: 95, qty: 1 },
@@ -1001,7 +1015,7 @@ const TS = (x, y, str, sz, fill, extra = '') => `<text x="${F(x)}" y="${F(y)}" f
 const LN = (x1, y1, x2, y2, a = '') => `<line x1="${F(x1)}" y1="${F(y1)}" x2="${F(x2)}" y2="${F(y2)}" ${a}/>`;
 const TX = (sz, fill, extra = '') => `font-size="${sz}" fill="${fill}" text-anchor="middle" ${extra}`;
 const shadow = (x, y, w, h, rx = 1.5) => R(x + 1.3, y + 1.8, w, h, `rx="${rx}" fill="#142127" fill-opacity=".16"`) + R(x + .65, y + .9, w, h, `rx="${rx}" fill="#101a20" fill-opacity=".24"`);
-// Shallow sides only: the original top face, terminals and all work coordinates stay in place.
+// Fixed mounting footprints with moving elevated faces; electrical coordinates stay in place.
 function stopperProfile() {
   return '<path d="M3 25V12L7.4 2Q8 .5 10 .5H37Q39 .5 39.8 2L44 12V28.7Q44 30 42.5 30H39.5L38.5 28V25H12L9.2 28.2Q8 30 6 30H1Q.2 30 .3 28L1 24.4Q1.6 22.8 2.3 24Z" fill="#b8bfb0" stroke="#7d8b7b" stroke-width=".45"/>'
     +'<path d="M10 4H21V9H7.5ZM25 4H36L38.5 9H25ZM26 12H39.3L40 15H26ZM26 18H40V21H26ZM26 23H40V24.5H26Z" fill="#8b9987" stroke="#d4d8c9" stroke-width=".4"/>'
@@ -1016,8 +1030,47 @@ function surfaceStart(...args){return '<g class="raised-surface">'+reliefBox(...
 function projectAt(x,y,html){return `<g data-project-at="${F(x)},${F(y)}">${html}</g>`;}
 function projectFaceAt(x,y,w,h,z,html,ox=0,oy=0){return `<g data-project-face="${[x,y,w,h,z,ox,oy].join(',')}">${html}</g>`;}
 function projectSupport(id,html){return `<g data-project-support="${id}">${html}</g>`;}
+const PHOTO_HOUSINGS=new Set(['mcb','plc','smps','servo']);
+// Draw inside the side plane: u is case depth, v is distance along the front edge.
+// These are the moulding / ventilation patterns visible in the supplied product photos.
+const HOUSING_SIDE_ART=new Map();
+function housingSideArt(kind,w,h){
+  const key=[kind,w,h].join(':');if(HOUSING_SIDE_ART.has(key))return HOUSING_SIDE_ART.get(key);
+  let side='',top='';
+  {
+    const slot=(u,v,ww,hh)=>R(u,v,ww,hh,'rx=".65" fill="#18252a" stroke="#cad1ca" stroke-opacity=".28" stroke-width=".45"');
+    if(kind==='mcb'){
+      for(let u=6;u<47;u+=6)side+=`<path d="M${u} 2V21l-2 3v29l2 3v24" fill="none" stroke="#939f97" stroke-width=".7"/><path d="M${u+1} 2V21l-2 3v29l2 3v24" fill="none" stroke="#f2f1e7" stroke-width=".6"/>`;
+      for(const v of [14,65])side+=`<ellipse cx="26" cy="${v}" rx="3.2" ry="1.5" fill="#adb8ad" stroke="#e8eade" stroke-width=".5"/>`;
+    }else if(kind==='smps'){
+      for(let u=6;u<46;u+=4.5)for(const[v,hh]of [[3,12],[20,52],[80,11]])side+=slot(u,v,2,hh);
+      side+=`<path d="M3 1V20L1.8 24V70L3 75V94M48 1V94" fill="none" stroke="#e5e8db" stroke-width=".8"/>`;
+    }else if(kind==='plc'){
+      side+=R(1,1,48,93,'fill="#bbc1c3"');
+      for(const v of [3,7,76,81,86,91])side+=slot(6,v,39,2.1);
+      for(const u of [16,29,42])side+=LN(u,74,u,94,'stroke="#aab4b5" stroke-width="1.5"');
+      side+=R(4,18,41,43,'fill="#e6e7de" stroke="#949e9b" stroke-width=".6"')+TS(8,24,'LS XGB',3,'#4e5d60','font-weight="700"');
+      for(let v=29;v<55;v+=4)side+=LN(8,v,40,v,'stroke="#858f89" stroke-width=".6"');
+    }else if(kind==='servo'){
+      for(let u=4;u<47;u+=3.6)for(const[v,hh]of [[7,28],[41,19],[113,35]])side+=slot(u,v,1.7,hh);
+      // The cream rating label is visible on the photographed left side only.
+      {side+='<g data-housing-label>'+R(7,65,37,42,'fill="#e7e6d4" stroke="#aeb5a2" stroke-width=".7"')+R(8,66,35,3,'fill="#a24c3c"');for(let v=73;v<103;v+=3.3)side+=LN(10,v,40,v,'stroke="#767e73" stroke-width=".65"');side+='</g>';}
+      side+=`<path d="M1 3V154H49M49 3V154" fill="none" stroke="#a2afb0" stroke-width=".7"/>`;
+    }
+    side=`<g data-housing-side="${kind}">${side}</g>`;
+  }
+  if(['plc','servo'].includes(kind)){
+    let holes='';
+    if(kind==='servo'){for(let u=5;u<47;u+=5)for(let v=5;v<w-3;v+=3)holes+=rectD(u,v,2,1.2);}
+    else for(let u=7;u<45;u+=6)for(let v=8;v<w-5;v+=6)holes+=rectD(u,v,2.4,4);
+    top=`<g data-housing-cap="${kind}"><path data-housing-cap-top d="${holes}" fill="#16232a" fill-opacity=".8"/>`;
+    let fins='';for(let u=5;u<48;u+=5)fins+=`M${u} 2V${F(w-2)}`;
+    top+=`<path data-housing-cap-bottom d="${fins}" fill="none" stroke="#273f46" stroke-width="1"/></g>`;
+  }
+  const html=side+top;if(HOUSING_SIDE_ART.size>=32)HOUSING_SIDE_ART.delete(HOUSING_SIDE_ART.keys().next().value);HOUSING_SIDE_ART.set(key,html);return html;
+}
 function reliefBox(x,y,w,h,height,kind='metal',ox=0,oy=0) {
-  return `<g class="relief" data-relief="${[x,y,w,h,height,ox,oy].join(',')}" data-relief-kind="${kind}" pointer-events="none"><path class="relief-shadow"/><path class="relief-x"/><path class="relief-y"/>${kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:`<path class="relief-detail" fill="none" stroke="#17232a" stroke-opacity=".48" stroke-width=".45"/>`}</g>`;
+  return `<g class="relief" data-relief="${[x,y,w,h,height,ox,oy].join(',')}" data-relief-kind="${kind}" pointer-events="none"><path class="relief-shadow"/><path class="relief-x"/><path class="relief-y"/>${kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:PHOTO_HOUSINGS.has(kind)?'<g class="housing-side-art"/>':`<path class="relief-detail" fill="none" stroke="#17232a" stroke-opacity=".48" stroke-width=".45"/>`}</g>`;
 }
 const RELIEF_CACHE=new WeakMap();let reliefNodes=[];
 function refreshRelief() {
@@ -1041,7 +1094,7 @@ function updateRelief() {
     r.shadow.setAttribute('d',polygon([[x+1,y+1.4],[x+w+1,y+1.4],[x+w+1,y+h+1.4],[x+1,y+h+1.4]]));
     r.sideX.setAttribute('d',r.profile?'':polygon([[ex,y],[ex,y+h],[ex+dx,y+h+dy],[ex+dx,y+dy]]));
     r.sideY.setAttribute('d',polygon([[x,ey],[x+w,ey],[x+w+dx,ey+dy],[x+dx,ey+dy]]));
-    if(['rounded-graphite','graphite','pale','finned','glass'].includes(r.kind)){
+    if(['rounded-graphite','graphite','pale','finned','glass'].includes(r.kind)||PHOTO_HOUSINGS.has(r.kind)){
       const radius=Math.min(r.kind==='rounded-graphite'?2.5:1.4,w/4,h/4),contour=[];
       for(const [cx,cy,start] of [[x+w-radius,y+radius,-Math.PI/2],[x+w-radius,y+h-radius,0],[x+radius,y+h-radius,Math.PI/2],[x+radius,y+radius,Math.PI]])for(let n=0;n<=5;n++){const a=start+n*Math.PI/10;contour.push([cx+Math.cos(a)*radius,cy+Math.sin(a)*radius]);}
       let sides='';for(let i=0;i<contour.length;i++){const a=contour[i],b=contour[(i+1)%contour.length];if((b[1]-a[1])*dx-(b[0]-a[0])*dy>1e-8)sides+=polygon([a,b,[b[0]+dx,b[1]+dy],[a[0]+dx,a[1]+dy]]);}
@@ -1054,6 +1107,14 @@ function updateRelief() {
     if(r.detail){let d='';if(Math.abs(dx)>.15&&['graphite','pale','finned','glass'].includes(r.kind)){
       for(let k=1;k<=(r.kind==='glass'?0:7);k++){const yy=y+h*(.15+k*.085);d+=`M${F(ex+dx*.25)} ${F(yy+dy*.25)}L${F(ex+dx*.88)} ${F(yy+dy*.88)}`;}
     }r.detail.setAttribute('d',d);}
+    if(PHOTO_HOUSINGS.has(r.kind)){
+      if(!r.sideArt){r.sideArt=r.node.querySelector('.housing-side-art');r.sideArt.innerHTML=housingSideArt(r.kind,w,h);r.sidePlane=r.sideArt.querySelector('[data-housing-side]');r.capPlane=r.sideArt.querySelector('[data-housing-cap]');r.ratingLabel=r.sideArt.querySelector('[data-housing-label]');}
+      r.sideArt.setAttribute('transform',`translate(${-dx} ${-dy})`);
+      const left=dx<0;r.sidePlane.setAttribute('display',Math.abs(dx)>.08?'inline':'none');
+      r.sidePlane.setAttribute('transform',`matrix(${Number((Math.abs(dx)/50).toFixed(6))} ${Number(((left?-dy:dy)/50).toFixed(6))} 0 1 ${F(left?ex+dx:ex)} ${F(left?y+dy:y)})`);
+      if(r.ratingLabel)r.ratingLabel.setAttribute('display',left?'inline':'none');
+      if(r.capPlane){r.capPlane.setAttribute('display',Math.abs(dy)>.08?'inline':'none');r.capPlane.setAttribute('transform',`matrix(${Number((dx/50).toFixed(6))} ${Number((dy/50).toFixed(6))} 1 0 ${F(x)} ${F(ey)})`);r.capPlane.querySelector('[data-housing-cap-top]').setAttribute('display',dy<0?'inline':'none');r.capPlane.querySelector('[data-housing-cap-bottom]').setAttribute('display',dy>=0?'inline':'none');}
+    }
     if(r.profile){r.profile.setAttribute('display',Math.abs(dx)<.02?'none':'inline');r.profile.setAttribute('transform',`translate(${-dx} ${-dy}) matrix(0 1 ${dx/30} ${dy/30} ${ex} ${y})`);}
   }
   updateProjectedArtwork();
@@ -1342,24 +1403,41 @@ function drawDevice(type, x, y, name, extra) {
   }
   return '';
 }
-function dMCB(x, y, name) {   // LS BKM-b 2P: 위아래 단자 창, 가운데 손잡이 (위 ON, 아래 OFF)
-  const w = DEV.mcb.w, h = DEV.mcb.h, on = LIVE.inp && LIVE.inp.mcb, sw = MCB_SW(x, y);
-  let s = surfaceStart(x,y,DEV.mcb.w,DEV.mcb.h,65,'pale')+shadow(x, y, w, h, 1.6) + R(x, y, w, h, 'rx="1.6" fill="url(#gPalePolymer)" stroke="#9fa4a8" stroke-width=".45"');
-  s += LN(x + w / 2, y + 1, x + w / 2, y + h - 1, 'stroke="#c9ccc9" stroke-width=".5"');   // 2극 경계
-  for (const t of devTerms('mcb')) s += R(x + t.x - 5.6, y + t.y - 4.8, 11.2, 9.6, 'rx="1" fill="#2a2d30" stroke="#8c9196" stroke-width=".35"');
-  s += surfaceStart(x+2.4,y+14,w-4.8,54,8,'pale')+R(x + 2.4, y + 14, w - 4.8, 54, 'rx="1.4" fill="url(#gPalePolymer)" stroke="#aab2b2" stroke-width=".4"');
-  s += `<text x="${F(x + 4.2)}" y="${F(y + 19.6)}" font-size="3.6" font-weight="800" font-style="italic" fill="#0b5fa5">LS</text>` + TS(x + 13.2, y + 19.4, 'BKM-b', 2.6, '#2a2f33', 'font-weight="700"');
-  s += T(x + w / 2, y + sw.y - 1.4, 'ON', TX(2.3, on ? '#1f9d55' : '#7f9a88', 'font-weight="800"')) + T(x + w / 2, y + sw.y + sw.h + 3.2, 'OFF', TX(2.3, on ? '#a28a8c' : '#c2262f', 'font-weight="800"'));
-  s += R(x + sw.x, y + sw.y, sw.w, sw.h, 'rx="1.6" fill="#24272a" stroke="#0f1112" stroke-width=".4"');   // 손잡이 홈
-  const hy = y + sw.y + (on ? 1.4 : sw.h - 10.4);
-  s += R(x + sw.x + 1.2, hy, sw.w - 2.4, 9, 'rx="1.2" fill="#4b5157" stroke="#1b1e21" stroke-width=".4"') + R(x + sw.x + 1.8, hy + .8, sw.w - 3.6, 2.2, 'rx=".8" fill="#6f777e"');
-  for (let k = 0; k < 3; k++) s += LN(x + sw.x + 4, hy + 4.6 + k * 1.4, x + sw.x + sw.w - 4, hy + 4.6 + k * 1.4, 'stroke="#3a3f44" stroke-width=".35"');
-  s += T(x + w / 2, y + 56.6, 'C6', TX(4.4, '#1d2125', 'font-weight="800"')) + T(x + w / 2, y + 60.6, '2P  220/230V~', TX(1.9, '#5a6168'));
-  s+=SURFACE_END;
-  for (const t of devTerms('mcb')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, y + t.y + (t.d === 'up' ? 7.6 : -5.8), t.lab, 2, '#3f464c');
-  return s + nameTag(x + w / 2, y + 65, name)+SURFACE_END;
+function dMCB(x, y, name) {   // User photos: LS BK63H, two round wells and a linked two-pole handle.
+  const w=DEV.mcb.w,h=DEV.mcb.h,on=!!LIVE.inp?.mcb,sw=MCB_SW();
+  let s=surfaceStart(x,y,w,h,65,'mcb')+R(x,y,w,h,'rx="1" fill="url(#gPalePolymer)" stroke="#a7afa7" stroke-width=".4"');
+  for(const t of devTerms('mcb')){
+    const cy=y+t.y;
+    s+=R(x+t.x-8,cy-5.6,16,11.2,'rx=".8" fill="url(#gPalePolymer)" stroke="#d6d9ce" stroke-width=".3"')
+      +C(x+t.x,cy,3.6,'fill="#acb8ae" stroke="#f2f1e6" stroke-width=".65"')+C(x+t.x,cy,2.95,'fill="#26372f"');
+  }
+  s+=LN(x+w/2,y+.8,x+w/2,y+h-.8,'stroke="#aeb8ac" stroke-width=".4"');
+  s+=surfaceStart(x+1.4,y+14,w-2.8,54,8,'pale')+R(x+1.4,y+14,w-2.8,54,'rx=".7" fill="url(#gPalePolymer)" stroke="#bdc5bb" stroke-width=".35"');
+  s+=LN(x+1.4,y+15.8,x+w-1.4,y+15.8,'stroke="#bb263a" stroke-width=".55"')
+    +R(x+12.8,y+16.2,6.2,3.9,'fill="#bd293e"')+T(x+15.8,y+19.3,'LS',TX(3.1,'#fff','font-weight="800" font-style="italic"'))
+    +TS(x+3,y+19.4,'BK63H',2.4,'#242d2a','font-weight="800"')
+    +TS(x+3,y+22,'C6',2.4,'#303b34','font-weight="700"')+TS(x+3,y+24.1,'240/415V~',1.25,'#4b554c')
+    +R(x+3,y+25,5.4,2,'fill="none" stroke="#6c7569" stroke-width=".2"')+T(x+5.7,y+26.5,'6000',TX(1.3,'#394238'));
+  // Printed circuit pictograms are ink, not holes in the moulded front.
+  for(const xx of [12,24])s+=`<path d="M${F(x+xx)} ${F(y+21)}v2l1.5 1.3-1.5 1.2v2m-1 1h2m-1-1v2" fill="none" stroke="#454c40" stroke-width=".35"/>`;
+  for(const xx of [5.7,20]){
+    s+=R(x+xx,y+30,9.5,22,'rx="1.7" fill="#9ca49b" stroke="#cbd0c5" stroke-width=".6"')
+      +R(x+xx+.7,y+31,8.1,20,'rx="1.1" fill="url(#gMCBRocker)"');
+    for(const yy of [34.5,38,41.5,45,48.5])s+=LN(x+xx+1,y+yy,x+xx+8.5,y+yy,'stroke="#141c18" stroke-opacity=".55" stroke-width=".45"');
+  }
+  s+=R(x+16.2,y+30,2.8,22,'fill="url(#gPalePolymer)"');
+  const hy=y+sw.y+(on?1.2:sw.h-8.2);
+  s+=`<g data-mcb-handle="${on?'on':'off'}">`+R(x+sw.x,hy+.9,sw.w,7.1,'rx="1.1" fill="#454b43" stroke="#333e33" stroke-width=".35"')
+    +R(x+sw.x,hy,sw.w,5.5,'rx=".8" fill="url(#gMCBHandle)" stroke="#8f968a" stroke-width=".35"')
+    +LN(x+sw.x+1,hy+.8,x+sw.x+sw.w-1,hy+.8,'stroke="#e4e4d6" stroke-opacity=".65" stroke-width=".5"')+'</g>';
+  s+=TS(x+4,y+57.5,'LS ELECTRIC',1.7,'#424e42','font-weight="700"')+TS(x+4,y+60,'IEC 60898-1',1.1,'#626d5e')
+    +T(x+29,y+57.5,on?'I':'O',TX(2.6,'#394436','font-weight="700"'));
+  s+=nameTag(x+w/2,y+65,name)+SURFACE_END;
+  for(const t of devTerms('mcb'))s+=SCR(x+t.x,y+t.y)+tl(x+t.x,y+t.y+(t.d==='up'?6.1:-4.7),t.lab,1.6,'#525d4d');
+  return s+SURFACE_END;
 }
-const MCB_SW = () => ({ x: 8.6, y: 26, w: 18, h: 21 });   // MCB 손잡이 홈 (기구 왼쪽 위 기준)
+const MCB_SW=()=>({x:4.6,y:30,w:26,h:22}); // Linked handle and its two rocker barrels.
+
 function dFuse(x, y, name, fz) {
   const h = DEV.fuse.h; let s = surfaceStart(x,y,36,DEV.fuse.h,42,'graphite')+shadow(x, y, 36, h, 1.2);
   for (let p = 0; p < 2; p++) {   // 극마다: 검은 받침, 위아래 나사 칸, 가운데 퓨즈 클립
@@ -1373,34 +1451,45 @@ function dFuse(x, y, name, fz) {
   for (const t of devTerms('fuse')) s += SCR(x + t.x, y + t.y);
   return s + nameTag(x + 18, y + 12.6, name)+SURFACE_END;
 }
-function dSMPS(x, y, name) {   // Autonics SPB-120-24 모양: 위 +V +V −V −V, 아래 L N FG
-  const w = DEV.smps.w, h = DEV.smps.h, on = LIVE.on && LIVE.out.smps;
-  let s = surfaceStart(x,y,DEV.smps.w,DEV.smps.h,75,'finned')+shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gSmps)" stroke="#9aa1a6" stroke-width=".5"');
-  for (let i = 0; i < 11; i++) s += R(x + w - 2.9, y + 21 + i * 4.6, 1.8, 3.2, 'rx=".5" fill="#c4c9cc"');   // 옆면 방열 홈
-  const blk = (yy, xs, cw) => { let t = R(x + 2.4, yy, 44.6, 12.6, 'rx="1" fill="#d3d6d8" stroke="#a7adb2" stroke-width=".35"'); for (const xx of xs) t += R(x + xx - cw / 2, yy + 1.2, cw, 10.2, 'rx=".8" fill="#2a2e32"'); return t; };
-  s += blk(y + .5, [9, 19, 31, 41], 8.8) + blk(y + 82, [10, 22, 34], 10);
-  s += R(x + 2.4, y + 13.6, 44.6, 4.6, 'fill="#2b2f33"') + R(x + 2.4, y + 77.2, 44.6, 4.6, 'fill="#2b2f33"');
-  s += TS(x + 4, y + 21.7, 'OUTPUT  24VDC ⎓ 5.0A', 1.9, '#2b2f33', 'font-weight="700"');
-  s += R(x + 3, y + 23.4, 41.6, 44.6, 'rx="1.4" fill="#363b40"');
-  s += C(x + 8.5, y + 29.5, 1.5, `fill="${on ? '#3be06b' : '#24452f'}"`) + TS(x + 11.4, y + 30.3, 'DC ON', 1.7, '#d6dbdf');
-  s += C(x + 8.5, y + 35, 1.5, 'fill="#4d2626"') + TS(x + 11.4, y + 35.8, 'DC LOW', 1.7, '#d6dbdf');
-  s += C(x + 35, y + 31.5, 3.4, 'fill="#eef0f1" stroke="#8b9399" stroke-width=".4"') + LN(x + 33, y + 33.2, x + 37, y + 29.8, 'stroke="#59616a" stroke-width=".7"') + T(x + 35, y + 38.4, 'V.ADJ', TX(1.6, '#d6dbdf'));
-  s += TS(x + 6, y + 47.5, 'Autonics', 2.4, '#5aa0e6', 'font-weight="700"') + TS(x + 6, y + 53.2, 'SPB-120-24', 4.3, '#ffffff', 'font-weight="800"') + TS(x + 6, y + 57.6, 'POWER SUPPLY', 2.3, '#e3e7ea', 'font-weight="600"');
-  s += nameTag(x + w / 2 - 1.2, y + 63.4, name);
-  s += TS(x + 4, y + 71.6, 'INPUT', 2.1, '#2b2f33', 'font-weight="700"') + TS(x + 4, y + 75.2, '50/60Hz 100-240VAC~1.9A', 1.6, '#2b2f33');
-  for (const t of devTerms('smps')) s += SCR(x + t.x, y + t.y) + tl(x + t.x, t.d === 'up' ? y + 16.9 : y + 80.5, t.lab === '-V' ? '−V' : t.lab, 2.3, '#f2f4f5');
+function dSMPS(x,y,name) {   // User photo: SPB-120-24 front label and clear terminal shields, side-only vents.
+  const w=DEV.smps.w,h=DEV.smps.h,on=LIVE.on&&LIVE.out.smps;
+  let s=surfaceStart(x,y,w,h,75,'smps')+R(x,y,w,h,'rx="1.6" fill="url(#gSmps)" stroke="#9ba79d" stroke-width=".45"');
+  s+=R(x+2,y+1,46,93,'rx="1.1" fill="#d8dbd0" stroke="#f2f3e7" stroke-width=".65"');
+  const terminalBank=(yy,terms)=>{let t=R(x+3,yy,43,12,'rx=".7" fill="#454b42" stroke="#929b8d" stroke-width=".35"');
+    for(const q of terms)t+=R(x+q.x-4,yy+.7,8,10.5,'rx=".4" fill="url(#gContact)" stroke="#d5d8c5" stroke-width=".3"')+SCR(x+q.x,y+q.y);
+    // Transparent shields remain part of the same face as their terminal screws.
+    return t+`<g data-smps-shield="${yy<y+40?'output':'input'}">`+R(x+2.5,yy-.2,44,12.4,'rx=".8" fill="url(#gTerminalShield)" stroke="#e9eee5" stroke-width=".6"')
+      +LN(x+3.3,yy+1,x+45.5,yy+1,'stroke="#fff" stroke-opacity=".7" stroke-width=".55"')
+      +LN(x+3.3,yy+10.9,x+45.5,yy+10.9,'stroke="#7c897b" stroke-opacity=".7" stroke-width=".4"')+'</g>';};
+  const terms=devTerms('smps');s+=terminalBank(y+.2,terms.filter(t=>t.d==='up'))+terminalBank(y+82.4,terms.filter(t=>t.d==='down'));
+  s+=R(x+3,y+13.4,43,67.8,'rx=".5" fill="url(#gSMPSLabel)" stroke="#eff0e2" stroke-width=".5"');
+  for(const[t,i]of terms.filter(t=>t.d==='up').map((t,i)=>[t,i]))s+=R(x+3.5+i*10.5,y+14.1,10.3,4.2,'fill="none" stroke="#e5e7d8" stroke-width=".3"')+T(x+8.7+i*10.5,y+17.4,t.lab==='-V'?'−V':t.lab,TX(2.8,'#f5f4e9','font-weight="700"'));
+  s+=T(x+24.5,y+21.5,'OUTPUT 24VDC ⎓ 5.0A',TX(2.1,'#f0f1e3'));
+  for(const[yy,label]of [[27.5,'DC ON'],[33.5,'DC LOW']])s+=C(x+10,y+yy,1.85,`fill="${on&&label==='DC ON'?'#68ed81':'#747e70'}" stroke="#3b463c" stroke-width=".3"`)+TS(x+14,y+yy+.7,label,1.6,'#edf0e4');
+  s+=C(x+36,y+31.5,3.8,'fill="#e7e9db" stroke="#7d8976" stroke-width=".35"')+C(x+36,y+31.5,2.7,'fill="#333f39"')
+    +LN(x+35,y+34,x+37,y+29,'stroke="#b8c0ac" stroke-width=".7"');
+  for(let a=-2.6;a<-.3;a+=.55)s+=LN(x+36+Math.cos(a)*2.8,y+31.5+Math.sin(a)*2.8,x+36+Math.cos(a)*3.8,y+31.5+Math.sin(a)*3.8,'stroke="#39463c" stroke-width=".35"');
+  s+=T(x+36,y+38.3,'V.ADJ',TX(1.6,'#edf0e4'))+TS(x+28,y+48.2,'Autonics',2.2,'#d9ab50','font-weight="700"')
+    +T(x+24.5,y+54,'SPB-120-24',TX(4,'#fffef3','font-weight="700"'))+T(x+24.5,y+58,'POWER SUPPLY',TX(2.5,'#f3f4e7'))
+    +TS(x+5,y+65.7,'INPUT',2.1,'#f5f5e9')+TS(x+5,y+69,'50/60Hz 100-240VAC~1.9A',1.55,'#e3e9db');
+  s+=T(x+24,y+73.6,'~        ⏚',TX(3,'#e9eddd'));
+  for(const[xx,label]of [[10,'L'],[22,'N'],[34,'FG']])s+=R(x+xx-5,y+75,10,4.6,'fill="none" stroke="#ebedde" stroke-width=".3"')+T(x+xx,y+78.6,label,TX(2.8,'#f4f4e5'));
+  if(name)s+=nameTag(x+w/2,y+96.5,name);
   return s+SURFACE_END;
 }
-function plcLid(x, y, top) {   // 닫은 덮개: 단자와 거기 꽂힌 전선 끝을 덮는다 (전선보다 나중에 그림)
-  const w = DEV.plc.w, yy = top ? y - .4 : y + 67.6, hh = top ? 27.6 : 27.8;
-  let t = surfaceStart(x-2.6,yy,w+3.1,hh,7,'graphite')+R(x - 2.6, yy, w + 3.1, hh, 'rx="1.6" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".5"');   // 왼쪽 끝 단자의 압착단자까지 덮는다
-  for (let i = 0; i < 12; i++) t += R(x + 6 + i * 9.4, top ? yy + 3 : yy + hh - 7.5, 4.6, 4.5, 'rx=".6" fill="#3d4247"');
-  t += LN(x + 1.5, top ? yy + hh - 3 : yy + 3, x + w - 1.5, top ? yy + hh - 3 : yy + 3, 'stroke="#25292d" stroke-width=".6"');
-  return t + (top ? `<path d="M${F(x + 58.5)} ${F(yy + 13)}h3l-1.5 2.2z" fill="#8d949a"/>` : '')+SURFACE_END;
+
+function plcLid(x,y,top) {
+  const w=DEV.plc.w,yy=top?y-.4:y+67.6,hh=top?27.6:27.8;
+  let s=surfaceStart(x-2.6,yy,w+3.1,hh,7,'graphite')+R(x-2.6,yy,w+3.1,hh,'rx=".9" fill="url(#gPLCCover)" stroke="#363d47" stroke-width=".4"');
+  s+=LN(x-1.5,yy+.9,x+w-.6,yy+.9,'stroke="#8a9197" stroke-opacity=".65" stroke-width=".4"')
+    +LN(x-1.5,yy+hh-1.1,x+w-.6,yy+hh-1.1,'stroke="#2a303b" stroke-width=".6"');
+  if(top)s+=`<path d="M${F(x+58.5)} ${F(yy+hh-4.1)}l1.5 1.1 1.5-1.1" fill="none" stroke="#323a45" stroke-width=".35"/>`;
+  return s+SURFACE_END;
 }
-function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래 전원·출력 단자에 여닫는 덮개
+
+function dPLC(x, y, lid = {}) {   // LS XGB reference exterior; retain the simulator's established custom terminal map.
   const w = DEV.plc.w, h = DEV.plc.h, T_ = devTerms('plc'), pw = LIVE.on && LIVE.out.plc;
-  let s = surfaceStart(x,y,DEV.plc.w,DEV.plc.h,65,'graphite')+shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
+  let s = surfaceStart(x,y,DEV.plc.w,DEV.plc.h,65,'plc')+shadow(x, y, w, h, 1.5) + R(x, y, w, h, 'rx="1.8" fill="url(#gGraphite)" stroke="#1b1e21" stroke-width=".5"');
   // 단자대 두 층 (칸막이)
   const tier = (yy, hh, fill, xs) => { let t = R(x + .8, yy, w - 1.6, hh, `fill="${fill}"`), d = ''; for (const xx of xs) d += `M${F(x + xx)} ${F(yy + .6)}V${F(yy + hh - .6)}`; return t + `<path d="${d}" stroke="#4b5156" stroke-width=".45"/>`; };
   const cut = (ts, dx) => ts.map(t => t.x + dx);
@@ -1413,19 +1502,19 @@ function dPLC(x, y, lid = {}) {   // LS XGB XBC-DN32H 모양. 위 입력, 아래
   for (const t of T_) { const top = t.d === 'up', ly = top ? (t.y > 8 ? y + 20.3 : y + 17.6) : (t.y < 88 ? y + 76.2 : y + 79), p = t.k === 'L' || t.k === 'N';
     s += tl(x + t.x, ly, t.lab, t.lab.length > 3 ? 1.3 : 1.5, p ? '#ffd34d' : '#d8dde1'); }
   { const tL = T_.find(t => t.k === 'L'), tN = T_.find(t => t.k === 'N'); s += tl(x + (tL.x + tN.x) / 2, y + 76, '100-240Va.c', .95, '#ffd34d'); }
-  // 가운데: 좌우 덮개판, 상태 표시부
-  s += R(x + 1.5, y + 27.2, 30, 40.6, 'rx="1" fill="url(#gPLCPolymer)" stroke="#9aa0a5" stroke-width=".35"') + R(x + 88.5, y + 27.2, 30, 40.6, 'rx="1" fill="url(#gPLCPolymer)" stroke="#9aa0a5" stroke-width=".35"');
-  s += `<path d="M${F(x + 27)} ${F(y + 43)}V${F(y + 52)}M${F(x + 28.4)} ${F(y + 43)}V${F(y + 52)}M${F(x + 91.6)} ${F(y + 43)}V${F(y + 52)}M${F(x + 93)} ${F(y + 43)}V${F(y + 52)}" stroke="#8f959a" stroke-width=".5"/>`;
-  s += nameTag(x + 15, y + 47.6, 'PLC');
-  s += R(x + 31.5, y + 27.2, 57, 40.6, 'fill="url(#gPalePolymer)" stroke="#9aa0a5" stroke-width=".35"');
-  s += R(x + 34, y + 30, 10.5, 3.8, 'rx=".4" fill="#d6262f"') + T(x + 39.25, y + 33, 'XGB', TX(2.6, '#fff', 'font-weight="800"'));
-  s += TS(x + 34, y + 38.6, 'XBC-DN32H', 2.5, '#3a4045', 'font-weight="700"');
-  [['PWR', pw ? '#3be06b' : '#7d8a80'], ['RUN', pw ? '#3be06b' : '#7d8a80'], ['ERR', '#8a7a7a']].forEach(([l, c], i) => { s += R(x + 34.4, y + 42 + i * 4.6, 2.2, 2.2, `fill="${c}"`) + TS(x + 37.6, y + 43.9 + i * 4.6, l, 1.9, '#3a4045'); });
-  const leds = (yy, a, b) => { let t = ''; for (let i = 0; i < 8; i++) { const lx = x + 53 + i * 4; t += T(lx + .9, yy - .8, (a + i).toString(16).toUpperCase().padStart(2, '0'), TX(1.25, '#4a5056')) + R(lx, yy, 1.9, 1.5, 'fill="#5f6a63"'); } return t; };
-  s += leds(y + 31.2, 0, 0) + leds(y + 36.8, 8, 8) + TS(x + 53, y + 41.4, 'IN', 1.6, '#4a5056');
-  s += TS(x + 53, y + 47, 'OUT', 1.6, '#4a5056') + leds(y + 50, 0x20, 0x20) + leds(y + 55.6, 0x28, 0x28);
-  s += `<text x="${F(x + 77)}" y="${F(y + 47.2)}" font-size="4.2" font-weight="800" font-style="italic" fill="#9aa0a5">LS</text>`;
-  s += TS(x + 33, y + 66.4, '130VA 50/60Hz   Out: 24VDC, 0.1A/P', 1.3, '#555c62') + TS(x + 89, y + 66.4, 'Out : 24VDC, 0.5A/P, 2A/C', 1.3, '#555c62') + TS(x + 89, y + 29.6, 'In : 24VDC, 4mA', 1.3, '#555c62');
+  // Photo: one continuous pale label band with only the left OPEN access flap.
+  s+=R(x+.8,y+27.2,w-1.6,40.6,'fill="url(#gPLCPolymer)" stroke="#a4b0b3" stroke-width=".35"')
+    +R(x+1.2,y+27.8,27.5,39.2,'rx=".5" fill="#c5d0d2" stroke="#9eafb4" stroke-width=".3"')
+    +TS(x+3,y+46,'▷ OPEN',2.2,'#a3b3b5')+LN(x+26.8,y+33,x+26.8,y+61,'stroke="#7f9299" stroke-width=".5"');
+  s+=TS(x+31.5,y+32,'LS',3.8,'#626c6e','font-weight="800" font-style="italic"')
+    +R(x+31.5,y+34,13.3,3.8,'fill="#bc4052"')+T(x+38.1,y+37,'XGB',TX(2.7,'#fff','font-weight="700"'))
+    +TS(x+31.5,y+40.8,'XBC-DR32H',2.1,'#525f63','font-weight="700"');
+  [['PWR',pw?'#4cd877':'#65796c'],['RUN',pw?'#4cd877':'#65796c'],['ERR','#746c6c']].forEach(([l,c],i)=>{s+=R(x+32,y+44+i*4.7,1.9,2,`fill="${c}"`)+TS(x+35.4,y+45.8+i*4.7,l,2.2,'#4b5a60');});
+  const leds=(yy,start)=>{let t='';for(let i=0;i<8;i++){const xx=x+49+i*4.15;t+=R(xx,yy,1.9,1.6,'fill="#58676c"')+T(xx+.95,yy+3.5,(start+i).toString(16).toUpperCase().padStart(2,'0'),TX(1.3,'#53636a'));}return t;};
+  s+=leds(y+30.4,0)+leds(y+38.4,8)+TS(x+84,y+37.9,'IN',2,'#536269')
+    +leds(y+48,0x20)+leds(y+56,0x28)+TS(x+84,y+55.3,'OUT',2,'#536269')
+    +TS(x+92,y+30.6,'DC IN : 24 Vd.c. 4 mA',1.4,'#65757a')
+    +TS(x+2,y+66,'130 VA  50/60 Hz',1.6,'#61747a')+TS(x+48,y+66,'RELAY OUT : 24 Vd.c. / 240 Va.c.',1.4,'#61747a');
   // 연 덮개는 가운데 쪽으로 젖혀져 있다 (닫은 덮개는 plcLid)
   const bar = yy => R(x + .8, yy, w - 1.6, 5.8, 'rx="1" fill="#4a5056" stroke="#1d2023" stroke-width=".4"') + LN(x + 2, yy + 1.4, x + w - 2, yy + 1.4, 'stroke="#6b7278" stroke-width=".5"') + LN(x + 2, yy + 4.2, x + w - 2, yy + 4.2, 'stroke="#2a2e32" stroke-width=".5"');
   if (!lid.t) s += bar(y + 21.4);
@@ -1441,35 +1530,46 @@ function dCard(x, y, type) {
   s += T(x + w / 2, y + 81, '위치결정', TX(2.4, '#d5d9dc')) + T(x + w / 2, y + 85.5, '카드', TX(2.4, '#d5d9dc'));
   return s+SURFACE_END;
 }
-function dServo(x, y, bolted) {   // LS L7S 모양: 위 조작부, 왼쪽 전원 커넥터(주황 레버), 오른쪽 CN 커넥터
-  const w = SERVO.w, h = SERVO.h, on = LIVE.on && LIVE.out.sv;
-  let s = surfaceStart(x,y,SERVO.w,SERVO.h,85,'finned')+shadow(x, y, w, h, 2) + R(x, y, w, h, 'rx="2" fill="url(#gGraphite)" stroke="#161b20" stroke-width=".6"');
-  s += R(x + 1, y + 1, w - 2, 31, 'rx="1.6" fill="#141619"');
-  s += `<text x="${F(x + 4)}" y="${F(y + 16)}" font-size="6" font-weight="800" font-style="italic" fill="#f2f4f5">LS</text>` + TS(x + 35, y + 9.2, 'SERVO', 2.2, '#e8ecef', 'font-weight="700"');
-  s += R(x + 26, y + 15, 20, 9.5, 'rx=".8" fill="#08090a" stroke="#2b3036" stroke-width=".4"') + T(x + 36, y + 22.3, on ? 'rdy' : '', TX(5.4, '#ff4136', 'font-weight="700"'));
-  s += TS(x + 34, y + 30.2, 'OPEN ▷', 1.8, '#8d959c');
-  s += C(x + 9, y + 37.2, 2.1, 'fill="#1a1d20" stroke="#6d7880" stroke-width=".35"') + C(x + 9, y + 37.2, 1.1, `fill="${on ? '#ff5a3c' : '#3e2a27'}"`) + T(x + 9, y + 41.6, 'CHARGE', TX(1.4, '#c9d0d5'));
-  for (const tx of [22, 30]) s += `<path d="M${F(x + tx)} ${F(y + 34.4)}l2.6 4.6h-5.2z" fill="none" stroke="#d8dde1" stroke-width=".35"/>`;
-  s += R(x + 40.5, y + 34, 5.4, 3.8, 'rx=".4" fill="#0d0f11" stroke="#6d7880" stroke-width=".3"') + T(x + 43.2, y + 40.6, 'CN5', TX(1.3, '#c9d0d5'));
-  // 전원 커넥터: L1 L2 L3 N PO PI B+ B BI C1 C2 (주황 레버 + 전선 구멍)
-  s += R(x + 2, y + h - 8, w - 4, 7.2, 'rx="1" fill="#59636d"');   // 방열판
-  let fin = ''; for (let i = 0; i < 15; i++) fin += `M${F(x + 4 + i * 3)} ${F(y + h - 7.2)}V${F(y + h - 1.8)}`;
-  s += `<path d="${fin}" stroke="#46505a" stroke-width=".6"/>`;
-  const conn = (yy, hh) => R(x + 6, yy, 15.5, hh, 'rx=".8" fill="#111315"') + C(x + 13.8, yy + 1.9, .9, 'fill="#9aa1a6"') + C(x + 13.8, yy + hh - 1.9, .9, 'fill="#9aa1a6"');
-  s += conn(y + 40.2, 75.6) + conn(y + 128.6, 23.2);
-  for (const t of devTerms('servo')) {
-    if (t.k === 'PE') { s += SCR(x + t.x, y + t.y) + T(x + t.x + 4.4, y + t.y + .6, 'PE', TX(1.6, '#e5e9ec')); continue; }
-    s += R(x + 7.4, y + t.y - 2, 5.6, 4, 'rx=".6" fill="#f08a24" stroke="#a9590e" stroke-width=".25"') + C(x + t.x, y + t.y, 1.85, 'fill="#050606" stroke="#5c646b" stroke-width=".35"') + tl(x + 3.1, y + t.y + .7, t.lab, 1.8, '#e5e9ec');
+function dServo(x,y,bolted) {   // User photos: LS L7S face, orange release levers, metal CN shells and vented side.
+  const w=SERVO.w,h=SERVO.h,on=LIVE.on&&LIVE.out.sv;
+  let s=surfaceStart(x,y,w,h,85,'servo')+R(x,y,w,h,'rx=".9" fill="url(#gServoCase)" stroke="#334a52" stroke-width=".5"');
+  s+=R(x+.8,y+.7,w-1.6,30.6,'rx=".8" fill="url(#gServoPanel)" stroke="#889a9b" stroke-width=".35"')
+    +TS(x+3.6,y+7.5,'LS',4.8,'#f5f5e8','font-weight="800" font-style="italic"')+TS(x+37,y+5,'SERVO',1.7,'#dfe8e6','font-weight="700"')
+    +R(x+9,y+10,32,12,'rx=".4" fill="#080c0d"')+T(x+25,y+19.3,on?'rdy':'',TX(5.6,'#f34036','font-weight="700"'))
+    +TS(x+33,y+29,'OPEN ▷',1.9,'#394949');
+  s+=C(x+8.1,y+37,1.5,`fill="${on?'#e86539':'#192e31'}" stroke="#819a9b" stroke-width=".35"`)+T(x+8,y+41.4,'CHARGE',TX(1.4,'#cfdbd7'));
+  for(const tx of [22,30])s+=`<path d="M${F(x+tx)} ${F(y+34.4)}l2.6 4.6h-5.2zM${F(x+tx)} ${F(y+36)}v1.5m0 .6v.2" fill="none" stroke="#dae2db" stroke-width=".3"/>`;
+  s+=R(x+40.3,y+34,4.2,6.2,'rx=".5" fill="url(#gChrome)" stroke="#9ca9a6" stroke-width=".3"')+R(x+41.3,y+34.9,2.2,4.3,'rx=".4" fill="#121e23"')+TS(x+45,y+38,'CN5',1.2,'#c9dbd6');
+  // Exposed black plug bodies; the functional wire-entry centres stay at devTerms().
+  const conn=(yy,hh)=>R(x+6.2,yy,15.5,hh,'rx=".5" fill="#142024" stroke="#78908e" stroke-width=".3"')
+    +R(x+7,yy+1,13.9,hh-2,'rx=".35" fill="#080e12"')+C(x+13.8,yy+1.9,1,'fill="url(#gChrome)"')+C(x+13.8,yy+hh-1.9,1,'fill="url(#gChrome)"');
+  s+=conn(y+40.2,75.6)+conn(y+128.6,23.2);
+  for(const t of devTerms('servo')){
+    if(t.k==='PE')continue;
+    s+=R(x+8,y+t.y-2,4.7,4,'rx=".45" fill="url(#gOrangeLever)" stroke="#a16122" stroke-width=".25"')
+      +LN(x+9.2,y+t.y-1.5,x+9.2,y+t.y+1.4,'stroke="#ffd386" stroke-width=".5"')
+      +C(x+t.x,y+t.y,1.85,'fill="#080e11" stroke="#576f70" stroke-width=".4"')
+      +tl(x+3,y+t.y+.6,t.lab,1.6,'#d2ded5');
   }
-  // 통신 커넥터 CN4, CN3 (RJ45), 제어 신호 CN1, 엔코더 CN2
-  const rj = yy => R(x + 27, yy, 13, 10, 'rx=".6" fill="#1d2125" stroke="#5c646b" stroke-width=".35"') + R(x + 29, yy + 2, 9, 6, 'fill="#08090a"') + R(x + 31.5, yy + 7.4, 4, 1.2, 'fill="#2f3439"');
-  s += rj(y + 44) + TS(x + 41.6, y + 50, 'CN4', 1.5, '#c9d0d5') + rj(y + 56) + TS(x + 41.6, y + 62, 'CN3', 1.5, '#c9d0d5');
-  const dsub = (yy, hh) => R(x + 28, yy, 12, hh, 'rx="1.2" fill="#8b9399" stroke="#5c646b" stroke-width=".35"') + R(x + 30, yy + 2.4, 8, hh - 4.8, 'rx=".8" fill="#1b1e21"') + R(x + 31, yy + 3.6, 6, hh - 7.2, 'fill="url(#pPins)"');
-  s += dsub(y + 70, 40) + TS(x + 41.6, y + 91, 'CN1', 1.5, '#c9d0d5') + dsub(y + 118, 26) + TS(x + 41.6, y + 132, 'CN2', 1.5, '#c9d0d5');
-  s += R(x + 3, y + 117.2, 20, 10.4, 'rx="1" fill="#56616c"');   // 앞 커버
-  for (const yy of [y + 6, y + h - 6]) s += bolted ? drawBolt(x + w / 2, yy) : C(x + w / 2, yy, 2.4, 'fill="#191c1f"');
+  const rj=(yy,label)=>{let t=R(x+27.4,yy,12.3,11,'rx=".35" fill="#222e32" stroke="#869594" stroke-width=".4"')+R(x+28.6,yy+1.2,9.9,7.7,'fill="#03090c"')+R(x+31.2,yy+8.2,4.6,2,'fill="#060d10"');
+    for(let k=0;k<8;k++)t+=LN(x+29.4+k*1.1,yy+1.4,x+29.4+k*1.1,yy+3.1,'stroke="#ad9965" stroke-width=".28"');
+    return t+TS(x+41,yy+6,label,1.6,'#b9ceca');};
+  s+=rj(y+44,'CN4')+rj(y+57,'CN3');
+  const dsub=(yy,hh,rows,label)=>{let t=R(x+27,yy,13.2,hh,'rx="1.1" fill="url(#gChrome)" stroke="#809594" stroke-width=".4"');
+    for(const cy of [yy+2.8,yy+hh-2.8])t+=C(x+33.6,cy,1.3,'fill="#293a3b" stroke="#d4d9c6" stroke-width=".5"');
+    t+=`<path d="M${F(x+29.6)} ${F(yy+6)}l7.6-.7v${F(hh-10.6)}l-7.6-.7z" fill="#0c1a1e" stroke="#c3c9ba" stroke-width=".45"/>`;
+    for(let k=0;k<rows;k++)for(let j=0;j<2;j++)t+=C(x+31.2+j*3.5,yy+7+k*(hh-14)/rows+j*.45,.38,'fill="#c4ab6f"');
+    return t+TS(x+41.5,yy+hh/2+1,label,1.6,'#c5d7d0');};
+  s+=dsub(y+70,40,25,'CN1')+dsub(y+118,26,13,'CN2')
+    +R(x+3,y+117,20,10.5,'rx=".5" fill="#536b73" stroke="#849895" stroke-width=".25"');
+  // Heat sink and grounding fasteners are separate from the orange motor plug.
+  s+=R(x+1,y+h-7.4,w-2,7.3,'fill="#8c9e9d" stroke="#4c656a" stroke-width=".35"');
+  for(let k=0;k<16;k++)s+=LN(x+2.5+k*2.8,y+h-6.4,x+2.5+k*2.8,y+h-1,'stroke="#4b646b" stroke-width=".7"');
+  s+=C(x+42,y+154.5,3.1,'fill="url(#gContact)" stroke="#697a60" stroke-width=".4"')+SCR(x+42,y+154.5)+T(x+46.7,y+155,'⏚',TX(2.4,'#d9e2d5'));
+  for(const yy of [y+6,y+h-6])s+=bolted?drawBolt(x+w/2,yy):C(x+w/2,yy,2.4,'fill="#1e363c" stroke="#859c99" stroke-width=".4"');
   return s+SURFACE_END;
 }
+
 const SOCKET_CLAMP_ART = new Map();   // 그림 전용, 위치·단자 배열별 최대 256개. 저장 상태에는 넣지 않는다.
 function socketShell(x,y,w,h) {
   return shadow(x,y,w,h,1.4)+R(x,y,w,h,'rx="1.4" fill="url(#gSocketRim)" stroke="#111b22" stroke-width=".5"')
@@ -5917,7 +6017,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.29.0', date: '2026.11.11', notes: ['입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.30.0', date: '2026.11.11', notes: ['제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;

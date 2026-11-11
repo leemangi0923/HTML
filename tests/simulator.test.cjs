@@ -254,6 +254,57 @@ test('photo-based IO-link covers open and close at their original coordinates wi
   assert.equal(await page.locator('[data-scene-part="lids"] [data-xtb-lid="closed"]').count(),2);
 });
 
+test('photo housing sides stay attached on both views and reuse their vent artwork during camera movement',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    hideHome();S.finished=true;renderAll();
+    const state=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS),rows=reliefNodes.filter(r=>PHOTO_HOUSINGS.has(r.kind));
+    const nodes=rows.map(r=>[r,...r.sideArt.querySelectorAll('*')]);let attached=true,reused=true,visible=true,unmirrored=true;
+    for(const sign of [-1,1])for(const offset of [217,260]){
+      UI.cam={x:380+sign*offset-650,y:300+(offset===217?-140:140)-488,w:1300,h:976};applyCam();
+      for(const r of rows){
+        const [x,y,w,h]=r.box,dx=+r.node.dataset.sideX,dy=+r.node.dataset.sideY,ex=dx>=0?x+w:x;
+        const m=svgLocalMatrix(r.sidePlane),parent=svgLocalMatrix(r.node);
+        const base=new DOMPoint(ex,y+h/2).matrixTransform(parent),front=new DOMPoint(ex-dx,y+h/2-dy).matrixTransform(parent);
+        const ends=[new DOMPoint(0,h/2).matrixTransform(m),new DOMPoint(50,h/2).matrixTransform(m)];
+        attached&&=ends.some(p=>Math.hypot(p.x-base.x,p.y-base.y)<.01)&&ends.some(p=>Math.hypot(p.x-front.x,p.y-front.y)<.01);
+        visible&&=r.sidePlane.getAttribute('display')==='inline';unmirrored&&=m.a>0;
+        if(r.ratingLabel)visible&&=r.ratingLabel.getAttribute('display')===(sign<0?'inline':'none');
+        if(r.capPlane){
+          const ey=dy>=0?y+h:y,cm=svgLocalMatrix(r.capPlane),baseCap=new DOMPoint(x+w/2,ey).matrixTransform(parent),frontCap=new DOMPoint(x+w/2-dx,ey-dy).matrixTransform(parent);
+          const capEnds=[new DOMPoint(0,w/2).matrixTransform(cm),new DOMPoint(50,w/2).matrixTransform(cm)];
+          attached&&=capEnds.some(p=>Math.hypot(p.x-baseCap.x,p.y-baseCap.y)<.01)&&capEnds.some(p=>Math.hypot(p.x-frontCap.x,p.y-frontCap.y)<.01);
+          visible&&=r.capPlane.getAttribute('display')==='inline'&&r.capPlane.querySelector('[data-housing-cap-top]').getAttribute('display')===(dy<0?'inline':'none');
+        }
+      }
+      reused&&=nodes.every(([r,...children])=>children.every(n=>n.isConnected&&r.sideArt.contains(n)));
+    }
+    SET.relief=false;applyCam();const flat=rows.every(r=>r.node.getAttribute('display')==='none'&&r.face.getAttribute('transform')==='translate(0 0)');
+    SET.relief=true;applyCam();
+    return{types:rows.map(r=>r.kind).sort(),attached,reused,visible,unmirrored,flat,state:state===JSON.stringify({...S,elapsed:0}),terms:terms===JSON.stringify(TERMS)};
+  });
+  assert.deepEqual(result.types,['mcb','plc','servo','smps']);
+  for(const[k,v]of Object.entries(result))if(k!=='types')assert.equal(v,true,k);
+});
+
+test('redrawn PLC covers still open at their displayed positions and preserve wiring and cover locks',async()=>{
+  await fullState();
+  await page.evaluate(()=>{hideHome();S.finished=true;S.opBack=false;S.tool='hand';UI.carry=null;S.tbCover=false;for(const[,q]of frList())q.covered=false;renderAll();});
+  const initial=await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires)}));
+  for(const top of [true,false]){
+    await page.evaluate(()=>{const i=S.inst.find(i=>i.type==='plc');fitTo({x:i.x-25,y:devY(i)-35,w:170,h:170});});
+    for(const closed of [true,false]){
+      assert.equal(await page.evaluate(top=>S.plcLid[top?'t':'b'],top),closed);
+      const hit=await page.evaluate(top=>{const r=plcLidRect(top);return{x:r.x+r.w/2,y:r.y+r.h/2};},top);
+      await clickWorld(hit.x,hit.y);
+      assert.equal(await page.evaluate(top=>S.plcLid[top?'t':'b'],top),!closed);
+      const locked=await page.evaluate(top=>{const t=devTerms('plc').find(t=>t.d===(top?'up':'down'));return!!wireLock('PLC.'+t.k,'TB.1.t');},top);
+      assert.equal(locked,!closed);
+    }
+  }
+  assert.deepEqual(await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires)})),initial);
+});
+
 test('ducts and both rail lengths receive tape on the back, then mount face up and undo correctly',async()=>{
   for(const type of ['duct','ch500','ch575']){
     const target=await page.evaluate(type=>{setMode('free',newState(false));hideHome();S.marginSide='L';S.stage=1;UI.trayOpen.add('fr');renderAll();const r=type==='duct'?SLOT.d1:ROWS.find(r=>r.ch===type);return type==='duct'?{x:r.x+r.w/2,y:r.y+r.h/2,slot:r.id}:{x:300,y:r.cy,slot:r.rail};},type);
