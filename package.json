@@ -1,6 +1,6 @@
 {
   "name": "robot-assembly-simulator",
-  "version": "2.33.0",
+  "version": "2.34.0",
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
@@ -16,7 +16,8 @@
     "predist:dir": "npm run desktop:prepare",
     "dist:dir": "electron-builder --config desktop/electron-builder.yml --dir --publish never",
     "test:updater": "node --test tests/updater.test.cjs",
-    "benchmark:graphics": "node scripts/benchmark-graphics.cjs"
+    "benchmark:graphics": "node scripts/benchmark-graphics.cjs",
+    "benchmark:full-graphics": "node scripts/benchmark-full-graphics.cjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16",

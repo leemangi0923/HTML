@@ -16,4 +16,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm test
+      - name: Simulator tests
+        shell: bash
+        run: npm test 2>&1 | tee simulator-tests.log
+      - name: Publish test result
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          if (!fs.existsSync('simulator-tests.log')) process.exit(0);
+          const lines = fs.readFileSync('simulator-tests.log', 'utf8').split('\n');
+          const selected = lines.filter(line => /^(?:not ok|✖|ℹ (?:tests|pass|fail|duration)|# (?:tests|pass|fail|duration))|^\s+(?:error:|location:|at TestContext)/.test(line)).map(line => line.slice(0, 350));
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, '### Simulator test result\n\n```text\n' + selected.slice(-80).join('\n') + '\n```\n');
+          NODE

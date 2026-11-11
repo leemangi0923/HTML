@@ -489,6 +489,48 @@ test('wire dressing accepts a position beneath a duct tooth and keeps covered du
   await clickWorld(point.x,point.y);assert.equal(await page.evaluate(({a,b})=>!!S.wires.find(w=>w.a===a&&w.b===b).ha,point),false);
 });
 
+test('cached wire projections match the original coordinates through views, covers and rewiring',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.finished=true;
+    // Independent reference: the original per-vertex lookup and arithmetic.
+    const reference=art=>{const m=art.matrix,det=m.a*m.d-m.b*m.c||1;
+      return art.commands.map(c=>{const v=[...c.v];for(let k=c.cmd==='A'?5:0;k<v.length;k+=2){const x=v[k],y=v[k+1],wx=m.a*x+m.c*y+m.e,wy=m.b*x+m.d*y+m.f,p=projectWorkPoint({x:wx,y:wy},true),dx=p.x-wx,dy=p.y-wy;v[k]=F(x+(m.d*dx-m.c*dy)/det);v[k+1]=F(y+(-m.b*dx+m.a*dy)/det);}return c.cmd+v.join(' ');}).join('');};
+    const fixture={matrix:new DOMMatrix([.87,.12,-.18,.93,70,100]),commands:projectionCommands('M10 20Q50 40 80 30C100 50 140 60 160 80A12 8 35 1 0 200 100L250 150Z')};
+    let checked=0,matched=true;
+    for(let variant=0;variant<3;variant++){
+      if(variant===1){S.opBack=false;S.smpsLid={t:true,b:true};S.tbCover=true;}
+      if(variant===2){S.opBack=true;S.tbCover=false;S.wires=S.wires.filter(w=>pairKey(w.a,w.b)!==pairKey('R3.5','PLC.N'));S.fr.D4.covered=false;}
+      buildTerms();renderAll();
+      for(const [x,y,w,h]of [[-210,-160,1300,976],[150,180,1300,976],[0,-20,800,700]]){
+        UI.cam={x,y,w,h};applyCam(svg.getBoundingClientRect());PROJECTION.bindings.clear();
+        for(const art of [...PROJECTION.paths.filter((_,i)=>i%17===0),fixture]){matched&&=projectedPath(art)===reference(art);checked++;}
+      }
+    }
+    return{checked,matched,graphics:GRAPHICS_KEYS.every(k=>SET[k])};
+  });
+  assert.ok(result.checked>180);assert.equal(result.matched,true);assert.equal(result.graphics,true);
+});
+
+test('full graphics reuse vertex bindings and unchanged scene preparation without camera layout reads',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.finished=true;UI.cam={x:-200,y:-150,w:1300,h:976};renderAll();const rect=svg.getBoundingClientRect();applyCam(rect);
+    const before=JSON.stringify(S),terms=JSON.stringify(TERMS),nodes=[...gWorld.querySelectorAll('*')],lights=gWorld.querySelectorAll('.edge-light,.side-light').length;
+    let inPath=false,searches=0,prepares=0,reads=0;const a=projectedPath,b=projectionBinding,c=prepareProjection,d=Object.getOwnPropertyDescriptor(Element.prototype,'clientWidth');
+    projectedPath=(...args)=>{inPath=true;try{return a(...args);}finally{inPath=false;}};
+    projectionBinding=(...args)=>{if(inPath)searches++;return b(...args);};prepareProjection=(...args)=>{prepares++;return c(...args);};
+    Object.defineProperty(svg,'clientWidth',{configurable:true,get(){reads++;return d.get.call(this);}});
+    try{
+      for(let i=0;i<8;i++){UI.cam.x+=25;UI.cam.y-=8;applyCam();}
+      for(let i=0;i<3;i++)renderWorld(false);
+      return{searches,prepares,reads,retained:nodes.every(n=>n.isConnected)&&nodes.length===gWorld.querySelectorAll('*').length,
+        state:before===JSON.stringify(S),terms:terms===JSON.stringify(TERMS),graphics:GRAPHICS_KEYS.every(k=>SET[k]),lightsPreserved:lights>0&&lights===gWorld.querySelectorAll('.edge-light,.side-light').length};
+    }finally{projectedPath=a;projectionBinding=b;prepareProjection=c;delete svg.clientWidth;}
+  });
+  assert.deepEqual(result,{searches:0,prepares:0,reads:0,retained:true,state:true,terms:true,graphics:true,lightsPreserved:true});
+});
+
 test('camera movement preserves model terminals, wiring, score and SVG nodes while projecting height',async()=>{
   await fullState();await page.evaluate(()=>hideHome());
   const result=await page.evaluate(()=>{
