@@ -187,12 +187,44 @@ test('every fitted device and both operator-panel faces have stable relief witho
     const servo=!!SCENE_PARTS.get('servo').querySelector('[data-relief]');
     const cameras=[{x:-180,y:0,w:800,h:600},{x:440,y:70,w:800,h:600}];let stable=true,front=false,back=false;
     for(const rear of [false,true]){S.opBack=rear;buildTerms();renderWorld(false);const before=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS),score=scoreSheet().total;
-      const op=SCENE_PARTS.get(rear?'op-back':'op-front');if(rear)back=!!op.querySelector('[data-relief-kind="graphite"]');else front=!!op.querySelector('[data-relief-kind="round-graphite"]');
+      const op=SCENE_PARTS.get(rear?'op-back':'op-front');if(rear)back=!!op.querySelector('[data-relief-kind="rounded-graphite"]');else front=!!op.querySelector('[data-relief-kind="round-graphite"]');
       const nodes=[...gWorld.children];for(const c of cameras){UI.cam=c;applyCam();stable&&=before===JSON.stringify({...S,elapsed:0})&&terms===JSON.stringify(TERMS)&&score===scoreSheet().total&&nodes.every(n=>n.isConnected);}
     }
     return {missing,servo,front,back,stable,glass:reliefNodes.some(r=>r.kind==='glass'),fins:reliefNodes.some(r=>r.kind==='finned')};
   });
   assert.deepEqual(result.missing,[]);for(const k of ['servo','front','back','stable','glass','fins'])assert.equal(result[k],true,k);
+});
+
+test('broken duct junctions stay visibly open through undo and reload',async()=>{
+  await fullState();
+  const junctions=await page.evaluate(()=>{hideHome();S.guide=false;S.tool='hand';S.dbreak={};S.wires=[];S.helical=0;for(const[,q]of frList())q.covered=false;renderAll();return JUNC;});
+  const capArea=id=>page.evaluate(id=>{
+    const j=JUNC.find(j=>j.id===id),r=frRect(frList().find(([,q])=>q.slot===j.v)[1]);
+    return ductToothRects(r).reduce((n,a)=>n+Math.max(0,Math.min(a.x+a.w,j.x+j.w)-Math.max(a.x,j.x))*Math.max(0,Math.min(a.y+a.h,j.y+j.h)-Math.max(a.y,j.y)),0);
+  },id);
+  for(const j of junctions){
+    assert.ok(await capArea(j.id)>0,'unbroken wall has teeth');
+    await page.evaluate(j=>fitTo({x:j.x-55,y:j.y-40,w:150,h:120}),j);
+    await clickWorld(j.x+j.w/2,j.y+j.h/2);
+    assert.equal(await page.evaluate(id=>S.dbreak[id],j.id),true,j.id);
+    assert.equal(await capArea(j.id),0,'broken wall must not be repainted above wires');
+    assert.ok(await page.locator(`[data-duct-teeth="${j.v}"] path`).getAttribute('d'),'remaining wall stays visible');
+  }
+  await page.evaluate(()=>undo());assert.ok(await capArea(junctions.at(-1).id)>0,'undo restores the teeth');
+  await page.evaluate(()=>{showHome();save();});await page.reload();await page.waitForFunction(()=>window.SIM);
+  for(const j of junctions.slice(0,-1))assert.equal(await capArea(j.id),0,'saved opening stays open');
+});
+
+test('rear housings meet their real body bounds and device sides have no detached outline',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.opBack=true;renderAll();const root=SCENE_PARTS.get('op-back'),boxes=[...root.querySelectorAll('[data-relief]')].map(n=>n.dataset.relief.split(',').map(Number));
+    const missing=[];for(const[hid,k]of Object.entries(S.op.dev)){const[hx,y]=OP.holes[hid],x=OP.w-hx,b=OP_KIND[k]==='lamp'?[x-12,y-12,24,24]:[x-14,y-13,28,26];if(!boxes.some(a=>b.every((v,i)=>v===a[i])&&a[5]===OPW.x&&a[6]===OPW.y))missing.push(hid);}
+    const g=hmiGeom(),hmi=boxes.some(a=>[g.x0,g.y0,g.w,g.h].every((v,i)=>v===a[i]));
+    const detached=[];for(const c of [{x:-180,y:-100,w:800,h:600},{x:700,y:200,w:800,h:600}]){UI.cam=c;applyCam();for(const r of reliefNodes){if(['metal','duct','cover','stopper'].includes(r.kind))continue;if(getComputedStyle(r.sideX).stroke!=='none'||getComputedStyle(r.sideY).stroke!=='none')detached.push(r.kind);}}
+    return{missing,hmi,detached,duplicate:document.querySelectorAll('[data-housing-finish]').length};
+  });
+  assert.deepEqual(result.missing,[]);assert.equal(result.hmi,true);assert.deepEqual(result.detached,[]);assert.equal(result.duplicate,0);
 });
 
 test('unplugged mains cannot energize a fully wired circuit; physical plug and outlet clicks restore supply',async()=>{
