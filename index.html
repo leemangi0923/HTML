@@ -666,6 +666,9 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 .relief[data-relief-kind="plc"] .relief-y { fill:#484d57; }
 .relief[data-relief-kind="servo"] .relief-x { fill:#64747a; }
 .relief[data-relief-kind="servo"] .relief-y { fill:#465c64; }
+.relief[data-relief-kind="op-contact"] .relief-x,.relief[data-relief-kind="op-lamp"] .relief-x,.relief[data-relief-kind="op-hmi"] .relief-x,.relief[data-relief-kind="tb"] .relief-x { fill:#28373e; }
+.relief[data-relief-kind="op-contact"] .relief-y,.relief[data-relief-kind="op-lamp"] .relief-y,.relief[data-relief-kind="op-hmi"] .relief-y,.relief[data-relief-kind="tb"] .relief-y { fill:#162831; }
+.relief[data-relief-kind="round-buzzer"] .relief-x { fill:#b4b299; }
 [data-power-cable][data-plugged="true"] [data-power-pin] { display:none; }
 .relief:not([data-relief-kind="metal"]):not([data-relief-kind="duct"]):not([data-relief-kind="cover"]):not([data-relief-kind="stopper"]) .relief-x,.relief:not([data-relief-kind="metal"]):not([data-relief-kind="duct"]):not([data-relief-kind="cover"]):not([data-relief-kind="stopper"]) .relief-y { stroke:none; }
 </style>
@@ -742,6 +745,13 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
             <linearGradient id="gServoCase" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#647c84"/><stop offset=".12" stop-color="#506973"/><stop offset=".8" stop-color="#3b535b"/><stop offset="1" stop-color="#657d81"/></linearGradient>
             <linearGradient id="gServoPanel" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#202c2d"/><stop offset=".15" stop-color="#080f12"/><stop offset="1" stop-color="#080c0e"/></linearGradient>
             <linearGradient id="gOrangeLever" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#ad5b0d"/><stop offset=".3" stop-color="#ffd578"/><stop offset=".55" stop-color="#f2a433"/><stop offset="1" stop-color="#c46912"/></linearGradient>
+            <linearGradient id="gContactBlue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#90bee0"/><stop offset=".18" stop-color="#699dcc"/><stop offset=".7" stop-color="#447aad"/><stop offset="1" stop-color="#315e89"/></linearGradient>
+            <linearGradient id="gContactRed" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ed8d71"/><stop offset=".18" stop-color="#dc624d"/><stop offset=".7" stop-color="#bb4433"/><stop offset="1" stop-color="#8d2e26"/></linearGradient>
+            <linearGradient id="gBlackMoulding" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#566267"/><stop offset=".12" stop-color="#313b41"/><stop offset=".5" stop-color="#212b30"/><stop offset="1" stop-color="#111b20"/></linearGradient>
+            <linearGradient id="gBuzzerShell" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e1dbc3"/><stop offset=".2" stop-color="#cdc5a9"/><stop offset=".75" stop-color="#b5b198"/><stop offset="1" stop-color="#93967e"/></linearGradient>
+            <linearGradient id="gHMISteel" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#4a5355"/><stop offset=".15" stop-color="#303a3c"/><stop offset=".65" stop-color="#1a262b"/><stop offset="1" stop-color="#111d22"/></linearGradient>
+            <linearGradient id="gGreenTerminal" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#a7d48b"/><stop offset=".16" stop-color="#78b466"/><stop offset=".8" stop-color="#548b48"/><stop offset="1" stop-color="#305c32"/></linearGradient>
+            <linearGradient id="gMarkerPaper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fffef3"/><stop offset=".4" stop-color="#f4f4e9"/><stop offset="1" stop-color="#d9e0d5"/></linearGradient>
             <pattern id="pPins" width="2.54" height="2.54" patternUnits="userSpaceOnUse"><circle cx="1.27" cy="1.27" r=".55" fill="#b9a46a"/></pattern>
             <linearGradient id="gGraphite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5c656b"/><stop offset="0.16" stop-color="#434d54"/><stop offset="0.5" stop-color="#2e363d"/><stop offset="0.82" stop-color="#242b32"/><stop offset="1" stop-color="#191f24"/></linearGradient>
             <linearGradient id="gPalePolymer" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="0.16" stop-color="#f1f0e9"/><stop offset="0.5" stop-color="#dfdfd7"/><stop offset="0.88" stop-color="#d0d4cf"/><stop offset="1" stop-color="#b5bebd"/></linearGradient>
@@ -1031,6 +1041,7 @@ function projectAt(x,y,html){return `<g data-project-at="${F(x)},${F(y)}">${html
 function projectFaceAt(x,y,w,h,z,html,ox=0,oy=0){return `<g data-project-face="${[x,y,w,h,z,ox,oy].join(',')}">${html}</g>`;}
 function projectSupport(id,html){return `<g data-project-support="${id}">${html}</g>`;}
 const PHOTO_HOUSINGS=new Set(['mcb','plc','smps','servo']);
+const CASE_SIDE_KINDS=new Set([...PHOTO_HOUSINGS,'op-contact','op-lamp','op-hmi','tb']);
 // Draw inside the side plane: u is case depth, v is distance along the front edge.
 // These are the moulding / ventilation patterns visible in the supplied product photos.
 const HOUSING_SIDE_ART=new Map();
@@ -1057,20 +1068,36 @@ function housingSideArt(kind,w,h){
       {side+='<g data-housing-label>'+R(7,65,37,42,'fill="#e7e6d4" stroke="#aeb5a2" stroke-width=".7"')+R(8,66,35,3,'fill="#a24c3c"');for(let v=73;v<103;v+=3.3)side+=LN(10,v,40,v,'stroke="#767e73" stroke-width=".65"');side+='</g>';}
       side+=`<path d="M1 3V154H49M49 3V154" fill="none" stroke="#a2afb0" stroke-width=".7"/>`;
     }
+    if(kind==='op-contact'){
+      side+=R(1,1,48,h-2,'fill="currentColor"');
+      for(const yy of [2,9,16,23])side+=R(6,yy,37,1.2,'fill="#172c39" fill-opacity=".4"')+LN(6,yy+.2,43,yy+.2,'stroke="#cbd1c4" stroke-opacity=".5" stroke-width=".6"');
+      side+=R(12,10.5,19,5,'fill="#17232b"')+R(15,12,13,2,'fill="#788c8a"');
+    }else if(kind==='op-lamp'){
+      side+=R(2,1,46,h-2,'fill="#212d34"');
+      for(const yy of [3,12,21])side+=R(6,yy,38,1.2,'fill="#10191f"')+LN(6,yy,44,yy,'stroke="#7b8b8a" stroke-opacity=".5" stroke-width=".55"');
+      for(const yy of [6,16])side+=R(16,yy,19,3,'fill="#07121a" stroke="#546a72" stroke-width=".5"');
+    }else if(kind==='op-hmi'){
+      for(let yy=8;yy<h-28;yy+=6)side+=slot(7,yy,36,2.5);
+      side+=R(5,h-24,40,15,'fill="#101d25" stroke="#708284" stroke-width=".6"');
+    }else if(kind==='tb'){
+      side+=R(1,1,48,h-2,'fill="#2c3940"')+R(7,5,36,h-10,'rx="1" fill="#131f26" stroke="#52686f" stroke-width=".6"');
+      for(const yy of [2,h-5])side+=R(3,yy,44,3,'fill="#3e4d53" stroke="#91a19e" stroke-width=".4"');
+    }
     side=`<g data-housing-side="${kind}">${side}</g>`;
   }
-  if(['plc','servo'].includes(kind)){
+  if(['plc','servo','tb'].includes(kind)){
     let holes='';
-    if(kind==='servo'){for(let u=5;u<47;u+=5)for(let v=5;v<w-3;v+=3)holes+=rectD(u,v,2,1.2);}
+    if(kind==='tb'){for(let k=0;k<TB_N;k++)holes+=rectD(8,3.3+k*8.6,35,5.9);}
+    else if(kind==='servo'){for(let u=5;u<47;u+=5)for(let v=5;v<w-3;v+=3)holes+=rectD(u,v,2,1.2);}
     else for(let u=7;u<45;u+=6)for(let v=8;v<w-5;v+=6)holes+=rectD(u,v,2.4,4);
     top=`<g data-housing-cap="${kind}"><path data-housing-cap-top d="${holes}" fill="#16232a" fill-opacity=".8"/>`;
     let fins='';for(let u=5;u<48;u+=5)fins+=`M${u} 2V${F(w-2)}`;
-    top+=`<path data-housing-cap-bottom d="${fins}" fill="none" stroke="#273f46" stroke-width="1"/></g>`;
+    top+=kind==='tb'?`<path data-housing-cap-bottom d="${holes}" fill="#07121a" stroke="#647471" stroke-width=".4"/></g>`:`<path data-housing-cap-bottom d="${fins}" fill="none" stroke="#273f46" stroke-width="1"/></g>`;
   }
   const html=side+top;if(HOUSING_SIDE_ART.size>=32)HOUSING_SIDE_ART.delete(HOUSING_SIDE_ART.keys().next().value);HOUSING_SIDE_ART.set(key,html);return html;
 }
 function reliefBox(x,y,w,h,height,kind='metal',ox=0,oy=0) {
-  return `<g class="relief" data-relief="${[x,y,w,h,height,ox,oy].join(',')}" data-relief-kind="${kind}" pointer-events="none"><path class="relief-shadow"/><path class="relief-x"/><path class="relief-y"/>${kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:PHOTO_HOUSINGS.has(kind)?'<g class="housing-side-art"/>':`<path class="relief-detail" fill="none" stroke="#17232a" stroke-opacity=".48" stroke-width=".45"/>`}</g>`;
+  return `<g class="relief" data-relief="${[x,y,w,h,height,ox,oy].join(',')}" data-relief-kind="${kind}" pointer-events="none"><path class="relief-shadow"/><path class="relief-x"/><path class="relief-y"/>${kind==='round-buzzer'?'<path class="buzzer-side-slots" fill="#4a554a"/>':kind==='stopper'?`<g class="relief-profile" display="none">${stopperProfile()}</g>`:CASE_SIDE_KINDS.has(kind)?'<g class="housing-side-art"/>':`<path class="relief-detail" fill="none" stroke="#17232a" stroke-opacity=".48" stroke-width=".45"/>`}</g>`;
 }
 const RELIEF_CACHE=new WeakMap();let reliefNodes=[];
 function refreshRelief() {
@@ -1094,7 +1121,7 @@ function updateRelief() {
     r.shadow.setAttribute('d',polygon([[x+1,y+1.4],[x+w+1,y+1.4],[x+w+1,y+h+1.4],[x+1,y+h+1.4]]));
     r.sideX.setAttribute('d',r.profile?'':polygon([[ex,y],[ex,y+h],[ex+dx,y+h+dy],[ex+dx,y+dy]]));
     r.sideY.setAttribute('d',polygon([[x,ey],[x+w,ey],[x+w+dx,ey+dy],[x+dx,ey+dy]]));
-    if(['rounded-graphite','graphite','pale','finned','glass'].includes(r.kind)||PHOTO_HOUSINGS.has(r.kind)){
+    if(['rounded-graphite','graphite','pale','finned','glass'].includes(r.kind)||CASE_SIDE_KINDS.has(r.kind)){
       const radius=Math.min(r.kind==='rounded-graphite'?2.5:1.4,w/4,h/4),contour=[];
       for(const [cx,cy,start] of [[x+w-radius,y+radius,-Math.PI/2],[x+w-radius,y+h-radius,0],[x+radius,y+h-radius,Math.PI/2],[x+radius,y+radius,Math.PI]])for(let n=0;n<=5;n++){const a=start+n*Math.PI/10;contour.push([cx+Math.cos(a)*radius,cy+Math.sin(a)*radius]);}
       let sides='';for(let i=0;i<contour.length;i++){const a=contour[i],b=contour[(i+1)%contour.length];if((b[1]-a[1])*dx-(b[0]-a[0])*dy>1e-8)sides+=polygon([a,b,[b[0]+dx,b[1]+dy],[a[0]+dx,a[1]+dy]]);}
@@ -1104,20 +1131,25 @@ function updateRelief() {
       const a=Math.atan2(dy,dx),arc=[];for(let k=0;k<=16;k++){const t=a-Math.PI/2+k*Math.PI/16;arc.push([x+w/2+Math.cos(t)*w/2,y+h/2+Math.sin(t)*h/2]);}
       r.sideX.setAttribute('d',polygon([...arc,...arc.slice().reverse().map(([a,b])=>[a+dx,b+dy])]));r.sideY.setAttribute('d','');const shadow=[];for(let k=0;k<24;k++){const t=k*Math.PI/12;shadow.push([x+w/2+1+Math.cos(t)*w/2,y+h/2+1.4+Math.sin(t)*h/2]);}r.shadow.setAttribute('d',polygon(shadow));
     }
+    if(r.kind==='round-buzzer'){
+      let d='';const a=Math.atan2(dy,dx);
+      for(let k=1;k<18;k++){const t=a-Math.PI/2+k*Math.PI/18;if(Math.abs(Math.sin(t))<.65)continue;const p=t=>[x+w/2+Math.cos(t)*w/2,y+h/2+Math.sin(t)*h/2],u=p(t-.028),v=p(t+.028);d+=polygon([[u[0]+dx*.1,u[1]+dy*.1],[v[0]+dx*.1,v[1]+dy*.1],[v[0]+dx*.7,v[1]+dy*.7],[u[0]+dx*.7,u[1]+dy*.7]]);}
+      const slots=r.node.querySelector('.buzzer-side-slots');slots.setAttribute('transform',`translate(${-dx} ${-dy})`);slots.setAttribute('d',d);
+    }
     if(r.detail){let d='';if(Math.abs(dx)>.15&&['graphite','pale','finned','glass'].includes(r.kind)){
       for(let k=1;k<=(r.kind==='glass'?0:7);k++){const yy=y+h*(.15+k*.085);d+=`M${F(ex+dx*.25)} ${F(yy+dy*.25)}L${F(ex+dx*.88)} ${F(yy+dy*.88)}`;}
     }r.detail.setAttribute('d',d);}
-    if(PHOTO_HOUSINGS.has(r.kind)){
+    if(CASE_SIDE_KINDS.has(r.kind)){
       if(!r.sideArt){r.sideArt=r.node.querySelector('.housing-side-art');r.sideArt.innerHTML=housingSideArt(r.kind,w,h);r.sidePlane=r.sideArt.querySelector('[data-housing-side]');r.capPlane=r.sideArt.querySelector('[data-housing-cap]');r.ratingLabel=r.sideArt.querySelector('[data-housing-label]');}
       r.sideArt.setAttribute('transform',`translate(${-dx} ${-dy})`);
-      const left=dx<0;r.sidePlane.setAttribute('display',Math.abs(dx)>.08?'inline':'none');
+      const left=dx<0;if(r.kind==='op-contact')r.sidePlane.setAttribute('color',left?'#447caf':'#b84735');r.sidePlane.setAttribute('display',Math.abs(dx)>.08?'inline':'none');
       r.sidePlane.setAttribute('transform',`matrix(${Number((Math.abs(dx)/50).toFixed(6))} ${Number(((left?-dy:dy)/50).toFixed(6))} 0 1 ${F(left?ex+dx:ex)} ${F(left?y+dy:y)})`);
       if(r.ratingLabel)r.ratingLabel.setAttribute('display',left?'inline':'none');
       if(r.capPlane){r.capPlane.setAttribute('display',Math.abs(dy)>.08?'inline':'none');r.capPlane.setAttribute('transform',`matrix(${Number((dx/50).toFixed(6))} ${Number((dy/50).toFixed(6))} 1 0 ${F(x)} ${F(ey)})`);r.capPlane.querySelector('[data-housing-cap-top]').setAttribute('display',dy<0?'inline':'none');r.capPlane.querySelector('[data-housing-cap-bottom]').setAttribute('display',dy>=0?'inline':'none');}
     }
     if(r.profile){r.profile.setAttribute('display',Math.abs(dx)<.02?'none':'inline');r.profile.setAttribute('transform',`translate(${-dx} ${-dy}) matrix(0 1 ${dx/30} ${dy/30} ${ex} ${y})`);}
   }
-  updateProjectedArtwork();
+  updateProjectedArtwork();updateDepthOrder();
 }
 // Model coordinates remain fixed. Only the view maps elevated faces and wire artwork.
 const PROJECTION={models:[],owners:new Map(),byKey:new Map(),bindings:new Map(),signature:'',points:[],objects:[],faces:[],paths:[],over:[]};
@@ -1144,10 +1176,12 @@ function prepareProjection(){
     r.parents=[];for(let p=r.surface.parentElement;p&&p!==gWorld;p=p.parentElement)if(p.classList.contains('surface-top')&&p._surfaceModel)r.parents.push(p._surfaceModel);
     r.supportNode=r.surface.closest('[data-project-support]');r.support=r.supportNode&&PROJECTION.owners.get(r.supportNode.dataset.projectSupport);
     r.z=z+r.parents.reduce((n,p)=>n+p.box[4],0)+(r.support?.z||0);
+    r.termCover=!!r.face.querySelector(':scope > [data-smps-shield][data-shield-state="closed"],:scope > [data-tb-clear-cover]');
     const owner=r.surface.closest('[data-scene-part]')?.dataset.scenePart;
     r.projectionKey=[owner,r.world.x,r.world.y,r.world.w,r.world.h,r.z].join(':');
     if(owner&&!PROJECTION.owners.has(owner))PROJECTION.owners.set(owner,r);
   }
+  prepareDepthOrder();
   PROJECTION.byKey=new Map(PROJECTION.models.map(r=>[r.projectionKey,r]));
   const signature=[...PROJECTION.byKey.keys()].join('|');if(signature!==PROJECTION.signature){PROJECTION.bindings.clear();PROJECTION.signature=signature;}
   PROJECTION.points=[...gWorld.querySelectorAll('[data-project-at]')].filter(n=>!n.closest('.surface-top')).map(node=>({node,p:node.dataset.projectAt.split(',').map(Number),matrix:svgLocalMatrix(node.parentNode)}));
@@ -1157,6 +1191,61 @@ function prepareProjection(){
   PROJECTION.paths=[...gWorld.querySelectorAll(selector)].filter(n=>!n.closest('.surface-top,[data-project-at],[data-project-local-at]')).map(node=>{
     let art=PROJECTION_ART.get(node);if(!art){const d=node.getAttribute('d')||'',matrix=svgLocalMatrix(node);art={node,commands:projectionCommands(d),matrix,last:'',key:d+JSON.stringify([matrix.a,matrix.b,matrix.c,matrix.d,matrix.e,matrix.f])};PROJECTION_ART.set(node,art);}return art;
   });
+}
+const DEPTH={groups:[],lastPairs:[],cache:new WeakMap()};
+function convexHull(points){
+  const p=points.slice().sort((a,b)=>a.x-b.x||a.y-b.y),cross=(a,b,c)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x),half=[];
+  for(const q of p){while(half.length>1&&cross(half.at(-2),half.at(-1),q)<=1e-8)half.pop();half.push(q);}const n=half.length;
+  for(let i=p.length-2;i>=0;i--){const q=p[i];while(half.length>n&&cross(half.at(-2),half.at(-1),q)<=1e-8)half.pop();half.push(q);}half.pop();return half;
+}
+function intersectConvex(subject,clip){
+  let out=subject;
+  for(let k=0;k<clip.length&&out.length;k++){const a=clip[k],b=clip[(k+1)%clip.length],side=p=>(b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x),input=out;out=[];
+    for(let j=0;j<input.length;j++){const p=input[j],q=input[(j+1)%input.length],dp=side(p),dq=side(q);if(dp>=-1e-7)out.push(p);if((dp<0)!==(dq<0)){const t=dp/(dp-dq);out.push({x:p.x+(q.x-p.x)*t,y:p.y+(q.y-p.y)*t});}}
+  }return out;
+}
+function prepareDepthOrder(){
+  DEPTH.groups=[];
+  for(const parent of [gWorld,...gWorld.querySelectorAll('[data-depth-layer]')]){
+    const nodes=[...parent.children].filter(n=>n.hasAttribute('data-depth-object'));if(nodes.length<2)continue;
+    const objects=nodes.map((node,index)=>({node,index,volumes:PROJECTION.models.filter(r=>r.surface.closest('[data-depth-object]')===node)})).filter(o=>o.volumes.length);
+    if(objects.length>1)DEPTH.groups.push({parent,objects,tail:nodes.at(-1).nextSibling});
+  }
+}
+function projectedSolid(r){
+  const b=r.world,z1=r.z,z0=z1-r.box[4],sx=z1?-r.tx/z1:0,sy=z1?-r.ty/z1:0,points=[];
+  for(const z of [z0,z1])for(const x of [b.x,b.x+b.w])for(const y of [b.y,b.y+b.h])points.push({x:x-sx*z,y:y-sy*z});
+  return{b,z0,z1,sx,sy,poly:convexHull(points)};
+}
+function solidDepthAt(v,p){
+  let lo=v.z0,hi=v.z1;
+  for(const[a,span,k]of [[v.b.x,v.b.w,'x'],[v.b.y,v.b.h,'y']]){const d=k==='x'?v.sx:v.sy,c=p[k];if(Math.abs(d)<1e-8){if(c<a-.001||c>a+span+.001)return null;continue;}
+    const z0=(a-c)/d,z1=(a+span-c)/d;lo=Math.max(lo,Math.min(z0,z1));hi=Math.min(hi,Math.max(z0,z1));}
+  return hi>=lo-.001?hi:null;
+}
+function depthOrderPair(a,b){
+  if(a.maxX<=b.minX+.001||b.maxX<=a.minX+.001||a.maxY<=b.minY+.001||b.maxY<=a.minY+.001)return 0;
+  let direction=0;
+  for(const va of a.solids)for(const vb of b.solids){const overlap=intersectConvex(va.poly,vb.poly);if(overlap.length<3||Math.abs(overlap.reduce((n,p,i)=>{const q=overlap[(i+1)%overlap.length];return n+p.x*q.y-q.x*p.y;},0))<.002)continue;
+    const p=overlap.reduce((v,q)=>({x:v.x+q.x/overlap.length,y:v.y+q.y/overlap.length}),{x:0,y:0});
+    const da=Math.max(...a.solids.map(v=>solidDepthAt(v,p)??-Infinity)),db=Math.max(...b.solids.map(v=>solidDepthAt(v,p)??-Infinity));
+    if(!Number.isFinite(da)||!Number.isFinite(db)||Math.abs(da-db)<.025)continue;
+    const order=da<db?-1:1;if(direction&&direction!==order)return 0;direction=order;
+  }return direction;
+}
+function updateDepthOrder(){
+  DEPTH.lastPairs=[];
+  for(const group of DEPTH.groups){
+    const geometry=group.objects.map(o=>o.volumes.map(r=>r.projectionKey).sort().join(',')).sort().join('|'),key=geometry+'|'+Object.values(UI.cam).join(',')+'|'+SET.relief,cache=DEPTH.cache.get(group.parent),members=new Set(group.objects.map(o=>o.node)),current=[...group.parent.children].filter(n=>members.has(n));
+    if(cache?.key===key&&cache.nodes.length===current.length&&cache.nodes.every((n,i)=>n===current[i])){DEPTH.lastPairs.push(...cache.pairs);continue;}
+    const pairs=[];
+    const objects=group.objects.map(o=>{const solids=o.volumes.map(projectedSolid),p=solids.flatMap(v=>v.poly);return{...o,solids,minX:Math.min(...p.map(p=>p.x)),maxX:Math.max(...p.map(p=>p.x)),minY:Math.min(...p.map(p=>p.y)),maxY:Math.max(...p.map(p=>p.y)),after:[],degree:0};});
+    for(let i=0;i<objects.length;i++)for(let j=i+1;j<objects.length;j++){const a=objects[i],b=objects[j],pair=depthOrderPair(a,b);if(!pair)continue;const back=pair<0?a:b,front=pair<0?b:a;back.after.push(front);front.degree++;pairs.push([back.node,front.node]);}
+    const pending=new Set(objects),ordered=[];
+    while(pending.size){let next=[...pending].find(o=>!o.degree);if(!next)next=[...pending].sort((a,b)=>a.index-b.index)[0];pending.delete(next);ordered.push(next.node);for(const n of next.after)n.degree--;}
+    let anchor=group.tail;for(let i=ordered.length-1;i>=0;i--){const node=ordered[i];if(node.nextSibling!==anchor)group.parent.insertBefore(node,anchor);anchor=node;}
+    DEPTH.cache.set(group.parent,{key,nodes:ordered,pairs});DEPTH.lastPairs.push(...pairs);
+  }
 }
 function updateSurfaceProjection(r,x,y){
   if(!r.face)return;
@@ -1169,7 +1258,7 @@ function projectionBinding(x,y,soft=false){
   const key=x+','+y+','+soft,cached=PROJECTION.bindings.get(key);
   if(cached!==undefined)return cached&&{r:PROJECTION.byKey.get(cached.key),w:cached.w};
   let best=null,value=-1,weight=1;
-  for(const r of PROJECTION.models){const b=r.world;if(!b)continue;
+  for(const r of PROJECTION.models){const b=r.world;if(!b||r.termCover)continue;
     const d=Math.hypot(Math.max(b.x-x,0,x-b.x-b.w),Math.max(b.y-y,0,y-b.y-b.h)),w=d===0?1:soft?Math.max(0,1-d/15):0;
     const v=r.z*w;if(w&&v>=value){best=r;value=v;weight=w;}
   }if(PROJECTION.bindings.size<65536)PROJECTION.bindings.set(key,best?{key:best.projectionKey,w:weight}:null);return best?{r:best,w:weight}:null;
@@ -1179,11 +1268,12 @@ function projectWorkPoint(p,soft=false){
   return a?{x:p.x+(a.r.tx||0)*a.w,y:p.y+(a.r.ty||0)*a.w}:{x:p.x,y:p.y};
 }
 function unprojectWorkPoint(p){
-  if(SET.relief===false)return p;let best=null;
-  for(const r of PROJECTION.models){const b=r.world,dx=r.tx||0,dy=r.ty||0;if(!b)continue;
-    if(p.x>=b.x+Math.min(0,dx)&&p.x<=b.x+b.w+Math.max(0,dx)&&p.y>=b.y+Math.min(0,dy)&&p.y<=b.y+b.h+Math.max(0,dy)&&(!best||r.z>=best.z))best=r;
+  if(SET.relief===false)return p;let best=null,depth=-Infinity;
+  for(const r of PROJECTION.models){const b=r.world,dx=r.tx||0,dy=r.ty||0;if(!b||p.x<b.x+Math.min(0,dx)||p.x>b.x+b.w+Math.max(0,dx)||p.y<b.y+Math.min(0,dy)||p.y>b.y+b.h+Math.max(0,dy))continue;
+    const v={b,z0:r.z-r.box[4],z1:r.z,sx:r.z?-dx/r.z:0,sy:r.z?-dy/r.z:0},z=solidDepthAt(v,p);
+    if(z!==null&&z>=depth-.001){best={r,v};depth=z;}
   }
-  if(best){const b=best.world;return{x:clamp(p.x-(best.tx||0),b.x+.001,b.x+b.w-.001),y:clamp(p.y-(best.ty||0),b.y+.001,b.y+b.h-.001)};}
+  if(best){const{r,v}=best,b=r.world;return{x:clamp(p.x+v.sx*depth,b.x+.001,b.x+b.w-.001),y:clamp(p.y+v.sy*depth,b.y+.001,b.y+b.h-.001)};}
   let q={...p};for(let k=0;k<3;k++){const v=projectWorkPoint(q,true);q={x:p.x-(v.x-q.x),y:p.y-(v.y-q.y)};}return q;
 }
 function toWorkWorld(x,y,rect){return unprojectWorkPoint(toWorld(x,y,rect));}
@@ -1392,7 +1482,7 @@ function drawDevice(type, x, y, name, extra) {
   switch (type) {
     case 'mcb': return dMCB(x, y, name);
     case 'fuse': return dFuse(x, y, name, extra);
-    case 'smps': return dSMPS(x, y, name);
+    case 'smps': return dSMPS(x, y, name,extra||{});
     case 'plc': return dPLC(x, y, extra || {});
     case 'pos': case 'tr': return dCard(x, y, type);
     case 'servo': return dServo(x, y, extra);
@@ -1451,16 +1541,22 @@ function dFuse(x, y, name, fz) {
   for (const t of devTerms('fuse')) s += SCR(x + t.x, y + t.y);
   return s + nameTag(x + 18, y + 12.6, name)+SURFACE_END;
 }
-function dSMPS(x,y,name) {   // User photo: SPB-120-24 front label and clear terminal shields, side-only vents.
+function smpsShieldRect(x,y,top,closed) {return{x:x+2.5,y:y+(closed?(top?0:82.2):(top?12.8:75)),w:44,h:closed?12.8:7.2};}
+function smpsShield(x,y,top,closed) {
+  const b=smpsShieldRect(x,y,top,closed),hinge=top?y+12.8:y+82.2;
+  return surfaceStart(b.x,b.y,b.w,b.h,1,'glass')+`<g data-smps-shield="${top?'output':'input'}" data-shield-state="${closed?'closed':'open'}">`
+    +R(b.x,b.y,b.w,b.h,'rx=".65" fill="url(#gTerminalShield)" stroke="#dbe8dd" stroke-width=".55"')
+    +LN(b.x+.7,b.y+.8,b.x+b.w-.7,b.y+.8,'stroke="#fff" stroke-opacity=".8" stroke-width=".55"')
+    +LN(b.x+.7,b.y+b.h-.7,b.x+b.w-.7,b.y+b.h-.7,'stroke="#7c897b" stroke-opacity=".8" stroke-width=".45"')
+    +[b.x+2,b.x+b.w-5].map(xx=>R(xx,hinge-.65,3,1.3,'rx=".5" fill="url(#gRelayShell)" stroke="#b8c7b8" stroke-width=".3"')).join('')+'</g>'+SURFACE_END;
+}
+function dSMPS(x,y,name,lid={}) {   // User photo: SPB-120-24 front label and hinged terminal shields.
   const w=DEV.smps.w,h=DEV.smps.h,on=LIVE.on&&LIVE.out.smps;
   let s=surfaceStart(x,y,w,h,75,'smps')+R(x,y,w,h,'rx="1.6" fill="url(#gSmps)" stroke="#9ba79d" stroke-width=".45"');
   s+=R(x+2,y+1,46,93,'rx="1.1" fill="#d8dbd0" stroke="#f2f3e7" stroke-width=".65"');
   const terminalBank=(yy,terms)=>{let t=R(x+3,yy,43,12,'rx=".7" fill="#454b42" stroke="#929b8d" stroke-width=".35"');
     for(const q of terms)t+=R(x+q.x-4,yy+.7,8,10.5,'rx=".4" fill="url(#gContact)" stroke="#d5d8c5" stroke-width=".3"')+SCR(x+q.x,y+q.y);
-    // Transparent shields remain part of the same face as their terminal screws.
-    return t+`<g data-smps-shield="${yy<y+40?'output':'input'}">`+R(x+2.5,yy-.2,44,12.4,'rx=".8" fill="url(#gTerminalShield)" stroke="#e9eee5" stroke-width=".6"')
-      +LN(x+3.3,yy+1,x+45.5,yy+1,'stroke="#fff" stroke-opacity=".7" stroke-width=".55"')
-      +LN(x+3.3,yy+10.9,x+45.5,yy+10.9,'stroke="#7c897b" stroke-opacity=".7" stroke-width=".4"')+'</g>';};
+    return t;};
   const terms=devTerms('smps');s+=terminalBank(y+.2,terms.filter(t=>t.d==='up'))+terminalBank(y+82.4,terms.filter(t=>t.d==='down'));
   s+=R(x+3,y+13.4,43,67.8,'rx=".5" fill="url(#gSMPSLabel)" stroke="#eff0e2" stroke-width=".5"');
   for(const[t,i]of terms.filter(t=>t.d==='up').map((t,i)=>[t,i]))s+=R(x+3.5+i*10.5,y+14.1,10.3,4.2,'fill="none" stroke="#e5e7d8" stroke-width=".3"')+T(x+8.7+i*10.5,y+17.4,t.lab==='-V'?'−V':t.lab,TX(2.8,'#f5f4e9','font-weight="700"'));
@@ -1474,7 +1570,8 @@ function dSMPS(x,y,name) {   // User photo: SPB-120-24 front label and clear ter
     +TS(x+5,y+65.7,'INPUT',2.1,'#f5f5e9')+TS(x+5,y+69,'50/60Hz 100-240VAC~1.9A',1.55,'#e3e9db');
   s+=T(x+24,y+73.6,'~        ⏚',TX(3,'#e9eddd'));
   for(const[xx,label]of [[10,'L'],[22,'N'],[34,'FG']])s+=R(x+xx-5,y+75,10,4.6,'fill="none" stroke="#ebedde" stroke-width=".3"')+T(x+xx,y+78.6,label,TX(2.8,'#f4f4e5'));
-  if(name)s+=nameTag(x+w/2,y+96.5,name);
+  if(!lid.t)s+=smpsShield(x,y,true,false);if(!lid.b)s+=smpsShield(x,y,false,false);
+  if(name)s+=nameTag(x+w/2,y+105.5,name);
   return s+SURFACE_END;
 }
 
@@ -1695,6 +1792,7 @@ function xtbLidClosed(x, y, type) { return xtbLid(x,y,type,y+13.3,y+DEV[type].h-
 function lidsOver() {   // 닫은 덮개, 뚜껑은 전선 위에 그린다 (전선이 덮개 밑으로 들어간다)
   let s = '';
   for (const i of S.inst) {
+    if(i.type==='smps')for(const k of ['t','b'])if(S.smpsLid?.[k])s+=projectSupport('device-'+i.id,smpsShield(i.x,devY(i),k==='t',true));
     if (i.type === 'plc') { if (S.plcLid.t) s += projectSupport('device-'+i.id,plcLid(i.x, devY(i), true)); if (S.plcLid.b) s += projectSupport('device-'+i.id,plcLid(i.x, devY(i), false)); }
     if (i.type.startsWith('xtb') && S.xtbClosed[i.id]) s += projectSupport('device-'+i.id,xtbLidClosed(i.x, devY(i), i.type));
   }
@@ -1733,19 +1831,28 @@ function dXTB(x, y, type, name, closed = false) {
   for(const xx of [x+3,x+w-6])s+=R(xx,y+12.4,3,2.7,'rx=".7" fill="url(#gRelayShell)" stroke="#9ba99a" stroke-width=".35"');
   return s+'</g>'+SURFACE_END;
 }
-function dTB(x, y) {   // 검정 조립식 단자대 40P, 견출지만 흰색
-  const h = DEV.tb.h; let s = surfaceStart(x,y,DEV.tb.w,DEV.tb.h,28,'graphite')+shadow(x, y, DEV.tb.w, h, 1) + R(x, y, 2, h, 'fill="#2a2d30"');
-  for (let i = 0; i < TB_N; i++) {
-    const x0 = x + 2 + i * 8.6, lab = tbLabel(i + 1);
-    s += R(x0, y, 8.6, h, 'fill="url(#gGraphite)" stroke="#3b3f43" stroke-width=".35"');
-    s += R(x0 + .9, y + 3.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"') + R(x0 + .9, y + 29.6, 6.8, 8.8, 'rx=".6" fill="#0d0e0f"');   // 나사 홈
-    s += R(x0 + .9, y + 15, 6.8, 12, 'rx=".4" fill="#fbfbf7"');
-    const chars = [...lab], lines = chars.length > 3 ? Array.from({length:Math.ceil(chars.length/3)},(_,k)=>chars.slice(k*3,k*3+3).join('')) : [lab];
-    lines.forEach((line,k)=>{ s += T(x0+4.3, y+21.8+(k-(lines.length-1)/2)*2.7, line, TX(lines.length>1 ? 2.1 : lab.length>2 ? 2.4 : lab.length>1 ? 3 : 3.6,'#1a1a1a','font-weight="700"')); });
+function dTB(x,y) { // Photo reference: black barrier strip, silver clamps, brass saddles and white marker paper.
+  const w=DEV.tb.w,h=DEV.tb.h;
+  let s=surfaceStart(x,y,w,h,28,'tb')+`<g data-terminal-strip="40">`+R(x,y,w,h,'rx=".6" fill="url(#gBlackMoulding)" stroke="#111d24" stroke-width=".5"');
+  s+=R(x+1.8,y+1.3,w-3.6,h-2.6,'fill="#131e25"');
+  for(let i=0;i<TB_N;i++){
+    const xx=x+2+i*8.6,cx=xx+4.3,lab=tbLabel(i+1);
+    s+=`<g data-tb-cell="${i+1}">`;
+    for(const yy of [y+6,y+36])s+=R(xx+.6,yy-5.5,7.4,11,'rx=".4" fill="url(#gSocketPocket)" stroke="#060e13" stroke-width=".4"')
+      +R(cx-2.8,yy-3.8,5.6,7.6,'rx=".25" fill="url(#gContact)" stroke="#544f34" stroke-width=".3"')
+      +R(cx-3,yy-2.8,6,5.6,'rx=".35" fill="url(#gChrome)" stroke="#64777b" stroke-width=".35"')
+      +LN(cx-2.6,yy-2.4,cx+2.6,yy-2.4,'stroke="#f3fcfa" stroke-opacity=".8" stroke-width=".4"');
+    s+=R(xx-.25,y+.3,.9,h-.6,'fill="#090f15"')+R(xx+.65,y+.8,.65,h-1.6,'fill="#677579" fill-opacity=".65"')
+      +R(xx+1.3,y+13.4,6.8,15.2,'fill="#273239"')
+      +R(xx+.55,y+16,7.6,10,'fill="url(#gMarkerPaper)" stroke="#d6dbcf" stroke-width=".18"');
+    const chars=[...lab],lines=chars.length>3?Array.from({length:Math.ceil(chars.length/3)},(_,k)=>chars.slice(k*3,k*3+3).join('')):[lab];
+    lines.forEach((line,k)=>s+=T(cx,y+21.8+(k-(lines.length-1)/2)*2.7,line,TX(lines.length>1?2.1:lab.length>2?2.4:lab.length>1?3:3.6,'#202722','font-weight="700"')));
+    s+='</g>';
   }
-  s += R(x + 2 + TB_N * 8.6, y, 2, h, 'fill="#2a2d30"');
-  for (const t of devTerms('tb')) s += SCRS(x + t.x, y + t.y);
-  return s+SURFACE_END;
+  for(const xx of [x,x+w-2.3])s+=R(xx,y,2.3,h,'rx=".35" fill="url(#gBlackMoulding)" stroke="#6e7a7c" stroke-width=".35"');
+  s+=LN(x+1,y+14.1,x+w-1,y+14.1,'stroke="#879294" stroke-width=".5"')+LN(x+1,y+28,x+w-1,y+28,'stroke="#050d12" stroke-width=".8"');
+  for(const t of devTerms('tb'))s+=SCRS(x+t.x,y+t.y);
+  return s+'</g>'+SURFACE_END;
 }
 function dStopper(x, cy) {   // SEOIL UA-52: 8mm 두께, 45mm 길이, 회색 플라스틱·흰 견출지 자리.
   const w=STOPPER_W,h=45,y=cy-h/2;
@@ -2413,55 +2520,102 @@ function renderChecks() {
 }
 
 /* ---------- 조작판(단자 쪽), 센서 케이블 그리기 ---------- */
-function swBack(x, y) {   // 스위치 뒷면: 뒤집으면 a접점(파랑)이 왼쪽, b접점(빨강)이 오른쪽
-  return R(x - 13.2, y - 11.7, 28, 26, 'rx="2" fill="#000" fill-opacity=".35"') + R(x - 14, y - 13, 28, 26, 'rx="2" fill="#24282b"') +
-    R(x - 11.5, y - 10, 10, 20, 'rx="1.2" fill="#2f6fd6" stroke="#163c7a" stroke-width=".4"') + R(x + 1.5, y - 10, 10, 20, 'rx="1.2" fill="#d23a3a" stroke="#7a1515" stroke-width=".4"');
+function opTerminalClamp(x,y,w=5.8,h=6.1){
+  return R(x-w/2,y-h/2,w,h,'rx=".45" fill="url(#gChrome)" stroke="#657678" stroke-width=".3"')
+    +R(x-w/2+.35,y+h/2-1,w-.7,.85,'fill="url(#gContact)"')
+    +LN(x-w/2+.5,y-h/2+.6,x+w/2-.5,y-h/2+.6,'stroke="#f7ffff" stroke-opacity=".8" stroke-width=".4"');
 }
-const LAMP_FILL = { W: '#f2f2f2', R: '#e0383e', G: '#2fb35a', Y: '#f2c21b' };
-function lampBack(x, y, col, lit) {
-  let s = lit ? C(x, y, 21, `fill="${LAMP_GLOW[col]}" fill-opacity=".45"`) : '';
-  s += R(x - 11.2, y - 10.7, 24, 24, 'rx="2.5" fill="#000" fill-opacity=".35"') + R(x - 12, y - 12, 24, 24, 'rx="2.5" fill="#1d2023" stroke="#000" stroke-width=".5"');
-  s += R(x - 11, y - 10, 9.5, 20, 'rx="1" fill="#2d3237"') + C(x + 5, y, 3.2, `fill="${LAMP_FILL[col]}" stroke="#000" stroke-width=".4"`);
-  return s + (lit === false ? C(x + 5, y, 3.2, 'fill="#000" fill-opacity=".45"') : '');
+function swBack(x,y) { // Photo: blue NO block at left, red NC block at right.
+  let s=`<g data-op-rear="switch">`+R(x-14,y-13,28,26,'rx=".5" fill="url(#gGraphite)" stroke="#0c171b" stroke-width=".3"');
+  for(const [side,grad,dark,shine]of [[-1,'gContactBlue','#284f75','#9cc6e1'],[1,'gContactRed','#8b2e23','#ec9d88']]){
+    const xx=x+(side<0?-13.4:.6),outer=x+side*6.5,inner=x+side*3.2;
+    s+=`<g data-contact-block="${side<0?'NO':'NC'}">`+R(xx,y-12.6,12.8,25.2,`rx=".35" fill="url(#${grad})" stroke="${dark}" stroke-width=".35"`);
+    for(const yy of [y-5,y+6])s+=opTerminalClamp(outer,yy,6.4,6.4);
+    // Recesses, raised ribs and central actuator, not an opaque colour tile.
+    s+=R(inner-2.3,y-3.1,4.6,6.3,`rx=".35" fill="${dark}" stroke="${shine}" stroke-width=".3"`)
+      +R(inner-1.65,y-1.5,3.3,3.3,'rx=".25" fill="#b7bcb4" stroke="#56676a" stroke-width=".25"');
+    for(const yy of [y-10.2,y+9.1])s+=R(inner-2.4,yy-2.1,4.8,4.2,`rx=".25" fill="url(#${grad})" stroke="${shine}" stroke-opacity=".65" stroke-width=".3"`)+C(inner,yy,.65,`fill="none" stroke="${shine}" stroke-opacity=".5" stroke-width=".25"`);
+    for(const yy of [y-1.6,y+11.3])s+=R(outer-2.7,yy,5.4,1,`fill="${shine}" fill-opacity=".4"`);
+    s+=LN(xx+.7,y-12,xx+12,y-12,`stroke="${shine}" stroke-width=".55"`)
+      +R(x+side*11.3-1.4,y-1.9,2.8,3.8,`fill="${dark}" stroke="${shine}" stroke-width=".35"`)+'</g>';
+  }
+  s+=R(x-.4,y-12.8,.8,25.6,'fill="#b2b5b0"')+R(x-2,y-3.5,4,7,'rx=".4" fill="#111e24"')+R(x-.8,y-1.4,1.6,2.8,'fill="#909a95"');
+  return s+'</g>';
 }
-function bzBack(x, y, on) {
-  let s = R(x - 13.2, y - 11.7, 28, 26, 'rx="3" fill="#000" fill-opacity=".3"') + R(x - 14, y - 13, 28, 26, 'rx="3" fill="#e6e1d3" stroke="#a9a493" stroke-width=".5"');
-  s += C(x, y - 4, 6.5, 'fill="#d6d0bf" stroke="#b7b09c" stroke-width=".4"') + R(x - 10, y + 2, 20, 9.5, 'rx="1" fill="#cbc4af"');
-  return s + (on ? `<path d="M${F(x + 18)} ${F(y - 6)}q4 6 0 12M${F(x + 22)} ${F(y - 10)}q7 10 0 20" fill="none" stroke="#f3c11b" stroke-width="1.1" stroke-linecap="round"/>` : '');
+function lampBack(x,y,col,lit) { // Actual rear holder is black regardless of the lens colour.
+  let s=`<g data-op-rear="lamp" data-lens="${col}">`+R(x-12,y-12,24,24,'rx=".5" fill="url(#gBlackMoulding)" stroke="#080f13" stroke-width=".4"');
+  for(const yy of [y-5.5,y+5.5])s+=R(x-11.4,yy-4.5,7.5,9,'rx=".3" fill="#172127"')+opTerminalClamp(x-7,yy,6.2,6.5);
+  for(const yy of [y-10.6,y+3.1])s+=R(x-2.8,yy,10.5,7.5,'rx=".25" fill="url(#gBlackMoulding)" stroke="#080f13" stroke-width=".45"')+LN(x-2,yy+.7,x+6.9,yy+.7,'stroke="#7e8b8b" stroke-opacity=".3" stroke-width=".35"');
+  s+=R(x+1,y-2.7,4.2,5.4,'fill="#717b75"')+R(x+2,y-2.1,2.2,4.2,'fill="#10191c"')
+    +R(x+5.4,y-2.7,6.3,5.4,'rx=".25" fill="url(#gBlackMoulding)" stroke="#0a1216" stroke-width=".45"')+R(x+6.6,y-1.5,4.3,3,'fill="#050b10"');
+  for(const yy of [y-11.7,y+10.7])s+=R(x-11.6,yy,22.9,1,'fill="#6a797d" fill-opacity=".35"');
+  return s+'</g>';
+}
+function bzBack(x,y,on) {
+  let s=`<g data-op-rear="buzzer">`+R(x-14,y-13,28,26,'rx=".8" fill="url(#gBuzzerShell)" stroke="#a1987d" stroke-width=".4"');
+  for(const xx of [x-11.3,x+11.3])for(const yy of [y-10.2,y+10.2])s+=C(xx,yy,1.3,'fill="url(#gChrome)" stroke="#8f9b92" stroke-width=".25"');
+  s+=surfaceStart(x-12.5,y-12.5,25,25,28,'round-buzzer',OPW.x,OPW.y)+C(x,y,12.5,'fill="url(#gBuzzerShell)" stroke="#9f9d85" stroke-width=".35"');
+  // Slots at the rim continue into the cylindrical side.
+  for(const sign of [-1,1])for(let k=-2;k<=2;k++)s+=R(x+k*1.65-.45,y+sign*10.8-.9,.9,1.8,'fill="#5e6455"');
+  s+=R(x-6.8,y-8.5,13.6,5,'fill="#cbc7b1" stroke="#8d927b" stroke-width=".3"')+TS(x-6.3,y-6.7,'BUZZER',1.35,'#515a49','font-weight="700"')+TS(x-6.3,y-5,'HY-256-24  DC 24V',.85,'#65705c');
+  for(const xx of [x-5.5,x+5.5])s+=opTerminalClamp(xx,y+7,5.1,5.2);
+  s+=R(x-2.5,y+3,5,7.7,'rx=".2" fill="url(#gBuzzerShell)" stroke="#d3cfb5" stroke-width=".4"');
+  for(const xx of [x-1.2,x+1.2])s+=R(xx-.55,y+5,.95,2.3,'rx=".2" fill="#1a2521" stroke="#909780" stroke-width=".25"');
+  s+=T(x-8.4,y+10.5,'−',TX(2.1,'#8a9079'))+T(x+8.4,y+10.5,'+',TX(2.1,'#8a9079'))
+    +`<path d="M${F(x-3.6)} ${F(y+.2)}l1.9-3.2 1.9 3.2zM${F(x+1)} ${F(y+.2)}l1.9-3.2 1.9 3.2z" fill="none" stroke="#a5aa90" stroke-width=".3"/>`;
+  for(const xx of [x-5.5,x+5.5])s+=SCRS(xx,y+7);
+  s+=SURFACE_END+'</g>';
+  return s+(on?`<path d="M${F(x+17)} ${F(y-5)}q3 5 0 10M${F(x+20)} ${F(y-8)}q5 8 0 16" fill="none" stroke="#e7ac24" stroke-width=".9" stroke-linecap="round"/>`:'');
 }
 function hmiGeom() { const c = OP.cut, x0 = OP.w - c.x - c.w - 4, y0 = c.y - 4, w = c.w + 8, h = c.h + 8; return { x0, y0, w, h, py: y0 + h - 17 }; }
 const HMI_PW = g => [['+', g.x0 + 15, g.py + 6, '+'], ['-', g.x0 + 22.5, g.py + 6, '−'], ['FG', g.x0 + 30, g.py + 6, '⏚']];
 function hmiBack() {
-  const g = hmiGeom(), { x0, y0, w, h, py } = g;
-  let s = R(x0 + 1, y0 + 1.6, w, h, 'rx="4" fill="#000" fill-opacity=".35"') + R(x0, y0, w, h, 'rx="4" fill="#1f2326" stroke="#0e1012" stroke-width=".6"');
-  const vx = x0 + w * .5, vy = y0 + h * .4;
-  s += `<path d="M${F(vx - 46)} ${F(vy - 40)}L${F(vx + 46)} ${F(vy - 40)}L${F(vx + 40)} ${F(vy + 40)}L${F(vx - 40)} ${F(vy + 40)}Z" fill="#262b2f" stroke="#121416" stroke-width=".6"/>`;
-  for (const [dx, dy] of [[-40, -34], [40, -34], [-34, 34], [34, 34]]) s += C(vx + dx, vy + dy, 3, 'fill="#c9cdd1" stroke="#5a6167" stroke-width=".4"');
-  s += R(vx - 14, vy - 22, 28, 30, 'rx="3" fill="#14171a"') + C(vx, vy - 8, 7, 'fill="#2e3439"');
-  // 아래 모서리: 초록 단자 (전원 24V, RS-422/485)와 포트
-  s += R(x0 + 6, py - 6, w - 12, 20, 'rx="1" fill="#15181a" stroke="#2c3135" stroke-width=".4"');
-  s += T(x0 + 22.5, py - 1.4, '24Vd.c.', TX(2.6, '#d3dade', 'font-weight="700"')) + R(x0 + 10, py + .5, 25, 11, 'rx=".8" fill="#3fae5c" stroke="#24763a" stroke-width=".4"');
-  for (const [, lx, , lab] of HMI_PW(g)) s += T(lx, py + 14.6, lab, TX(2.6, '#d3dade', 'font-weight="700"'));
-  s += T(x0 + 58, py - 1.4, 'RS-422/485', TX(2.4, '#c9d1d6')) + R(x0 + 38, py + .5, 40, 11, 'rx=".8" fill="#3fae5c" stroke="#24763a" stroke-width=".4"');
-  ['Tx+', 'Tx−', 'Rx+', 'Rx−', 'SG', 'PE'].forEach((lab, k) => { s += SCRS(x0 + 41.5 + k * 6.6, py + 6) + T(x0 + 41.5 + k * 6.6, py + 14.6, lab, TX(1.7, '#c9d1d6')); });
-  let px = x0 + 84;
-  for (const p of ['RS-232C', 'LAN(1G)', 'LAN(100M)', 'USB', 'HDMI']) { const pw = p.length * 1.9 + 5; s += R(px, py + 1.5, pw, 8, 'rx=".8" fill="#0d0f11" stroke="#3a4045" stroke-width=".3"') + T(px + pw / 2, py + 6.8, p, TX(2.5, '#9aa3aa')); px += pw + 3; }
-  return s + T(x0 + w * .84, y0 + 11, 'HMI 뒷면', TX(5, '#8f989f', 'font-weight="700"')) + T(x0 + w * .84, y0 + 17, 'iXP2-0800D', TX(3, '#6f787f'));
+  const g=hmiGeom(),{x0,y0,w,h,py}=g,cx=x0+w/2;
+  let s=`<g data-op-rear="hmi">`+R(x0,y0,w,h,'rx="2" fill="url(#gBlackMoulding)" stroke="#0b1419" stroke-width=".6"')
+    +R(x0+2,y0+2,w-4,h-4,'rx="1.4" fill="none" stroke="#758181" stroke-opacity=".35" stroke-width=".55"');
+  // The photographed broad black steel shield with its hinge and locking knob.
+  s+=`<path d="M${F(x0+17)} ${F(y0+7)}H${F(x0+w-17)}V${F(y0+h-42)}L${F(x0+w-31)} ${F(y0+h-29)}H${F(x0+31)}L${F(x0+17)} ${F(y0+h-42)}Z" fill="url(#gHMISteel)" stroke="#080f13" stroke-width=".65"/>`;
+  s+=LN(x0+18,y0+8,x0+w-18,y0+8,'stroke="#8b9695" stroke-opacity=".65" stroke-width=".5"');
+  for(const [xx,yy]of [[x0+26,y0+17],[x0+w-26,y0+17],[x0+35,y0+h-42],[x0+w-35,y0+h-42]])s+=C(xx,yy,3.1,'fill="url(#gContact)" stroke="#4d5c57" stroke-width=".4"')+SCRS(xx,yy);
+  s+=`<path d="M${F(cx-24)} ${F(y0+36)}Q${F(cx)} ${F(y0+58)} ${F(cx+24)} ${F(y0+36)}L${F(cx+35)} ${F(y0+89)}Q${F(cx)} ${F(y0+111)} ${F(cx-35)} ${F(y0+89)}Z" fill="#303a3b" stroke="#0f1c20" stroke-width=".6"/>`;
+  s+=R(cx-18,y0+55,36,26,'rx="4" fill="#070e12" stroke="#4a5b5f" stroke-width=".5"')+C(cx,y0+68,10,'fill="url(#gGraphite)" stroke="#0a1419" stroke-width=".65"');
+  for(let k=-2;k<=2;k++)s+=LN(cx+k*2.8,y0+60,cx+k*2.8,y0+76,'stroke="#0b1418" stroke-width=".9"');
+  s+=T(cx,y0+113,'ASU',TX(7,'#c2cacc','font-weight="800"'));
+  for(const xx of [x0+3,x0+w-11])for(const yy of [y0+35,y0+90])s+=R(xx,yy,8,13,'rx=".6" fill="url(#gChrome)" stroke="#667778" stroke-width=".4"')+SCRS(xx+4,yy+6.5);
+  s+=R(x0+6,py-6,w-12,20,'rx=".7" fill="#111d22" stroke="#556568" stroke-width=".35"');
+  const terminal=(xx,yy,n,pitch)=>{let t=R(xx,yy,n*pitch+2,10.8,'rx=".5" fill="url(#gGreenTerminal)" stroke="#315e3a" stroke-width=".3"');for(let k=0;k<n;k++)t+=R(xx+1.5+k*pitch,yy+1.3,pitch-1.5,3,'rx=".3" fill="#224d2d"')+R(xx+1+k*pitch,yy+6.8,pitch-1,2.7,'rx=".3" fill="#326c3d"');return t;};
+  s+=terminal(x0+10,py+.5,3,7.5)+T(x0+22.5,py-1.6,'24Vd.c.',TX(2.4,'#d8e2da'));
+  for(const[,lx,,lab]of HMI_PW(g))s+=T(lx,py+14.6,lab,TX(2.2,'#e1e7df'));
+  s+=terminal(x0+38,py+.5,6,6.6)+T(x0+58,py-1.6,'RS-422/485',TX(2.2,'#d2dcd7'));
+  for(let k=0;k<6;k++)s+=SCRS(x0+41.5+k*6.6,py+6);
+  // Metal serial shell, two network ports, USB and a narrow memory slot.
+  const serialX=x0+84;
+  s+=R(serialX,py+.5,24,11,'rx="1.1" fill="url(#gChrome)" stroke="#718184" stroke-width=".4"')+R(serialX+4,py+2.3,16,7,'rx="1" fill="#18232b"');
+  for(let k=0;k<9;k++)s+=C(serialX+6+k%5*2.7,py+4.3+(k>4?2.8:0),.4,'fill="#a68f53"');
+  s+=T(serialX+12,py+15,'RS-232C',TX(1.8,'#c0cfc8'));
+  let xx=x0+115;
+  for(const label of ['LAN(1G)','LAN(100M)']){s+=R(xx,py+.5,24,11,'rx=".7" fill="url(#gChrome)" stroke="#526b71" stroke-width=".3"')+R(xx+2,py+2,20,6.8,'fill="#07121a"')+R(xx+8,py+8,8,2,'fill="#07121a"')+T(xx+12,py+15,label,TX(1.65,'#becdc6'));xx+=28;}
+  s+=R(x0+173,py+2,15,8,'rx=".5" fill="url(#gChrome)"')+R(x0+175,py+3.2,11,5.6,'fill="#0a1820"')+T(x0+180.5,py+15,'USB',TX(1.8,'#becdc6'))
+    +R(x0+193,py+3.5,17,2.5,'fill="#071117" stroke="#677d7b" stroke-width=".35"')+T(x0+201.5,py+15,'SD',TX(1.8,'#becdc6'));
+  return s+'</g>';
 }
 function worldOp() {
   const lv = LIVE.on ? LIVE.out : null, W = OP.w;
   let s = `<g transform="translate(${OPW.x} ${OPW.y})">` + plate(W, OP.h, 5, OPW.x, OPW.y) + dimH(0, W, -12, '375') + dimV(0, OP.h, -12, '270');
   for (const [x, y] of OP.fix) s += projectFaceAt(0,0,W,OP.h,3.5,C(W - x, y, 3.5, 'class="matbg" stroke="#6c747b" stroke-width=".5"'),OPW.x,OPW.y);
-  if (S.op.hmi) {const g=hmiGeom();s+=surfaceStart(g.x0,g.y0,g.w,g.h,48,'rounded-graphite',OPW.x,OPW.y)+hmiBack()+SURFACE_END;}
+  s+='<g data-depth-layer="operator">';
+  if (S.op.hmi) {const g=hmiGeom();s+='<g data-depth-object="hmi">'+surfaceStart(g.x0,g.y0,g.w,g.h,48,'op-hmi',OPW.x,OPW.y)+hmiBack()+HMI_PW(g).map(([,xx,yy])=>SCRS(xx,yy)).join('')+SURFACE_END+'</g>';}
   for (const [hid, [hx, y]] of Object.entries(OP.holes)) {
     const type = S.op.dev[hid]; if (!type) continue;
     const x = W - hx, sym = OP.answer[hid].sym, k = OP_KIND[type];
-    s += k==='lamp'?surfaceStart(x-12,y-12,24,24,35,'rounded-graphite',OPW.x,OPW.y):surfaceStart(x-14,y-13,28,26,35,k==='bz'?'pale':'rounded-graphite',OPW.x,OPW.y);
+    s+=`<g data-depth-object="${sym}">`;
+    s += k==='lamp'?surfaceStart(x-12,y-12,24,24,35,'op-lamp',OPW.x,OPW.y):surfaceStart(x-14,y-13,28,26,k==='bz'?7:35,k==='bz'?'pale':'op-contact',OPW.x,OPW.y);
     s += k === 'lamp' ? lampBack(x, y, type.slice(-1), lv ? !!lv[sym] : null) : k === 'bz' ? bzBack(x, y, !!(lv && lv.BZ)) : swBack(x, y);
-    s += T(x, y + 20.5, sym, TX(4.4, '#3b4248', 'font-weight="700"'))+SURFACE_END;
+    if(k!=='bz')for(const[,dx,dy]of OP_TERM_DEF[k])s+=projectAt(OPW.x+x-dx,OPW.y+y+dy,SCRS(x-dx,y+dy));
+    s += T(x, y + 20.5, sym, TX(4.4, '#3b4248', 'font-weight="700"'))+SURFACE_END+'</g>';
   }
-  s += `</g><text x="${OPW.x}" y="${OPW.y - 34}" class="cable-label" font-size="11" font-weight="700">조작판 뒷면 (뒤집어서 작업)</text><text x="${OPW.x}" y="${OPW.y - 22}" class="cable-label" font-size="6.5">앞면과 좌우가 바뀌어요. a접점 파랑, b접점 빨강</text>`;
-  for (const t of TERMS) if (t.op) s += projectAt(t.x,t.y,SCRS(t.x, t.y) + (UI.detail ? tl(t.x + 2.5, t.y + .6, t.lab, 1.8, '#ffd34d', 'start') : ''));
+  s += `</g></g><text x="${OPW.x}" y="${OPW.y - 34}" class="cable-label" font-size="11" font-weight="700">조작판 뒷면 (뒤집어서 작업)</text><text x="${OPW.x}" y="${OPW.y - 22}" class="cable-label" font-size="6.5">앞면과 좌우가 바뀌어요. a접점 파랑, b접점 빨강</text>`;
+  for(const t of TERMS)if(t.op&&UI.detail)s+=projectAt(t.x,t.y,tl(t.x+2.5,t.y+.6,t.lab,1.8,'#ffd34d','start'));
   return s;
 }
 function convBody(x, y, live) {   // 위에서 본 컨베이어 (500mm): 초록 벨트, 회색 프레임, 위쪽 왼편 모터, 위쪽에 센서 S1, S2 (BRP100-DDT-P, 180mm 간격)
@@ -2559,7 +2713,7 @@ function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
     op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
-    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, plug: {}, tset: {}, dressV: 2, dbreak: {}, extV: 2, hgath: [], hcov: 0 };
+    inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, smpsLid: {t:false,b:false}, plug: {}, tset: {}, dressV: 2, dbreak: {}, extV: 2, hgath: [], hcov: 0 };
 }
 function save() { if (DEMO.on || MODE === 'prac') return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : MODE === 'fault' ? STORE_FAULT : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
 function load() { try { const o = JSON.parse(localStorage.getItem(STORE) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; }
@@ -2839,10 +2993,13 @@ function drawTie(t, g, pull) {
 function drawTieIcon(x, y, ghost) {
   return `<g transform="translate(${F(x)} ${F(y)})"${ghost ? ' opacity=".8"' : ''} pointer-events="none"><path d="M-9 0H5" stroke="${TIE_O}" stroke-width="2.4" stroke-linecap="round"/><path d="M-9 0H5" stroke="${TIE_W}" stroke-width="1.8" stroke-linecap="round"/><rect x="4" y="-2" width="4" height="4" rx=".7" fill="${TIE_W}" stroke="${TIE_O}" stroke-width=".5"/></g>`;
 }
-function drawTBCover(r, ghost) {
-  const { x, y, w, h } = r;
-  return `<g${ghost ? ' opacity=".75"' : ''} pointer-events="none">` + R(x + .4, y + .8, w - .8, h - 1.6, 'rx="1.5" fill="#a9d2ef" fill-opacity=".34" stroke="#4d7c9e" stroke-width=".7"') +
-    `<path d="M${F(x + 8)} ${F(y + h - 5)}L${F(x + 18)} ${F(y + 5)}M${F(x + w * .42)} ${F(y + h - 5)}L${F(x + w * .42 + 10)} ${F(y + 5)}M${F(x + w * .78)} ${F(y + h - 5)}L${F(x + w * .78 + 10)} ${F(y + 5)}" stroke="#fff" stroke-opacity=".6" stroke-width="1.4"/></g>`;
+function drawTBCover(r,ghost) {
+  const{x,y,w,h}=r;
+  return surfaceStart(x+.3,y+.5,w-.6,h-1,1.6,'glass')+`<g data-tb-clear-cover="true"${ghost?' opacity=".75"':''} pointer-events="none">`
+    +R(x+.3,y+.5,w-.6,h-1,'rx=".7" fill="url(#gTerminalShield)" stroke="#c7d8dc" stroke-width=".65"')
+    +R(x+1,y+1.3,w-2,1,'fill="#eaf9fc" fill-opacity=".45"')+R(x+1,y+h-2,w-2,.8,'fill="#456477" fill-opacity=".4"')
+    +LN(x+4,y+1.6,x+w-4,y+1.6,'stroke="#fff" stroke-opacity=".75" stroke-width=".45"')
+    +[x+1,x+w-4].map(xx=>R(xx,y+h/2-5,3,10,'rx=".6" fill="#e4f0f4" fill-opacity=".22" stroke="#748a94" stroke-width=".3"')).join('')+'</g>'+SURFACE_END;
 }
 function drawHelical(r, ghost) { const { x, y, w, h } = r; return drawBand([[x + 3, y + h / 2], [x + w - 3, y + h / 2]], ghost); }   // 재료함, 들고 있을 때: 감기 전 밴드 한 토막
 function drawBand(pts, ghost) {   // 헬리컬 밴드 (검정 스파이럴): 비스듬한 띠가 감겨 있고 띠 사이로 안의 전선이 보인다. 끝은 둥글리지 않는다 (덕트 구멍 밖으로 튀어나오지 않게)
@@ -2959,6 +3116,8 @@ function tieAction(t) {
   return say(t.state === 'tight' ? '니퍼로 튀어나온 꼬리를 잘라요' : '다 된 케이블 타이예요', 'info');
 }
 function wireLock(a, b) {   // 마무리를 해 둔 곳은 풀어야 배선을 바꿀 수 있다
+  const smpsShut=id=>id.startsWith('SMPS.')&&S.smpsLid?.[devTerms('smps').some(t=>t.d==='up'&&'SMPS.'+t.k===id)?'t':'b'];
+  if(smpsShut(a)||smpsShut(b))return 'SMPS 투명 단자 보호판을 열어야 배선을 바꿀 수 있어요. 보호판을 눌러 열어요';
   const cb = coverBlock(a, b); if (cb) return cb;
   if (S.tbCover && (a.startsWith('TB.') || b.startsWith('TB.'))) return '단자대 커버를 벗겨야 TB에 배선할 수 있어요. 손으로 커버를 눌러요';
   const nm = names(), shut = id => { const m = /^(XTB\d)\./.exec(id); return m && S.inst.some(i => nm[i.id] === m[1] && S.xtbClosed[i.id]); };
@@ -3358,12 +3517,12 @@ function drawFloorItem(f) {
   return f.key === 'servo' ? dServo(r.x, r.y, false) : drawDevice(f.key, r.x, r.y, '', null);
 }
 function floorSVG() {
-  let s = '';
+  let s = '<g data-depth-layer="floor">';
   for (const f of S.floor) {
-    s += drawFloorItem(f);
+    s+=`<g data-depth-object="floor-${f.id}">`+drawFloorItem(f)+'</g>';
     if (S.guide && S.tool === 'tape' && f.kind === 'fr' && !S.fr[f.pid].taped) { const r = floorRect(f); s += R(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 'rx="2" class="guide-slot"'); }
   }
-  return s;
+  return s+'</g>';
 }
 function tapeFloor(f) {
   const q = S.fr[f.pid]; if (q.taped) return say('이미 붙였어요', 'info');
@@ -3406,11 +3565,14 @@ function tbTermAt(p) { const tb = tbInst(); if (!tb) return null; const y = devY
 function plcLidRect(top) { const i = S.inst.find(x => x.type === 'plc'); if (!i) return null; const y = devY(i), w = DEV.plc.w, shut = S.plcLid[top ? 't' : 'b'];
   return shut ? (top ? { x: i.x - 2.6, y: y - .4, w: w + 3.1, h: 27.6 } : { x: i.x - 2.6, y: y + 67.6, w: w + 3.1, h: 27.8 }) : { x: i.x + .8, y: y + (top ? 21.4 : 67.8), w: w - 1.6, h: 5.8 }; }
 function xtbLidRect(i) { const y = devY(i), w = DEV[i.type].w; return S.xtbClosed[i.id] ? { x: i.x + 2.5, y: y + 13.3, w: w - 5, h: DEV[i.type].h - 13.9 } : { x: i.x + 2.5, y: y - 30.8, w: w - 5, h: 30.4 }; }
-const lidAt = p => { const pl = plcLidAt(p); if (pl) return { pl }; const xc = xtbCoverAt(p); return xc ? { xc } : null; };   // PLC 단자 덮개, 아이오 링크 뚜껑
-const lidRect = ld => ld.pl ? plcLidRect(ld.pl === 't') : xtbLidRect(ld.xc);
+function smpsLidRect(top){const i=S.inst.find(i=>i.type==='smps');return i?smpsShieldRect(i.x,devY(i),top,!!S.smpsLid?.[top?'t':'b']):null;}
+function smpsLidAt(p){for(const k of ['t','b']){const r=smpsLidRect(k==='t');if(r&&inRect(p,r))return k;}return null;}
+const lidAt=p=>{const sm=smpsLidAt(p);if(sm)return{sm};const pl=plcLidAt(p);if(pl)return{pl};const xc=xtbCoverAt(p);return xc?{xc}:null;};
+const lidRect=ld=>ld.sm?smpsLidRect(ld.sm==='t'):ld.pl?plcLidRect(ld.pl==='t'):xtbLidRect(ld.xc);
 function toggleLid(ld) {   // 손으로도, 전선을 든 채로도 (잇던 선은 그대로)
   snap();
-  if (ld.pl) { const k = ld.pl; S.plcLid[k] = !S.plcLid[k]; say(`PLC ${k === 't' ? '위(입력)' : '아래(전원, 출력)'} 단자 덮개를 ${S.plcLid[k] ? '닫았어요' : '열었어요'}`, 'info'); }
+  if(ld.sm){const k=ld.sm;S.smpsLid||={t:false,b:false};S.smpsLid[k]=!S.smpsLid[k];say(`SMPS ${k==='t'?'위(출력)':'아래(입력)'} 투명 보호판을 ${S.smpsLid[k]?'닫았어요':'열었어요'}`,'info');}
+  else if (ld.pl) { const k = ld.pl; S.plcLid[k] = !S.plcLid[k]; say(`PLC ${k === 't' ? '위(입력)' : '아래(전원, 출력)'} 단자 덮개를 ${S.plcLid[k] ? '닫았어요' : '열었어요'}`, 'info'); }
   else { const id = ld.xc.id; S.xtbClosed[id] = !S.xtbClosed[id]; say(S.xtbClosed[id] ? '아이오 링크 뚜껑을 닫았어요' : '아이오 링크 뚜껑을 열었어요', 'info'); }
   commit();
 }
@@ -3759,7 +3921,7 @@ function tap2(p) {
     const ins = instAt(p);
     if (ins && LIVE.inp.mcb) return say('전원이 켜져 있어요. 빼려면 MCB를 내려요', 'info');
     if (ins && S.plug[ins.id]) { const k = ins.type === 'relay' ? 'relayU' : 'timerU'; snap(); delete S.plug[ins.id]; UI.carry = { kind: 'plug', key: k, from: 'floor', count: 1 }; say(`${PLUGS[k].name}를 소켓에서 뺐어요`, 'info'); return commit(); }   // 꽂힌 본체부터 뺀다
-    if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; if (ins.type === 'plc') S.plcLid = { t: false, b: false }; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
+    if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; if (ins.type === 'plc') S.plcLid = { t: false, b: false };if(ins.type==='smps')S.smpsLid={t:false,b:false}; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
     if (S.servo.placed && !S.servo.bolted && inRect(p, SERVO, 2)) { snap(); S.servo.placed = false; UI.carry = { kind: 'dev', key: 'servo' }; return commit(); }
     return say('재료함에서 기구를 골라요', 'info');
   }
@@ -4426,15 +4588,16 @@ function world123Parts() {
   if (S.ruled) s += `<path d="${RULE_Y.map(y => `M80 ${y}H680`).join('')}" class="redmark thin"/>`;
   SERVO.holes.forEach(([x, y], i) => { if (S.svMarks[i]) s += drawCross(x, y); });
   s += guideUnder();
-  const fr = frList().filter(([, q]) => q.slot);
-  for (const [, q] of fr) if (q.type === 'duct') s += drawDuct(frRect(q), !q.stuck);
-  for (const [, q] of fr) if (q.type !== 'duct') s += drawRail(frRect(q), !q.stuck);
-  if (S.gauge) s += drawFrameBack(gaugeRect(S.gauge),'duct');
-  if (S.rulerPlaced) s += drawRulerTool(S.rulerSide || 'L');
-  for (const [, q] of fr) for (const [x, y] of q.holes) {const r=frRect(q);s+=projectFaceAt(r.x,r.y,r.w,r.h,q.type==='duct'?40:7.5,q.bolted?drawBolt(x,y):drawHole(x,y));}
-  SERVO.holes.forEach(([x, y], i) => { if (S.svHoles[i] && !S.servo.placed) s += drawHole(x, y); });
-  const parts = [['outlet',S.cables.outlet?drawOutlet(S.cables.outlet.x,S.cables.outlet.y):''],['panel', s], ['stoppers', S.stoppers.map(st => dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy)).join('')]];
-  for (const i of S.inst) parts.push(['device-' + i.id, drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : i.type === 'relay' || i.type === 'timer' ? !!S.plug[i.id] : S.fuses[i.id])]);
+  const fr=frList().filter(([,q])=>q.slot),physical=[];
+  if(S.gauge)s+=drawFrameBack(gaugeRect(S.gauge),'duct');
+  if(S.rulerPlaced)s+=drawRulerTool(S.rulerSide||'L');
+  SERVO.holes.forEach(([x,y],i)=>{if(S.svHoles[i]&&!S.servo.placed)s+=drawHole(x,y);});
+  for(const[id,q]of fr){const r=frRect(q);let html=q.type==='duct'?drawDuct(r,!q.stuck):drawRail(r,!q.stuck);
+    for(const[x,y]of q.holes)html+=projectFaceAt(r.x,r.y,r.w,r.h,q.type==='duct'?40:7.5,q.bolted?drawBolt(x,y):drawHole(x,y));
+    physical.push(['frame-'+id,html]);}
+  for(const st of S.stoppers)physical.push(['stopper-'+st.rail+'-'+F(st.x),dStopper(st.x,ROW[RAIL_ROW[st.rail]].cy)]);
+  const parts=[['panel',s],['stoppers',''],...physical,['outlet',S.cables.outlet?drawOutlet(S.cables.outlet.x,S.cables.outlet.y):'']];
+  for (const i of S.inst) parts.push(['device-' + i.id, drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : i.type==='smps'?S.smpsLid:i.type === 'relay' || i.type === 'timer' ? !!S.plug[i.id] : S.fuses[i.id])]);
   parts.push(['servo', S.servo.placed ? dServo(SERVO.x, SERVO.y, S.servo.bolted) : ''], ['power', powerPlaced() ? drawPowerCable() : '']);
   return parts;
 }
@@ -4443,6 +4606,8 @@ function world123() { return world123Parts().map(([,html]) => html).join(''); }
 // render-only and never enters saved work or the electrical model.
 const SCENE_PARTS = new Map(), WIRE_MARKUP = new WeakMap();
 function setSceneParts(parts) {
+  const physical=key=>/^(frame-|stopper-|device-|servo$|outlet$)/.test(key),rank=new Map([...gWorld.children].filter(n=>physical(n.dataset.scenePart||'')).map((n,i)=>[n.dataset.scenePart,i]));
+  const ordered=parts.filter(([key])=>physical(key)).sort((a,b)=>(rank.get(a[0])??1e6)-(rank.get(b[0])??1e6));let pi=0;parts=parts.map(row=>physical(row[0])?ordered[pi++]:row);
   const alive = new Set(); let at = gWorld.firstElementChild;
   for (const [key, html] of parts) {
     alive.add(key); let node = SCENE_PARTS.get(key);
@@ -4450,6 +4615,7 @@ function setSceneParts(parts) {
       node = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       node.dataset.scenePart = key; SCENE_PARTS.set(key, node);
     }
+    if(/^(frame-|stopper-|device-|servo$|outlet$)/.test(key))node.dataset.depthObject=key;
     if (node !== at) gWorld.insertBefore(node, at);
     setMarkup(node, html); at = node.nextElementSibling;
   }
@@ -4502,7 +4668,7 @@ function renderWorld(geometryChanged = true) {
   parts.push(['conveyor-leads', drawConvLeads()]);
   parts.push(['duct-covers', frList().filter(([,q]) => q.type === 'duct' && q.slot && q.covered).map(([,q]) => drawDuctCover(frRect(q))).join('')]);
   parts.push(...wires(w => loose(w) && !lifted(w), 'wire-loose'));
-  parts.push(['terminal-cover', S.tbCover && tbRect() ? drawTBCover(tbRect()) : ''], ['lids', lidsOver()]);
+  parts.push(['terminal-cover', S.tbCover&&tbRect()?projectSupport('device-'+tbInst().id,drawTBCover(tbRect())):''], ['lids', lidsOver()]);
   let band = bandSvg();
   if (S.opBack && S.helical === 1) band += `<circle cx="${HOLE.x}" cy="${HOLE.y}" r="11" fill="none" stroke="#e3232f" stroke-width="2" stroke-dasharray="4 2.5"/><text x="${HOLE.x + 15}" y="${HOLE.y - 6}" font-size="8" font-weight="700" fill="#ff6b6b">여기로 빼요 (손으로 누르기)</text>`;
   parts.push(['band-external', band]);
@@ -4574,7 +4740,7 @@ function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리
       const le = termNear(p, 7); if (le && (le.cv||le.pw)) return ring(le.x, le.y, 6);
       const fa = fuseAt(p); if (fa && S.fuses[fa.inst.id] && S.fuses[fa.inst.id][fa.pole]) return box(fuseRect(fa.inst, fa.pole));
       if (S.conveyor && convBodyAt(p)) return box({ x: CVW.x - 12, y: CVW.y - 9 - CVW.mh, w: CONV.L + 24, h: CVW.mh + CVW.bw + 18 });
-      const pl = plcLidAt(p); if (pl) return box(plcLidRect(pl === 't'));
+      const ld=lidAt(p);if(ld)return box(lidRect(ld));
       const xc = xtbCoverAt(p); if (xc) return box(xtbLidRect(xc));
       if (!S.opBack && S.op.hmi && LIVE.out.HMI) { const b = HMI_BZ(), lp = opLocal(p); if (inRect(lp, b)) return box({ x: OPW.x + b.x, y: OPW.y + b.y, w: b.w, h: b.h }); }
     }
@@ -6017,7 +6183,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.30.0', date: '2026.11.11', notes: ['제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.31.0', date: '2026.11.11', notes: ['시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -6047,7 +6213,7 @@ function fixState() {   // 예전에 저장한 상태를 지금 형식으로
   if (S.conveyor === undefined) {   // 예전 저장: 컨베이어가 늘 있었고 센서선, 모터선은 통째로 꽂았다
     S.conveyor = S.cables.sensor || S.cables.motor ? { x: 130, y: 880 } : null; S.convLeads = {};
     for (const [k, , , t] of CV_LEADS) if ((/^S/.test(k) && S.cables.sensor) || (/^[FB]R$/.test(k) && S.cables.motor)) S.convLeads[k] = t;
-  } if (!S.xtbClosed) S.xtbClosed = {}; if (!S.plcLid) S.plcLid = { t: false, b: false };
+  } if (!S.xtbClosed) S.xtbClosed = {}; if (!S.plcLid) S.plcLid = { t: false, b: false }; if(!S.smpsLid)S.smpsLid={t:false,b:false};
   S.wires = (S.wires || []).map(w => { const f = id => { const m = /^PLC\.(.+)$/.exec(id); return m && PLC_OLD[m[1]] ? 'PLC.' + PLC_OLD[m[1]] : id; }; return { ...w, a: f(w.a), b: f(w.b) }; });   // 예전 PLC 단자 이름
   if (!S.plug) { S.plug = {}; for (const i of S.inst || []) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true; }   // 예전 저장: 소켓에 끼워져 있던 상태
   if (!S.tset) { S.tset = {}; const nm = names(); for (const i of S.inst || []) if (i.type === 'timer' && S.plug[i.id]) S.tset[i.id] = TSET[nm[i.id]]; }   // 예전 저장: 꽂힌 타이머는 정답 설정으로 돌았다

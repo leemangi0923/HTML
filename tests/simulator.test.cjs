@@ -225,7 +225,7 @@ test('every fitted device and both operator-panel faces have stable relief witho
     const servo=!!SCENE_PARTS.get('servo').querySelector('[data-relief]');
     const cameras=[{x:-180,y:0,w:800,h:600},{x:440,y:70,w:800,h:600}];let stable=true,front=false,back=false;
     for(const rear of [false,true]){S.opBack=rear;buildTerms();renderWorld(false);const before=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS),score=scoreSheet().total;
-      const op=SCENE_PARTS.get(rear?'op-back':'op-front');if(rear)back=!!op.querySelector('[data-relief-kind="rounded-graphite"]');else front=!!op.querySelector('[data-relief-kind="round-graphite"]');
+      const op=SCENE_PARTS.get(rear?'op-back':'op-front');if(rear)back=!!op.querySelector('[data-relief-kind="op-lamp"]');else front=!!op.querySelector('[data-relief-kind="round-graphite"]');
       const nodes=[...gWorld.children];for(const c of cameras){UI.cam=c;applyCam();stable&&=before===JSON.stringify({...S,elapsed:0})&&terms===JSON.stringify(TERMS)&&score===scoreSheet().total&&nodes.every(n=>n.isConnected);}
     }
     return {missing,servo,front,back,stable,glass:reliefNodes.some(r=>r.kind==='glass'),fins:reliefNodes.some(r=>r.kind==='finned')};
@@ -290,6 +290,7 @@ test('photo housing sides stay attached on both views and reuse their vent artwo
 test('redrawn PLC covers still open at their displayed positions and preserve wiring and cover locks',async()=>{
   await fullState();
   await page.evaluate(()=>{hideHome();S.finished=true;S.opBack=false;S.tool='hand';UI.carry=null;S.tbCover=false;for(const[,q]of frList())q.covered=false;renderAll();});
+  const hinge=await page.evaluate(()=>{const i=S.inst.find(i=>i.type==='smps'),y=devY(i),a=smpsShieldRect(i.x,y,true,true),b=smpsShieldRect(i.x,y,true,false),c=smpsShieldRect(i.x,y,false,true),d=smpsShieldRect(i.x,y,false,false);return{top:Math.abs(a.y+a.h-b.y)<.01,bottom:Math.abs(c.y-d.y-d.h)<.01,inside:b.y>=y&&d.y+d.h<=y+DEV.smps.h};});assert.deepEqual(hinge,{top:true,bottom:true,inside:true});
   const initial=await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires)}));
   for(const top of [true,false]){
     await page.evaluate(()=>{const i=S.inst.find(i=>i.type==='plc');fitTo({x:i.x-25,y:devY(i)-35,w:170,h:170});});
@@ -303,6 +304,67 @@ test('redrawn PLC covers still open at their displayed positions and preserve wi
     }
   }
   assert.deepEqual(await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires)})),initial);
+});
+
+test('SMPS transparent shields operate independently with cover locks, pending wire, undo and save migration',async()=>{
+  await fullState();await page.evaluate(()=>{hideHome();S.finished=true;S.opBack=false;S.tool='hand';S.tbCover=false;for(const[,q]of frList())q.covered=false;renderAll();const i=S.inst.find(i=>i.type==='smps');fitTo({x:i.x-30,y:devY(i)-25,w:110,h:150});});
+  const initial=await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires)}));
+  for(const top of [true,false]){
+    const hit=await page.evaluate(top=>{const b=smpsLidRect(top);return{x:b.x+b.w/2,y:b.y+b.h/2};},top);
+    await clickWorld(hit.x,hit.y);
+    assert.equal(await page.evaluate(top=>S.smpsLid[top?'t':'b'],top),true);
+    const blocked=await page.evaluate(top=>wireLock(top?'SMPS.V1':'SMPS.L','MCB.T1'),top);assert.match(blocked,/SMPS.*보호판/);
+  }
+  assert.equal(await page.locator('[data-scene-part="lids"] [data-smps-shield][data-shield-state="closed"]').count(),2);
+  await page.evaluate(()=>{S.tool='wire';UI.pending='MCB.T1';renderTools();});
+  const lower=await page.evaluate(()=>{const b=smpsLidRect(false);return{x:b.x+b.w/2,y:b.y+b.h/2};});await clickWorld(lower.x,lower.y);
+  assert.deepEqual(await page.evaluate(()=>({...S.smpsLid,pending:UI.pending,lock:wireLock('SMPS.L','MCB.T1')})),{t:true,b:false,pending:'MCB.T1',lock:''});
+  await page.evaluate(()=>undo());assert.deepEqual(await page.evaluate(()=>S.smpsLid),{t:true,b:true});
+  assert.deepEqual(await page.evaluate(()=>({terms:JSON.stringify(TERMS),wires:JSON.stringify(S.wires)})),initial);
+  await page.evaluate(()=>{UI.pending=null;showHome();save();});await page.reload();await page.waitForFunction(()=>window.SIM);
+  assert.deepEqual(await page.evaluate(()=>S.smpsLid),{t:true,b:true});
+  await page.evaluate(()=>{delete S.smpsLid;save();});await page.reload();await page.waitForFunction(()=>window.SIM);
+  assert.deepEqual(await page.evaluate(()=>S.smpsLid),{t:false,b:false});
+  assert.deepEqual(await page.evaluate(()=>JSON.stringify(S.wires)),initial.wires);
+});
+
+test('stopper occlusion reverses with the view, all constrained solids paint in depth order, and the visible stopper is clickable',async()=>{
+  await fullState();
+  const target=await page.evaluate(()=>{
+    hideHome();S.finished=true;S.guide=false;S.wires=[];S.ties=[];S.helical=0;S.tool='hand';renderAll();
+    const i=S.inst.find(i=>i.type==='pos'),st=S.stoppers.find(st=>st.rail===i.rail&&Math.abs(st.x-i.x-DEV[i.type].w)<.1);
+    return{paper:{x:st.x+2,y:ROW[RAIL_ROW[st.rail]].cy},device:'device-'+i.id,stopper:'stopper-'+st.rail+'-'+F(st.x),count:S.stoppers.length,installed:S.inst.length};
+  });
+  for(const sign of [-1,1])for(const vertical of [-150,0,150]){
+    const view=await page.evaluate(({sign,vertical,target})=>{
+      UI.cam={x:380+sign*260-650,y:300+vertical-488,w:1300,h:976};applyCam();
+      // Make decorative sides participate in this geometry-only hit probe, without changing their paint.
+      for(const r of reliefNodes){r.sideX.style.pointerEvents='all';r.sideY.style.pointerEvents='all';}
+      const q=projectWorkPoint(target.paper),rect=svg.getBoundingClientRect(),leaf=document.elementFromPoint(rect.left+(q.x-UI.cam.x)/UI.cam.w*rect.width,rect.top+(q.y-UI.cam.y)/UI.cam.h*rect.height);
+      const wrong=DEPTH.lastPairs.filter(([a,b])=>!(a.compareDocumentPosition(b)&Node.DOCUMENT_POSITION_FOLLOWING));
+      return{hit:leaf?.closest('[data-depth-object]')?.dataset.depthObject,wrong:wrong.length,pick:unprojectWorkPoint(q)};
+    },{sign,vertical,target});
+    assert.equal(view.hit,sign>0?target.stopper:target.device);assert.equal(view.wrong,0);
+    if(sign>0)assert.ok(Math.hypot(view.pick.x-target.paper.x,view.pick.y-target.paper.y)<.02);
+  }
+  const churn=await page.evaluate(()=>{const obs=new MutationObserver(()=>{});obs.observe(gWorld,{childList:true});renderWorld(false);applyCam();const n=obs.takeRecords().length;obs.disconnect();return n;});assert.equal(churn,0,'same geometry and camera must retain the solid paint order');
+  await clickWorld(target.paper.x,target.paper.y);
+  assert.deepEqual(await page.evaluate(()=>({count:S.stoppers.length,installed:S.inst.length})),{count:target.count-1,installed:target.installed});
+  await page.evaluate(()=>undo());assert.equal(await page.evaluate(()=>S.stoppers.length),target.count);
+});
+
+test('terminal strip clear cover follows its body while terminal screws and connected wire hardware stay aligned',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    hideHome();S.finished=true;S.smpsLid={t:true,b:true};renderAll();const i=tbInst(),body=SCENE_PARTS.get('device-'+i.id),cells=body.querySelectorAll('[data-tb-cell]').length;
+    const state=JSON.stringify({...S,elapsed:0}),terms=JSON.stringify(TERMS);let aligned=true,covered=true;
+    for(const sign of [-1,1]){UI.cam={x:380+sign*260-650,y:-188,w:1300,h:976};applyCam();
+      for(const id of ['TB.1.t','TB.1.b','SMPS.L','SMPS.V1','OP.BZ.1','OP.PB1.3','OP.WL1.+']){const t=TERM[id],local=t.op?{x:t.x-OPW.x,y:t.y-OPW.y}:t,owner=t.op?SCENE_PARTS.get('op-back'):id.startsWith('TB')?body:SCENE_PARTS.get('device-'+S.inst.find(i=>i.type==='smps').id),screw=owner.querySelector(`use[x="${F(local.x)}"][y="${F(local.y)}"]`),wire=[...gWorld.querySelectorAll('[data-project-at] use')].find(n=>+n.getAttribute('x')===t.x&&+n.getAttribute('y')===t.y);
+        if(!screw||!wire){aligned=false;continue;}const a=new DOMPoint(local.x,local.y).matrixTransform(svgLocalMatrix(screw)),b=new DOMPoint(t.x,t.y).matrixTransform(svgLocalMatrix(wire));aligned&&=Math.hypot(a.x-b.x,a.y-b.y)<.04;}
+      const cover=SCENE_PARTS.get('terminal-cover').querySelector('[data-tb-clear-cover]');covered&&=!!cover&&cover.closest('[data-project-support]').dataset.projectSupport==='device-'+i.id;
+    }return{cells,aligned,covered,state:state===JSON.stringify({...S,elapsed:0}),terms:terms===JSON.stringify(TERMS)};
+  });
+  assert.equal(result.cells,40);for(const[k,v]of Object.entries(result))if(k!=='cells')assert.equal(v,true,k);
 });
 
 test('ducts and both rail lengths receive tape on the back, then mount face up and undo correctly',async()=>{
