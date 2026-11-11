@@ -650,6 +650,7 @@ body[data-mode="fault"] .prac-cap .dc-t::before { content: none; }
 .relief[data-relief-kind="duct"] .relief-x,.relief[data-relief-kind="cover"] .relief-x { fill:#d0d3c6; stroke:#89988c; }
 .relief[data-relief-kind="duct"] .relief-y,.relief[data-relief-kind="cover"] .relief-y { fill:#a4b0a2; stroke:#7d907f; }
 .relief .relief-shadow { fill:#13262b; fill-opacity:.2; }
+[data-power-cable][data-plugged="true"] [data-power-pin] { display:none; }
 </style>
 </head>
 <body>
@@ -1665,7 +1666,8 @@ function staticLinks(wires) {
 function newSim() { const st = { rel: {}, tim: {}, force: null }; for (const r of RELAYS) st.rel[r] = false; for (const t of TIMERS) st.tim[t] = { on: false, el: 0, out: false }; return st; }
 const POWER_POS = {x:10,y:785};
 const POWER_LEADS = [['R','갈색','#925523','TB.1.b'],['T','파란색','#287be0','TB.2.b'],['E','초록색','#21a65a','TB.3.b']];
-const CAB_ALL = {power:true,powerPlaced:{...POWER_POS},powerLeads:Object.fromEntries(POWER_LEADS.map(([k,,,t])=>[k,t]))};
+const OUTLET_POS={x:270,y:775};
+const CAB_ALL = {outlet:{...OUTLET_POS},plugged:true,power:true,powerPlaced:{...POWER_POS},powerLeads:Object.fromEntries(POWER_LEADS.map(([k,,,t])=>[k,t]))};
 const validPowerTerm = t => typeof t==='string' && /^TB\.(?:[1-9]|[1-3][0-9]|40)\.b$/.test(t);
 function powerLeadMap(cab) {
   if(cab?.powerLeads)return cab.powerLeads;
@@ -1686,6 +1688,7 @@ function powerRoles(links,term) {
   return {R:R&&!T&&!g.dc.has(root),T:T&&!R&&!g.dc.has(root),E:!R&&!T&&!g.signals.has(root)};
 }
 function powerFault(cab,links) {
+  if(!cab.outlet||!cab.plugged)return '플러그를 콘센트에 꽂아요';
   if(!powerConnected(cab))return '전원 케이블 갈색 R·파란색 T·초록색 E 세 가닥을 각각 연결해요';
   const m=powerLeadMap(cab);
   for(const [k,col] of POWER_LEADS)if(!powerRoles(links,m[k])[k])return `${col} ${k}선의 연결을 확인해요. R·T 전원 회로와 E 접지 전용 단자를 구분해요`;
@@ -1711,7 +1714,7 @@ function evalOnce(links, st, inp) {
   for (const t of TIMERS) if (isIn(t)) { const s = st.tim[t]; tc(t, TPIN.inst, s.on); tc(t, TPIN.timed, s.out); }
   const sw = (d, a) => a ? u(`OP.${d}.3`, `OP.${d}.4`) : u(`OP.${d}.1`, `OP.${d}.2`);
   sw('PB1', inp.pb1); sw('PB0', inp.pb0); sw('SS', inp.ss === 'A'); sw('EMS', false);
-  const [rTerm, tTerm] = powerTerms(cab), acShort = !!cab.power && f(rTerm) === f(tTerm);
+  const [rTerm, tTerm] = powerTerms(cab), acShort = !!cab.power && !!cab.plugged && !!cab.outlet && f(rTerm) === f(tTerm);
   const ac = (a, b) => { if (acShort || !cab.power || powerError) return false; const R = f(rTerm), T = f(tTerm), x = f(a), y = f(b); return (x === R && y === T) || (x === T && y === R); };
   const smps = ac('SMPS.L', 'SMPS.N'), plc = ac('PLC.L', 'PLC.N'), sv = ac('SV.L1', 'SV.L3') && ac('SV.C1', 'SV.C2');
   if (plc && inp.plcOut) for (const [o, c] of PLC_OUT_COM) u(o, c);
@@ -1898,10 +1901,10 @@ const tsetMap = () => { const nm = names(), m = {}; for (const i of S.inst) if (
 const convLeads = () => S.conveyor ? S.convLeads : {};   // 내려놓은 컨베이어의 선이 꽂힌 단자
 const convReady = () => !!S.conveyor && CV_LEADS.every(l => S.convLeads[l[0]]);
 const wireSig = () => JSON.stringify(S.wires.map(({ ha, hb, tk, ...r }) => r));   // 전기 연결만 (선 정리는 동작 검사와 상관없다)
-const judgeKey = () => wireSig() + JSON.stringify(fuseState()) + JSON.stringify(S.cables) + JSON.stringify(plugMap()) + JSON.stringify(convLeads()) + JSON.stringify(tsetMap());
+const judgeKey = () => wireSig() + JSON.stringify(fuseState()) + JSON.stringify([!!S.cables.power,powerPlaced(),powerLeadMap(S.cables),!!S.cables.plugged,S.cables.outlet||null]) + JSON.stringify(plugMap()) + JSON.stringify(convLeads()) + JSON.stringify(tsetMap());
 const judgeRan = () => !!(S.judge && S.judge.key === judgeKey());   // 검사를 받은 뒤 배선, 퓨즈가 그대로인지
 const prevDone = () => [0, 1, 2, 3].every(stageDone);
-const cablesIn = () => powerConnected() && convReady();
+const cablesIn = () => powerConnected() && !!S.cables.outlet && !!S.cables.plugged && convReady();
 const fusesIn = () => nFuses() === 4;   // 퓨즈는 동작 검사 단계에서 끼운다
 function getJudge() { const fz = fuseState(), key = judgeKey(); if (_jdg.key !== key) _jdg = { key, val: runJudge(S.wires, fz, S.cables, plugMap(), convLeads(), tsetMap()) }; return _jdg.val; }
 function judgeSteps() {
@@ -3004,6 +3007,7 @@ function trayGroups() {
       left: Math.max(0, (t === 'servo' ? (S.servo.placed ? 0 : 1) : DEV[t].qty - devCount(t)) - outCount(t)) })) },
     { id: 'fuse', name: '퓨즈', items: ['f5', 'f3'].map(t => ({ key: t, kind: 'fuse', name: FUSE_TYPES[t].name, spec: FUSE_TYPES[t].spec, total: FUSE_TYPES[t].qty, left: Math.max(0, FUSE_TYPES[t].qty - fuseUsed(t) - outCount(t)) })) },
     { id: 'cable', name: '동작 검사 재료', items: [
+      { key:'outlet',kind:'outlet',name:'접지 콘센트',spec:'바닥에 놓고 플러그를 선택한 뒤 가운데에 꽂아요',total:1,left:Math.max(0,(S.cables.outlet?0:1)-outCount('outlet')) },
       { key: 'power', kind: 'cable', name: '전원 케이블', spec: '바닥에 놓고 갈색 R · 파란색 T · 초록색 E를 한 가닥씩 연결해요', total: 1, left: Math.max(0, (powerPlaced() ? 0 : 1) - outCount('power')) },
       ...Object.entries(PLUGS).map(([k, g]) => ({ key: k, kind: 'plug', name: g.name, spec: g.spec, total: DEV[g.sock].qty, left: Math.max(0, DEV[g.sock].qty - nPlugged(g.sock) - outCount(k)) })),
       { key: 'pack', kind: 'pack', name: '빨간 사각팩', spec: '소형 □40. 컨베이어 벨트에 올려요. 누르고 있으면 잡혀요', total: 1, left: Math.max(0, (LIVE.pack === null ? 1 : 0) - outCount('pack')) },
@@ -3090,6 +3094,7 @@ function drop(p) {
   if (c.kind === 'tbcover') return dropTBCover(p);
   if (c.kind === 'tie') return dropTie(p);
   if (c.kind === 'helical') return dropHelical(p);
+  if(c.kind==='outlet'){if(p.y<PANEL.h+90)return say('콘센트는 제어판 아래 바닥에 놓아요','info');snap();S.cables.outlet={x:p.x,y:p.y};S.cables.plugged=false;consumeCarry();commit();return;}
   if (c.kind === 'cable') return dropCable(p);
   if (c.kind === 'plug') return dropPlug(p);
   if (c.kind === 'pack') return dropPack(p);
@@ -3134,14 +3139,25 @@ function xtbCoverAt(p) {   // 연 뚜껑은 기기 위로 젖혀져 있고, 닫�
   return null;
 }
 function cableAt(p) { const q=powerPlaced();return q && inRect(p,{x:q.x-46,y:q.y-32,w:146,h:76})?'power':null; }
+function mainsTap(p) {
+  const o=S.cables.outlet,cp=powerPlaced(),plug=S.cables.plugged&&o?o:cp?{x:cp.x+82,y:cp.y+20}:null;
+  if(plug&&Math.hypot(p.x-plug.x,p.y-plug.y)<18){
+    if(S.cables.plugged){snap();S.cables.plugged=false;commit();}UI.powerPlug=true;renderOver();say('플러그를 골랐어요. 콘센트 가운데를 눌러 꽂아요','info');return true;
+  }
+  if(o&&inRect(p,{x:o.x-30,y:o.y-30,w:60,h:60})){
+    if(UI.powerPlug&&cp){snap();S.cables.plugged=true;UI.powerPlug=false;commit();say('플러그를 꽂았어요. 배선과 MCB 상태에 따라 전원이 공급돼요','ok');}
+    else if(!S.cables.plugged){snap();delete S.cables.outlet;UI.carry={kind:'outlet',key:'outlet',count:1};commit();}
+    return true;
+  }return false;
+}
 function dropCable(p) {
   if(powerPlaced())return say('전원 케이블이 이미 바닥에 있어요','info');
   if(p.y<PANEL.h+90 || p.y>1400 || p.x< -200 || p.x>1400)return say('전원 케이블을 제어판 아래 바닥에 내려놓아요','info');
   if(S.conveyor&&convBodyAt(p))return say('컨베이어 옆의 빈 바닥에 내려놓아요','info');
-  snap();S.cables={...S.cables,power:false,powerPlaced:{x:Math.round(p.x),y:Math.round(p.y)},powerLeads:{}};
+  snap();S.cables={...S.cables,power:false,plugged:false,powerPlaced:{x:Math.round(p.x),y:Math.round(p.y)},powerLeads:{}};
   delete S.cables.powerTerms;consumeCarry();commit();say('전원 케이블을 놓았어요. 갈색 R · 파란색 T · 초록색 E 선 끝을 하나씩 눌러 연결해요','ok');
 }
-function powerLeadEnd(k) { const p=powerPlaced()||POWER_POS,i=POWER_LEADS.findIndex(l=>l[0]===k);return {x:p.x+45+i*20,y:p.y-85}; }
+function powerLeadEnd(k) { const p=powerPlaced()||POWER_POS,i=POWER_LEADS.findIndex(l=>l[0]===k);return {x:p.x+55+i*10,y:p.y-85}; }
 function selectPowerLead(term) {
   if(LIVE.inp.mcb)return say('MCB를 내린 뒤 전원선을 연결하거나 빼요','info');
   S.tool='wire';renderTools();
@@ -3306,6 +3322,7 @@ function placeStopper(p) {
 function handleTap(p, e) {
   closeChooser();
   const t = S.tool;
+  if(t==='hand'&&!UI.carry&&mainsTap(p))return;
   if (t === 'inspect' && !UI.carry) return inspectDeviceAt(p);
   if (t === 'label' && !UI.carry) { const n = tbLabelAt(p); if (n) return editTBLabels(n); }
   if (UI.replug) return finishReplug(p);
@@ -3335,7 +3352,7 @@ function handleTap(p, e) {
       snap(); S.conveyor = null; S.convLeads = {}; LIVE.pack = null; UI.carry = { kind: 'conveyor', key: 'conveyor', from: 'floor', count: 1 }; say('컨베이어를 들었어요. 꽂았던 선은 빠졌어요', 'info'); return commit();
     }
     const ck = cableAt(p);
-    if (ck) { if(LIVE.inp.mcb)return say('MCB를 내린 뒤 전원 케이블을 들어요','info'); if (S.tbCover) return say('단자대 커버를 벗기고 빼요', 'info'); snap(); S.cables[ck] = false;delete S.cables.powerPlaced;delete S.cables.powerTerms;S.cables.powerLeads={}; UI.carry = { kind: 'cable', key: CABLES[ck].item, from: 'floor', count: 1 }; say(`${CABLES[ck].name}을 뺐어요`, 'info'); return commit(); }
+    if (ck) { if(LIVE.inp.mcb)return say('MCB를 내린 뒤 전원 케이블을 들어요','info'); if (S.tbCover) return say('단자대 커버를 벗기고 빼요', 'info'); snap(); S.cables[ck] = false;S.cables.plugged=false;delete S.cables.powerPlaced;delete S.cables.powerTerms;S.cables.powerLeads={}; UI.carry = { kind: 'cable', key: CABLES[ck].item, from: 'floor', count: 1 }; say(`${CABLES[ck].name}을 뺐어요`, 'info'); return commit(); }
     const wg = wireGrab(p); if (wg) return startReplug(wg);   // 전선을 누르면 가까운 쪽 끝이 빠진다
   }
   if (f && t === 'cut') { snap(); S.floor = S.floor.filter(x => x !== f); say('재료함으로 돌려놨어요', 'info'); return commit(); }
@@ -3805,13 +3822,12 @@ function tuckOver(g, p1, px1) {   // 고리를 끄는 중: 잡은 선, 끄는 �
   s += LN(g.p0.x, g.p0.y, p1.x, p1.y, `stroke="#f3c11b" stroke-width="${F(2.2 * px1)}" stroke-linecap="round" stroke-dasharray="${F(6 * px1)} ${F(4 * px1)}" pointer-events="none"`);
   return s + `<text x="${F(p1.x + 10 * px1)}" y="${F(p1.y - 8 * px1)}" font-size="${F(12 * px1)}" font-weight="800" fill="${ok.length ? '#f3c11b' : '#ff6b6b'}" stroke="#1a1a1a" stroke-width="${F(3 * px1)}" paint-order="stroke" pointer-events="none">${ok.length ? `${[...new Set(ok.map(k => TUCK_NM[k]))].join('·')} 접어 넣기 (${ok.length}가닥)` : '그쪽은 자리가 모자라요'}</text>`;
 }
-function holeNear(p, tol = Math.max(5, tolMM(12))) {
-  let best = null, bd = tol;
-  for (const d of HDUCTS) {
-    if (!ductStuck(d)) continue; const s = SLOT[d], k = clamp(Math.round((p.x - s.x - 7.7) / 10), 0, HOLE_N - 1);
-    for (const wl of ['t', 'b']) { const h = holeOf(`${d}:${wl}:${k}`), dd = Math.hypot(p.x - h.x, p.y - (h.y + h.yi) / 2); if (dd < bd) { bd = dd; best = h; } }
-  }
-  return best;
+function holeNear(p, tol=Math.max(5,tolMM(12))) {
+  let best=null,bd=tol;
+  for(const d of HDUCTS){if(!ductStuck(d))continue;const s=SLOT[d];if(p.x<s.x||p.x>s.x+s.w)continue;
+    const raw=(clamp(p.x,s.x+2,s.x+s.w-2)-s.x-7.7)/10,near=Math.round(raw),k=F(Math.abs(raw-near)<.17?clamp(near,0,HOLE_N-1):raw);
+    for(const wl of ['t','b']){const h=holeOf(`${d}:${wl}:${k}`),dd=Math.hypot(p.x-h.x,p.y-(h.y+h.yi)/2);if(dd<bd){bd=dd;best=h;}}
+  }return best;
 }
 const dselNow = () => (UI.dsel || []).filter(q => S.wires.includes(q.w) && dressable(q.w));
 const endsAt = id => S.wires.filter(dressable).flatMap(w => ['a', 'b'].filter(e => w[e] === id).map(e => ({ w, e })));
@@ -3949,6 +3965,7 @@ function trayThumb(it) {
   else if (it.kind === 'conveyor') { vb = '-18 -98 536 168'; inner = convBody(0, 0, false); }
   else if (it.kind === 'pack') { vb = '-2 -2 44 44'; inner = packSVG(0, 0, false); }
   else if (it.kind === 'plug') { const r = k === 'relayU'; vb = r ? '0 16 31 43' : '0 11 40 50'; inner = r ? relayBody(0, 0, '') : timerBody(0, 0, ''); }
+  else if(it.kind==='outlet'){vb='-33 -33 66 66';inner=drawOutlet(0,0);}
   else if (it.kind === 'cable') { vb='-49 -93 151 139';inner=powerCordBody()+powerCordLooseLeads(); }
   else if (it.kind === 'helical') { vb = '-1 -1 76 30'; inner = drawHelical({ x: 0, y: 0, w: 74, h: 28 }); }
   else inner = k === 'wire' ? '<path d="M2 18C12 18 10 6 20 6S28 18 38 18" fill="none" stroke="#4a3b00" stroke-width="3.6"/><path d="M2 18C12 18 10 6 20 6S28 18 38 18" fill="none" stroke="#f5c518" stroke-width="2.4"/>' : R(10, 8, 22, 8, 'rx="2" fill="#f5c518" stroke="#4a3b00" stroke-width=".6"') + R(3, 10.5, 7, 3, 'fill="#c8ccd0"');
@@ -4038,20 +4055,31 @@ function guideUnder() {
   return s;
 }
 const CAB_HOLE = { x: 60, y: PANEL.h };   // 왼쪽 세로 덕트 아래 끝 구멍: 전원 케이블과 컨베이어 선이 판 밖으로 나가는 곳
+function drawOutlet(x,y) {
+  return `<g data-mains-outlet="true" transform="translate(${F(x)} ${F(y)})">`
+    +R(-30,-30,60,60,'rx="2" fill="#a9a99b" stroke="#697568" stroke-width=".8"')
+    +R(-27,-27,54,54,'rx="2" fill="url(#gPalePolymer)" stroke="#f7f5e5" stroke-width="1.2"')
+    +C(0,0,20,'fill="#a6ab94" stroke="#dfe0c9" stroke-width="1.4"')
+    +C(0,1,16.8,'fill="#c5c8af" stroke="#929b80" stroke-width=".6"')
+    +C(-8,1,2.7,'fill="#17251b"')+C(8,1,2.7,'fill="#17251b"')
+    +C(0,1,1.9,'fill="url(#gChrome)" stroke="#63705b" stroke-width=".4"')
+    +R(-1.3,-18.5,2.6,5,'rx=".8" fill="url(#gChrome)"')+R(-1.3,14,2.6,5,'rx=".8" fill="url(#gChrome)"')
+    +T(0,40,'접지 콘센트',TX(6,'#e5eedf','stroke="#203027" stroke-width=".8" paint-order="stroke"'))+'</g>';
+}
+function ductTeeth(r){
+  const L=r.o==='h'?r.w:r.h,W=r.o==='h'?r.h:r.w;let d='';
+  for(let a=0;a<L;a+=10){const end=Math.min(a+6,L);d+=rectD(a,0,end-a,6.5)+rectD(a,W-6.5,end-a,6.5);}
+  return `<g transform="${frameLocal(r)}" pointer-events="none"><path d="${d}" fill="url(#gDuctWall)"/></g>`;
+}
 function powerCordStroke(d,color='#161b1b',width=5,extra='') {
   return `<path d="${d}" fill="none" stroke="#080d0e" stroke-width="${width+1.3}" stroke-linecap="round" stroke-linejoin="round"/>`
     +`<path d="${d}" fill="none" stroke="${color}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" ${extra}/>`
     +`<path d="${d}" fill="none" stroke="#edf2df" stroke-opacity=".17" stroke-width="${F(width*.15)}" stroke-linecap="round" stroke-linejoin="round" transform="translate(-.35 -.55)"/>`;
 }
-function powerCordBody() {   // 접어 묶은 검정 외피, 90도 몰딩 플러그와 둥근 2핀. 바닥·재료함·들고 있는 그림 공용.
-  const loop='M8 -3C-7 -20 -31 -23 -37 -7C-48 15 -17 28 6 8C24 -8 43 -27 50 -13C61 8 31 23 8 -3';
-  let out='<g data-power-cord-body="true">';
-  for(const [dx,dy] of [[-.8,5],[1,0],[0,-5]])out+=`<g transform="translate(${dx} ${dy})">`+powerCordStroke(loop,'#191e1d',4.8)+'</g>';
-  out+=powerCordStroke('M11 7C28 21 42 29 63 17','#171c1b',5.6)
-    +powerCordStroke('M5 -9C28 -18 47 -23 56 -39L65 -50','#191f1e',5.8)
-    +'<ellipse cx="65" cy="-50" rx="3.5" ry="1.4" fill="#69716a" transform="rotate(29 65 -50)"/>'
-    +'<g transform="rotate(-24 8 0)"><path d="M5 -14Q9 -15 12 -11L12 12Q8 16 5 12Z" fill="#101715" stroke="#353e35" stroke-width=".65"/><path d="M6 -10h4M6 -6h4M6 -2h4M6 2h4M6 6h4M6 10h4" stroke="#4a5042" stroke-width=".55"/></g>';
-  out+='<g data-power-plug="round-2pin" transform="translate(60 5) rotate(-14 18 14)">'
+function powerCordBody(plugDX=0,plugDY=0) {   // 접어 묶은 검정 외피, 90도 몰딩 플러그와 둥근 2핀. 바닥·재료함·들고 있는 그림 공용.
+  let out='<g data-power-cord-body="true">'+powerCordStroke(`M${63+plugDX} ${17+plugDY}C${28+plugDX*.4} ${48+plugDY*.4} -43 43 -35 2C-29 -40 18 -20 56 -42L65 -60`,'#191e1d',5.8)
+    +'<ellipse cx="65" cy="-60" rx="3.5" ry="1.4" fill="#69716a" transform="rotate(29 65 -60)"/>';
+  out+=`<g transform="translate(${F(plugDX)} ${F(plugDY)})">`+'<g data-power-plug="round-2pin" transform="translate(60 5) rotate(-14 18 14)">'
     +'<path d="M12 4Q21 -4 28 4Q32 8 32 19V23Q31 28 25 28H15Q10 27 10 21V15H0V6H12Z" transform="translate(1 1.7)" fill="#091110" fill-opacity=".3"/>'
     +'<g data-power-pin="1"><rect x="15.8" y="25" width="2.6" height="12" rx="1.25" fill="url(#gChrome)" stroke="#657579" stroke-width=".35"/><path d="M16.5 27v8" stroke="#fff" stroke-width=".6"/></g>'
     +'<g data-power-pin="2"><rect x="25" y="25" width="2.6" height="12" rx="1.25" fill="url(#gChrome)" stroke="#657579" stroke-width=".35"/><path d="M25.7 27v8" stroke="#fff" stroke-width=".6"/></g>'
@@ -4061,19 +4089,19 @@ function powerCordBody() {   // 접어 묶은 검정 외피, 90도 몰딩 플러
     +'<path d="M3.5 7v6M6.3 7v6M9.1 7v6" stroke="#687267" stroke-opacity=".4" stroke-width=".4"/>'
     +'<path d="M15 10h11M15 12h11M15 14h11" stroke="#0b1410" stroke-width=".65"/>'
     +'<path d="M11 19v5M31 17v5" stroke="url(#gChrome)" stroke-width="1.2" stroke-linecap="round"/>'
-    +'</g></g>';
+    +'</g></g></g>';
   return out;
 }
 function powerCordLeadD(i,px=0,py=0) {
-  const x=px+45+i*20;
-  return `M${F(px+65+(i-1)*1.6)} ${F(py-50)}C${F(px+65+(i-1)*3)} ${F(py-60)} ${F(x)} ${F(py-69)} ${F(x)} ${F(py-85)}`;
+  const x=px+55+i*10;
+  return `M${F(px+65+(i-1)*.7)} ${F(py-60)}C${F(px+65+(i-1)*3)} ${F(py-68)} ${F(x)} ${F(py-69)} ${F(x)} ${F(py-85)}`;
 }
 function powerCordLooseLeads() {
   return POWER_LEADS.map(([, ,color],i)=>powerCordStroke(powerCordLeadD(i),color,2.2)).join('');
 }
 function drawPowerCable() {
   const p=powerPlaced();if(!p)return '';
-  let out=`<g data-power-cable="true"><g transform="translate(${F(p.x)} ${F(p.y)})">${powerCordBody()}</g>`;
+  let out=`<g data-power-cable="true" data-plugged="${!!S.cables.plugged}"><g transform="translate(${F(p.x)} ${F(p.y)})">${powerCordBody(S.cables.plugged&&S.cables.outlet?S.cables.outlet.x-p.x-82:0,S.cables.plugged&&S.cables.outlet?S.cables.outlet.y-p.y-20:0)}</g>`;
   POWER_LEADS.forEach(([k,name,color],i)=>{
     const e=powerLeadEnd(k),to=TERM[powerLeadMap(S.cables)[k]];
     out+=powerCordStroke(powerCordLeadD(i,p.x,p.y),color,2.2,`data-power-lead="${k}"`);
@@ -4111,7 +4139,7 @@ function world123Parts() {
   if (S.rulerPlaced) s += drawRulerTool(S.rulerSide || 'L');
   for (const [, q] of fr) for (const [x, y] of q.holes) s += q.bolted ? drawBolt(x, y) : drawHole(x, y);
   SERVO.holes.forEach(([x, y], i) => { if (S.svHoles[i] && !S.servo.placed) s += drawHole(x, y); });
-  const parts = [['panel', s], ['stoppers', S.stoppers.map(st => dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy)).join('')]];
+  const parts = [['outlet',S.cables.outlet?drawOutlet(S.cables.outlet.x,S.cables.outlet.y):''],['panel', s], ['stoppers', S.stoppers.map(st => dStopper(st.x, ROW[RAIL_ROW[st.rail]].cy)).join('')]];
   for (const i of S.inst) parts.push(['device-' + i.id, drawDevice(i.type, i.x, devY(i), UI.nm[i.id], i.type.startsWith('xtb') ? !!S.xtbClosed[i.id] : i.type === 'plc' ? S.plcLid : i.type === 'relay' || i.type === 'timer' ? !!S.plug[i.id] : S.fuses[i.id])]);
   parts.push(['servo', S.servo.placed ? dServo(SERVO.x, SERVO.y, S.servo.bolted) : ''], ['power', powerPlaced() ? drawPowerCable() : '']);
   return parts;
@@ -4175,6 +4203,7 @@ function renderWorld(geometryChanged = true) {
   const loose = w => (S.helical !== 2 && isExtWire(w)) || (dressable(w) && !tucked(w));   // 덕트 밖으로 빼 둔 조작판 전선, 덕트에 덜 넣은 선은 커버 위에 보인다
   const lifted = w => UI.replug && UI.replug.w === w;
   parts.push(...wires(w => !loose(w) && !lifted(w), 'wire-inner'));
+  parts.push(['duct-teeth',frList().filter(([,q])=>q.type==='duct'&&q.slot&&q.stuck&&!q.covered).map(([,q])=>ductTeeth(frRect(q))).join('')]);
   parts.push(['band-duct', S.helical === 2 ? drawBand(band2Duct(0)) : '']);
   parts.push(['conveyor-leads', drawConvLeads()]);
   parts.push(['duct-covers', frList().filter(([,q]) => q.type === 'duct' && q.slot && q.covered).map(([,q]) => drawDuctCover(frRect(q))).join('')]);
@@ -4196,6 +4225,7 @@ function ghost(p) {
   if (c.kind === 'plug') { const g = PLUGS[c.key], ins = instAt(p), body = (x, y) => g.sock === 'relay' ? relayBody(x, y, '') : timerBody(x, y, '');
     if (ins && ins.type === g.sock && !S.plug[ins.id]) return `<g opacity=".75">${body(ins.x, devY(ins))}</g>`;
     return `<g opacity=".8">${body(p.x - DEV[g.sock].w / 2, p.y - 36)}</g>`; }
+  if(c.kind==='outlet')return drawOutlet(p.x,p.y);
   if (c.kind === 'cable') return `<g transform="translate(${F(p.x)} ${F(p.y)})" opacity=".8">${powerCordBody()+powerCordLooseLeads()}</g>`;   // 놓는 위치와 같은 크기로 미리 보기
   if (c.kind === 'op') {
     const lp = opLocal(p), tr = `translate(${OPW.x} ${OPW.y})`;
@@ -4278,7 +4308,7 @@ function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리
 function renderOver() {
   if(overlayFrame){cancelAnimationFrame(overlayFrame);overlayFrame=0;}
   if (MODE === 'prac' && UI.pending !== UI.pracPend) { UI.pracPend = UI.pending; pracNext(); pracCapUI(); renderSteps(); }   // 연습: 단자 하나를 누르면 안내가 다음 단자로
-  let s = ''; const p = UI.pointer;
+  let s = ''; if(UI.powerPlug&&powerPlaced()){const p=powerPlaced();s+=C(p.x+82,p.y+20,19,'fill="none" stroke="#f3c11b" stroke-width="1.2" stroke-dasharray="3 2"');} const p = UI.pointer;
   s += hoverHL(p);
   const px1 = UI.cam.w / Math.max(1, svg.clientWidth);   // 화면 1px의 실제 크기
   const ti = p && UI.overBoard && !UI.carry ? instAt(p) : null;
@@ -5194,6 +5224,8 @@ function demoScript() {   // 예시 채우기를 동작 하나 단위로 쪼갠�
     // 5. 동작 검사: 케이블, 컨베이어, 릴레이·타이머, 타이머 시간
     fillStage(4); buildTerms();
     add(4,'전원 케이블을 바닥에 내려놓기',[['set',['cables'],{power:false,powerPlaced:{...POWER_POS},powerLeads:{}}]],{focus:CONV_V,sub:'갈색 R · 파란색 T · 초록색 E'});
+    add(4,'콘센트 놓기',[['set',['cables','outlet'],{...OUTLET_POS}]],{focus:CONV_V});
+    add(4,'플러그를 콘센트에 꽂기',[['set',['cables','plugged'],true]],{focus:CONV_V});
     for(const [k,col,,t] of POWER_LEADS)add(4,`${col} ${k}선 → ${t}`,[['set',['cables','powerLeads',k],t],['set',['cables','power'],k==='E']],{focus:CONV_V,hl:{rings:[{x:TERM[t].x,y:TERM[t].y,r:5}]}});
     add(4, '컨베이어를 제어판 아래 바닥에 놓기', [['set', ['conveyor'], S.conveyor]], { focus: CONV_V, hl: { box: { x: S.conveyor.x - 16, y: S.conveyor.y - 100, w: CONV.L + 32, h: CVW.bw + 112 } } });
     for (const [k, ln, , t] of CV_LEADS) add(4, `컨베이어 ${k === 'S-' ? 'S−' : k}선 → ${TERM[t].nm}`, [['set', ['convLeads', k], t]], { focus: CONV_V, sub: ln, hl: { rings: [{ x: TERM[t].x, y: TERM[t].y, r: 5 }] } });
@@ -5659,7 +5691,7 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); return undo(); }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Escape') { clearWiringIssue();clearInspection(); if (UI.replug) return cancelReplug(); UI.carry = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
+  if (e.key === 'Escape') { UI.powerPlug=false;clearWiringIssue();clearInspection(); if (UI.replug) return cancelReplug(); UI.carry = null; UI.dsel = []; UI.pending = null; closeChooser(); renderTray(); renderWorld(); renderOver(); return; }
   if (e.key === '+' || e.key === '=') return zoomCenter(1 / 1.3);
   if (e.key === '-') return zoomCenter(1.3);
   if (e.key === '0') return fit();
@@ -5689,7 +5721,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.25.0', date: '2026.11.11', notes: ['전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.26.0', date: '2026.11.11', notes: ['콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -5750,7 +5782,7 @@ function fixState() {   // 예전에 저장한 상태를 지금 형식으로
   migrateLampTies();
 }
 function setMode(m, st) {   // 모드와 그 모드의 작업 상태로 바꾼다
-  if (DEMO.on) demoClose(); if (TZ.id) tzClose();
+  UI.powerPlug=false; if (DEMO.on) demoClose(); if (TZ.id) tzClose();
   closeDevicePanel(); clearInspection(); closeTermSearch();
   clearWiringIssue();MODE = m; S = st; fixState(); document.body.dataset.mode = m; if (m !== 'prac') PRAC.L = null;
   undoStack = []; UI.carry = null; UI.pending = null; UI.replug = null; UI.peek = false; UI.faultFocus = null; UI.pickKey = null; UI.meter = null; liveReset(); closeModal();
@@ -5954,8 +5986,8 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
   // 5. 동작 검사
   const conv = () => S.conveyor || { x: CVW.x, y: CVW.y }, sen = mm => ({ x: conv().x + mm, y: conv().y + CVW.bw / 2, r: 26 });
   L(4, '전원 케이블 놓기·RTE 연결', '바닥에 놓고 갈색 R·파란색 T·초록색 E를 한 가닥씩 연결해요. 기본 예시는 1·2·3번이며 실제 R·T 회로와 접지 전용 단자에 맞춰요', { keys: ['cables'], focus: P_V.conv,
-    fill: () => { S.cables={power:true,powerPlaced:{...POWER_POS},powerLeads:{R:'TB.1.b',T:'TB.2.b',E:'TB.3.b'}}; },prog:()=>[POWER_LEADS.filter(([k])=>powerLeadMap(S.cables)[k]).length,3],goal:()=>powerConnected()&&!powerFault(S.cables,staticLinks(S.wires)),
-    next:()=>{if(!powerPlaced())return {tx:'전원 케이블 → 제어판 아래 바닥',sub:'바닥에 내려놓은 뒤 선을 하나씩 연결해요',tray:'power',hl:{box:{x:-35,y:730,w:200,h:110}}};const l=POWER_LEADS.find(([k])=>!powerLeadMap(S.cables)[k]);if(!l)return P_DONE;const e=powerLeadEnd(l[0]),t=tRing(l[3]);return {tx:`${l[1]} ${l[0]}선 연결`,sub:UI.pending==='PWR.'+l[0]?'단자대 아래쪽 빨간 원을 눌러요':'바닥의 선 끝을 누른 뒤 단자대에 연결해요',hl:{rings:[UI.pending==='PWR.'+l[0]?t:{...e,r:7}].filter(Boolean)}};} });
+    fill: () => { S.cables={outlet:{...OUTLET_POS},plugged:true,power:true,powerPlaced:{...POWER_POS},powerLeads:{R:'TB.1.b',T:'TB.2.b',E:'TB.3.b'}}; },prog:()=>[POWER_LEADS.filter(([k])=>powerLeadMap(S.cables)[k]).length,3],goal:()=>powerConnected()&&!powerFault(S.cables,staticLinks(S.wires)),
+    next:()=>{if(!powerPlaced())return {tx:'전원 케이블 → 제어판 아래 바닥',sub:'바닥에 내려놓은 뒤 선을 하나씩 연결해요',tray:'power',hl:{box:{x:-35,y:730,w:200,h:110}}};if(!S.cables.outlet)return {tx:'접지 콘센트를 바닥에 놓아요',tray:'outlet',tool:'hand',hl:{box:{x:180,y:755,w:60,h:60}}};if(!S.cables.plugged){const p=powerPlaced();return {tx:UI.powerPlug?'콘센트 가운데를 눌러요':'플러그를 눌러 선택해요',tool:'hand',hl:{rings:[{...(UI.powerPlug?S.cables.outlet:{x:p.x+82,y:p.y+20}),r:18}]}};}const l=POWER_LEADS.find(([k])=>!powerLeadMap(S.cables)[k]);if(!l)return P_DONE;const e=powerLeadEnd(l[0]),t=tRing(l[3]);return {tx:`${l[1]} ${l[0]}선 연결`,sub:UI.pending==='PWR.'+l[0]?'단자대 아래쪽 빨간 원을 눌러요':'바닥의 선 끝을 누른 뒤 단자대에 연결해요',hl:{rings:[UI.pending==='PWR.'+l[0]?t:{...e,r:7}].filter(Boolean)}};} });
   L(4, '컨베이어 내려놓기', '컨베이어를 제어판 아래 바닥에 내려놓아요', { keys: ['conveyor'], focus: P_V.conv,
     fill: () => { S.conveyor = { x: 130, y: 880 }; S.convLeads = {}; }, prog: () => [S.conveyor ? 1 : 0, 1], goal: () => !!S.conveyor,
     next: () => ({ tx: '컨베이어 → 제어판 아래 바닥', sub: "재료함 '동작 검사 재료'의 컨베이어를 들고 빨간 테두리 바닥을 눌러요", tray: 'conveyor', hl: { box: { x: 130 - 16, y: 880 - 100, w: CONV.L + 32, h: CVW.bw + 112 } } }) });
@@ -6725,7 +6757,7 @@ function renderHome() {
 }
 function showHome(page = 'main') {
   closeDevicePanel(); clearInspection(); closeTermSearch();
-  if (DEMO.on) demoClose(); if (TZ.id) tzClose();
+  UI.powerPlug=false; if (DEMO.on) demoClose(); if (TZ.id) tzClose();
   UI.carry = null; UI.pending = null; UI.replug = null; if (S.tool !== 'hand') S.tool = 'hand';   // 들고 있던 도구, 부품은 내려놓는다
   if (MODE !== 'prac') save();
   UI.homePage = page; closeModal(); renderHome(); $('#home').hidden = false; renderTools(); renderTray(); renderOver();

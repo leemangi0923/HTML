@@ -180,6 +180,29 @@ async function clickWorld(x, y) {
   await page.mouse.click(p.x,p.y);
 }
 
+test('unplugged mains cannot energize a fully wired circuit; physical plug and outlet clicks restore supply',async()=>{
+  await fullState();await page.evaluate(()=>{hideHome();S.tool='hand';fitTo({x:-65,y:660,w:360,h:245});renderTools();});
+  const power=()=>page.evaluate(()=>evalOnce(staticLinks(S.wires),newSim(),{...LIVE.inp,mcb:true,cab:S.cables,fuses:fuseState(),plug:plugMap(),leads:convLeads()}).acOn);
+  assert.equal(await power(),true);const outlet=await page.evaluate(()=>S.cables.outlet);
+  await clickWorld(outlet.x,outlet.y);assert.equal(await power(),false);
+  const plug=await page.evaluate(()=>{const p=powerPlaced();return{x:p.x+82,y:p.y+20};});
+  await clickWorld(plug.x,plug.y);await clickWorld(outlet.x,outlet.y);assert.equal(await power(),true);await page.evaluate(()=>closeModal());
+  await clickWorld(outlet.x,outlet.y);await page.evaluate(()=>save());await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.SIM);assert.equal(await power(),false);
+});
+
+test('wire dressing accepts a position beneath a duct tooth and keeps covered ducts blocked',async()=>{
+  await fullState();const point=await page.evaluate(()=>{
+    hideHome();for(const [,q]of frList())q.covered=false;
+    const w=S.wires.find(dressable),T=TERM[w.a],d=SLOT[T.duct],wl=termWall(T),x=d.x+Math.round((exitX(T)-d.x)/10)*10+2,y=wl==='t'?d.y+3:d.y+d.h-3;
+    delete w.ha;delete w.tk;UI.dsel=[{w,e:'a'}];S.tool='dress';renderAll();fitTo({x:x-65,y:y-60,w:180,h:150});return{x,y,a:w.a,b:w.b};
+  });
+  await clickWorld(point.x,point.y);
+  const result=await page.evaluate(({a,b})=>{const w=S.wires.find(w=>w.a===a&&w.b===b);return{hole:w.ha,x:w.ha&&holeOf(w.ha).x,teeth:!!SCENE_PARTS.get('duct-teeth')?.childElementCount};},point);
+  assert.ok(result.hole);assert.ok(Math.abs(result.x-point.x)<.1);assert.equal(result.teeth,true);
+  await page.evaluate(({a,b})=>{const w=S.wires.find(w=>w.a===a&&w.b===b);delete w.ha;UI.dsel=[{w,e:'a'}];for(const[,q]of frList())q.covered=true;renderAll();},point);
+  await clickWorld(point.x,point.y);assert.equal(await page.evaluate(({a,b})=>!!S.wires.find(w=>w.a===a&&w.b===b).ha,point),false);
+});
+
 test('main-board relief changes only shallow sides on pan and preserves terminals, wiring, score and SVG nodes',async()=>{
   await fullState();await page.evaluate(()=>hideHome());
   const result=await page.evaluate(()=>{
@@ -489,6 +512,7 @@ test('power cable is placed on the floor and its three colored leads connect ind
     assert.equal(await page.evaluate(()=>S.cables.power),k==='E');
   }
   assert.deepEqual(await page.evaluate(()=>powerLeadMap(S.cables)),{R:'TB.1.b',T:'TB.2.b',E:'TB.3.b'});
+  await page.evaluate(()=>{S.cables.outlet={...OUTLET_POS};S.cables.plugged=true;commit();});
   assert.deepEqual(await functionalResults(),{checks:[],judge:[],operationPoints:18});
   const colors=await page.locator('[data-power-lead]').evaluateAll(a=>a.map(n=>n.getAttribute('stroke')));
   assert.deepEqual(colors,['#925523','#287be0','#21a65a']);
@@ -502,7 +526,7 @@ test('alternative wire list is informational and never marks a nonexample pair w
 });
 
 test('legacy saves without custom labels or source endpoints retain the original wiring', async () => {
-  await fullState();await page.evaluate(()=>{delete S.tbLabels;S.cables={power:true};save()});
+  await fullState();await page.evaluate(()=>{delete S.tbLabels;S.cables={...CAB_ALL};delete S.cables.powerLeads;save()});
   await page.reload();await page.waitForFunction(()=>window.SIM);
   assert.equal(await page.evaluate(()=>tbLabel(19)),'S+');
   assert.deepEqual(await page.evaluate(()=>powerTerms(S.cables)),['TB.1.b','TB.2.b']);
@@ -816,7 +840,7 @@ test('power cable blocks live edits, closed covers and missing earth',async()=>{
     connectPowerLead('PWR.R','TB.1.b');const liveBlocked=!S.cables.powerLeads.R;
     LIVE.inp.mcb=false;S.tbCover=true;connectPowerLead('PWR.R','TB.1.b');const coverBlocked=!S.cables.powerLeads.R;
     S.tbCover=false;connectPowerLead('PWR.R','TB.1.b');connectPowerLead('PWR.T','TB.2.b');
-    S.cables.power=true; // Even a malformed save claiming completion cannot omit earth.
+    S.cables.outlet={...OUTLET_POS};S.cables.plugged=true;S.cables.power=true; // Even a malformed save claiming completion cannot omit earth.
     const result=evalOnce(staticLinks(S.wires),newSim(),{...LIVE.inp,mcb:true,cab:S.cables,fuses:fuseState(),leads:convLeads(),plug:plugMap()});
     return {liveBlocked,coverBlocked,ready:powerConnected(),on:result.acOn,error:result.powerError};
   });
@@ -825,7 +849,7 @@ test('power cable blocks live edits, closed covers and missing earth',async()=>{
 
 test('legacy relocated power keeps actual terminals and inspection record during migration',async()=>{
   await fullState();await remapTB(Object.fromEntries(Array.from({length:40},(_,i)=>[i+1,40-i])));
-  const r=await page.evaluate(()=>{const old=powerTerms(S.cables);S.cables={power:true,powerTerms:old};S.judge={key:judgeKey()};fixState();return {map:powerLeadMap(S.cables),placed:!!powerPlaced(),inspected:judgeRan()};});
+  const r=await page.evaluate(()=>{const old=powerTerms(S.cables);S.cables={power:true,powerTerms:old,outlet:{...OUTLET_POS},plugged:true};S.judge={key:judgeKey()};fixState();return {map:powerLeadMap(S.cables),placed:!!powerPlaced(),inspected:judgeRan()};});
   assert.deepEqual(r,{map:{R:'TB.40.b',T:'TB.39.b',E:'TB.38.b'},placed:true,inspected:true});
   assert.deepEqual(await functionalResults(),{checks:[],judge:[],operationPoints:18});
 });
@@ -836,7 +860,7 @@ test('power practice lesson accepts floor placement and R T E connection one at 
     setMode('prac',st);PRAC.L=L;PRAC.state='run';PRAC.cur=null;PRAC.sig=pracSig();PRAC.good=JSON.stringify(S);renderAll();
     UI.carry={kind:'cable',key:'power',count:1};dropCable({...POWER_POS});
     const afterDrop=PRAC.state;
-    for(const [k,,,t] of POWER_LEADS)connectPowerLead('PWR.'+k,t);
+    S.cables.outlet={...OUTLET_POS};S.cables.plugged=true;for(const [k,,,t] of POWER_LEADS)connectPowerLead('PWR.'+k,t);
     return {afterDrop,state:PRAC.state,complete:L.goal(),leads:powerLeadMap(S.cables)};
   });
   assert.deepEqual(r,{afterDrop:'run',state:'win',complete:true,leads:{R:'TB.1.b',T:'TB.2.b',E:'TB.3.b'}});
