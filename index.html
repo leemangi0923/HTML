@@ -1229,6 +1229,7 @@ function updateRelief() {
 // Model coordinates remain fixed. Only the view maps elevated faces and wire artwork.
 const PROJECTION={flat:false,models:[],owners:new Map(),byKey:new Map(),bindings:new Map(),signature:'',points:[],objects:[],faces:[],paths:[],over:[]};
 const PROJECTION_ART=new WeakMap();
+const PROJECTION_FIXED=new WeakMap(),OVERLAY_PROJECTION=new WeakMap();
 function svgLocalMatrix(node){try{return svg.getCTM().inverse().multiply(node.getCTM());}catch{return new DOMMatrix();}}
 function projectionReference(b){
   const p={x:b.x+b.w/2,y:b.y+b.h/2};
@@ -1247,19 +1248,25 @@ function prepareProjection(){
     Object.assign(PROJECTION,{flat:true,padding:8,culledPaths:0,models:[],owners:new Map(),byKey:new Map(),bindings:new Map(),signature:'',points:[],objects:[],faces:[],paths:[],over:[]});
     DEPTH.groups=[];DEPTH.lastPairs=[];return;
   }
-  PROJECTION.models=reliefNodes.filter(r=>r.face);PROJECTION.owners=new Map();
-  for(const r of PROJECTION.models)r.face.removeAttribute('transform');
-  for(const n of gWorld.querySelectorAll('[data-project-support]'))n.removeAttribute('transform');
-  for(const r of PROJECTION.models){
-    const[x,y,w,h,z]=r.box,m=svgLocalMatrix(r.surface.parentNode),a=new DOMPoint(x,y).matrixTransform(m),b=new DOMPoint(x+w,y+h).matrixTransform(m);
-    r.world={x:F(Math.min(a.x,b.x)),y:F(Math.min(a.y,b.y)),w:F(Math.abs(b.x-a.x)),h:F(Math.abs(b.y-a.y))};r.matrix=m;
-    r.parents=[];for(let p=r.surface.parentElement;p&&p!==gWorld;p=p.parentElement)if(p.classList.contains('surface-top')&&p._surfaceModel)r.parents.push(p._surfaceModel);
-    r.supportNode=r.surface.closest('[data-project-support]');r.support=r.supportNode&&PROJECTION.owners.get(r.supportNode.dataset.projectSupport);
-    r.z=z+r.parents.reduce((n,p)=>n+p.box[4],0)+(r.support?.z||0);
-    r.termCover=!!r.face.querySelector(':scope > [data-smps-shield][data-shield-state="closed"],:scope > [data-tb-clear-cover]');
-    const owner=r.surface.closest('[data-scene-part]')?.dataset.scenePart;
-    r.projectionKey=[owner,r.world.x,r.world.y,r.world.w,r.world.h,r.z].join(':');
-    if(owner&&!PROJECTION.owners.has(owner))PROJECTION.owners.set(owner,r);
+  const models=reliefNodes.filter(r=>r.face),previousModels=new Set(PROJECTION.models),sameModels=models.length===previousModels.size&&models.every(r=>previousModels.has(r));
+  PROJECTION.models=models;
+  if(!sameModels){
+    PROJECTION.owners=new Map();
+    for(const r of models)r.face.removeAttribute('transform');
+    for(const n of gWorld.querySelectorAll('[data-project-support]'))n.removeAttribute('transform');
+    for(const r of models){
+      const[x,y,w,h,z]=r.box;
+      if(!r.matrix){const m=svgLocalMatrix(r.surface.parentNode),a=new DOMPoint(x,y).matrixTransform(m),b=new DOMPoint(x+w,y+h).matrixTransform(m);
+        r.world={x:F(Math.min(a.x,b.x)),y:F(Math.min(a.y,b.y)),w:F(Math.abs(b.x-a.x)),h:F(Math.abs(b.y-a.y))};r.matrix=m;
+      }
+      r.parents=[];for(let p=r.surface.parentElement;p&&p!==gWorld;p=p.parentElement)if(p.classList.contains('surface-top')&&p._surfaceModel)r.parents.push(p._surfaceModel);
+      r.supportNode=r.surface.closest('[data-project-support]');r.support=r.supportNode&&PROJECTION.owners.get(r.supportNode.dataset.projectSupport);
+      r.z=z+r.parents.reduce((n,p)=>n+p.box[4],0)+(r.support?.z||0);
+      r.termCover=!!r.face.querySelector(':scope > [data-smps-shield][data-shield-state="closed"],:scope > [data-tb-clear-cover]');
+      const owner=r.surface.closest('[data-scene-part]')?.dataset.scenePart;
+      r.projectionKey=[owner,r.world.x,r.world.y,r.world.w,r.world.h,r.z].join(':');
+      if(owner&&!PROJECTION.owners.has(owner))PROJECTION.owners.set(owner,r);
+    }
   }
   prepareDepthOrder();
   PROJECTION.byKey=new Map(PROJECTION.models.map(r=>[r.projectionKey,r]));
@@ -1268,7 +1275,7 @@ function prepareProjection(){
   const maxZ=Math.max(0,...PROJECTION.models.map(r=>Math.abs(r.z))),maxScale=Math.max(1,...PROJECTION.models.map(r=>Math.max(Math.abs(r.matrix.a)+Math.abs(r.matrix.c),Math.abs(r.matrix.b)+Math.abs(r.matrix.d))));
   PROJECTION.padding=8+maxZ*maxScale*.18;
   const signature=[...PROJECTION.byKey.keys()].join('|');if(signature!==PROJECTION.signature){PROJECTION.bindings.clear();PROJECTION.signature=signature;}
-  PROJECTION.points=[...gWorld.querySelectorAll('[data-project-at]')].filter(n=>!n.closest('.surface-top')).map(node=>({node,p:node.dataset.projectAt.split(',').map(Number),matrix:svgLocalMatrix(node.parentNode)}));
+  PROJECTION.points=[...gWorld.querySelectorAll('[data-project-at]')].filter(n=>!n.closest('.surface-top')).map(node=>{let a=PROJECTION_FIXED.get(node);if(!a){a={node,p:node.dataset.projectAt.split(',').map(Number),matrix:svgLocalMatrix(node.parentNode)};PROJECTION_FIXED.set(node,a);}return a;});
   PROJECTION.objects=[...gWorld.querySelectorAll('[data-project-local-at]')].map(node=>{let a=PROJECTION_ART.get(node);if(!a){const[x,y]=node.dataset.projectLocalAt.split(',').map(Number),m=svgLocalMatrix(node),p=new DOMPoint(x,y).matrixTransform(m);a={node,x:p.x,y:p.y,matrix:svgLocalMatrix(node.parentNode),original:node.getAttribute('transform')||''};PROJECTION_ART.set(node,a);}return a;});
   PROJECTION.faces=[...gWorld.querySelectorAll('[data-project-face]')].map(node=>({node,box:node.dataset.projectFace.split(',').map(Number)}));
   const selector='[data-scene-part^="wire-"] path,[data-scene-part="power"] path,[data-scene-part="conveyor-leads"] path';
@@ -1424,12 +1431,17 @@ function updateProjectedArtwork(){
   updateProjectionOverlays();
 }
 function refreshProjectionOverlays(){
-  for(const a of PROJECTION.over)if(a.node.isConnected){if(a.original)a.node.setAttribute('transform',a.original);else a.node.removeAttribute('transform');}
-  PROJECTION.over=[];if(!SET.relief)return;for(const root of [gOver,$('#gLive')]){
+  if(!SET.relief){for(const a of PROJECTION.over)if(a.node.isConnected){if(a.original)a.node.setAttribute('transform',a.original);else a.node.removeAttribute('transform');}PROJECTION.over=[];return;}
+  PROJECTION.over=[];for(const root of [...(gOver._parts||[gOver]),$('#gLive')]){
+    const cached=OVERLAY_PROJECTION.get(root);
+    if(cached&&cached.revision===root._revision&&cached.first===root.firstChild){PROJECTION.over.push(...cached.items);continue;}
+    if(cached)for(const a of cached.items)if(a.node.isConnected){if(a.original)a.node.setAttribute('transform',a.original);else a.node.removeAttribute('transform');}
+    const items=[];
     for(const node of root.querySelectorAll('rect,circle,ellipse,path,line,text,use')){
       if(node.closest('.relief'))continue;
-      try{const b=node.getBBox(),m=svgLocalMatrix(node),p=new DOMPoint(b.x+b.width/2,b.y+b.height/2).matrixTransform(m);PROJECTION.over.push({node,matrix:svgLocalMatrix(node.parentNode),x:p.x,y:p.y,original:node.getAttribute('transform')||''});}catch{}
+      try{const b=node.getBBox(),m=svgLocalMatrix(node),p=new DOMPoint(b.x+b.width/2,b.y+b.height/2).matrixTransform(m);items.push({node,matrix:svgLocalMatrix(node.parentNode),x:p.x,y:p.y,original:node.getAttribute('transform')||''});}catch{}
     }
+    OVERLAY_PROJECTION.set(root,{revision:root._revision,first:root.firstChild,items});PROJECTION.over.push(...items);
   }updateProjectionOverlays();
 }
 function updateProjectionOverlays(){for(const a of PROJECTION.over){const p=projectWorkPoint({x:a.x,y:a.y});translateProjected(a.node,a.matrix,p.x-a.x,p.y-a.y,a.original);}}
@@ -3441,7 +3453,7 @@ function polylineInfo(pts) {
 function nearPolyline(pts,p,distance) {
   const b=polylineInfo(pts);return p.x>=b.minX-distance && p.x<=b.maxX+distance && p.y>=b.minY-distance && p.y<=b.maxY+distance;
 }
-function setMarkup(el,html) { const quality=graphicsKey();if(el._markup!==html||el._quality!==quality){el.innerHTML=paintMarkup(html);el._markup=html;el._quality=quality;return true;}return false; }
+function setMarkup(el,html) { const quality=graphicsKey();if(el._markup!==html||el._quality!==quality){el.innerHTML=paintMarkup(html);el._markup=html;el._quality=quality;el._revision=(el._revision||0)+1;return true;}return false; }
 function buildTerms() {
   invalidateWireGeometry();
   TERMS = []; TERM = {}; UI.tv = (UI.tv || 0) + 1; UI.nm = names();
@@ -4617,12 +4629,19 @@ function renderClock() {
 }
 function renderTools() {
   const rec = S.guide ? recommendedTool() : '';
-  $('#tools').innerHTML = TOOLS.filter(t => t.id !== 'inspect' || !(S.exam && S.exam.on)).map(t => {
+  setMarkup($('#tools'),TOOLS.filter(t => t.id !== 'inspect' || !(S.exam && S.exam.on)).map(t => {
     const on = t.id === 'glove' ? (S.gloves || S.tool === 'glove') : S.tool === t.id;
     return `<button class="tool${on ? ' on' : ''}${t.id === 'glove' ? ' toggle' : ''}${rec === t.id && !on ? ' hint' + (MODE === 'prac' ? ' pk' : '') : ''}" data-tool="${t.id}" title="${TOOL_HELP[t.id]} (${t.key.toUpperCase()})" aria-pressed="${on}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[t.id]}</svg><span>${t.id === 'glove' && S.gloves ? '장갑 낌' : t.name}</span></button>`;
-  }).join('');
+  }).join(''));
 }
-function trayThumb(it) {
+const TRAY_THUMBS=new Map();let trayThumbState='';
+function thumbnailState(){
+  const key=JSON.stringify([graphicsKey(),UI.detail,S.tbLabels,S.tset,S.cables,S.fuses,S.plug,S.xtbClosed,S.smpsLid,S.plcLid,S.tbCover,S.dbreak,S.servo,S.conveyor,S.opBack,LIVE.on,LIVE.inp,LIVE.out]);
+  if(key!==trayThumbState){TRAY_THUMBS.clear();trayThumbState=key;}return key;
+}
+function trayThumb(it,state=thumbnailState()) {
+  if(state!==trayThumbState){TRAY_THUMBS.clear();trayThumbState=state;}
+  const cacheKey=it.kind+'|'+it.key,cached=TRAY_THUMBS.get(cacheKey);if(cached!==undefined)return cached;
   const k = it.key; let vb = '0 0 40 24', inner = '';
   if (it.kind === 'op') { if (k === 'hmi') { vb = '0 0 60 44'; inner = R(1, 1, 58, 42, 'rx="3" fill="#30353a"') + R(5, 5, 50, 34, 'fill="#173246"'); } else { vb = '-17 -17 34 34'; inner = drawOpDev(k, 0, 0); } }
   else if (it.kind === 'fr') { vb = k === 'duct' ? '0 0 90 40' : '0 -2 90 39'; inner = drawFrameBack({x:0,y:0,w:90,h:k==='duct'?40:35,o:'h'},k,false); }
@@ -4638,21 +4657,22 @@ function trayThumb(it) {
   else if (it.kind === 'cable') { vb='-49 -93 151 139';inner=powerCordBody()+powerCordLooseLeads(); }
   else if (it.kind === 'helical') { vb = '-1 -1 76 30'; inner = drawHelical({ x: 0, y: 0, w: 74, h: 28 }); }
   else inner = k === 'wire' ? '<path d="M2 18C12 18 10 6 20 6S28 18 38 18" fill="none" stroke="#4a3b00" stroke-width="3.6"/><path d="M2 18C12 18 10 6 20 6S28 18 38 18" fill="none" stroke="#f5c518" stroke-width="2.4"/>' : R(10, 8, 22, 8, 'rx="2" fill="#f5c518" stroke="#4a3b00" stroke-width=".6"') + R(3, 10.5, 7, 3, 'fill="#c8ccd0"');
-  return `<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${inner}</svg>`;
+  const html=`<svg viewBox="${vb}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${inner}</svg>`;
+  if(TRAY_THUMBS.size>=64)TRAY_THUMBS.delete(TRAY_THUMBS.keys().next().value);TRAY_THUMBS.set(cacheKey,html);return html;
 }
-function trayItemHTML(it) {
+function trayItemHTML(it,state) {
   const held = UI.carry && UI.carry.key === it.key, empty = it.left === 0, pick = MODE === 'prac' && PRAC.cur && PRAC.cur.tray === it.key && !held && !empty, cnt = it.left !== undefined ? `<span class="tcount">${it.left}/${it.total}</span>` : '';
   const tape = it.taped !== undefined ? `<span class="ttape">양면테이프 ${it.taped}/${it.total}</span>` : `<span class="tspec">${esc(it.spec)}</span>`;
-  return `<button class="titem${it.kind === 'conveyor' ? ' wide' : ''}${held ? ' held' : ''}${empty ? ' empty' : ''}${pick ? ' pick' : ''}" data-key="${it.key}"${empty && !held ? ' aria-disabled="true"' : ''}><span class="thumb">${trayThumb(it)}</span><span class="tname">${esc(it.name)}</span>${tape}${cnt}</button>`;
+  return `<button class="titem${it.kind === 'conveyor' ? ' wide' : ''}${held ? ' held' : ''}${empty ? ' empty' : ''}${pick ? ' pick' : ''}" data-key="${it.key}"${empty && !held ? ' aria-disabled="true"' : ''}><span class="thumb">${trayThumb(it,state)}</span><span class="tname">${esc(it.name)}</span>${tape}${cnt}</button>`;
 }
 function renderTray() {
-  const tr = document.querySelector('.tray'); tr.classList.toggle('dropzone', !!UI.carry); tr.querySelector('.ph').textContent = UI.carry ? '재료함 (누르면 들고 있는 걸 다시 넣어요)' : '재료함';
+  const tr = document.querySelector('.tray'),title=UI.carry ? '재료함 (누르면 들고 있는 걸 다시 넣어요)' : '재료함';tr.classList.toggle('dropzone', !!UI.carry);if(tr.querySelector('.ph').textContent!==title)tr.querySelector('.ph').textContent=title;
   const pk = MODE === 'prac' && PRAC.cur && PRAC.cur.tray;   // 연습: 꺼낼 부품이 있는 목록은 펼친다
   if (pk && UI.pickKey !== pk) { const g = trayGroups().find(x => x.items.some(it => it.key === pk)); if (g) UI.trayOpen.add(g.id); } UI.pickKey = pk || null;
-  $('#tray').innerHTML = trayGroups().map(g => {
+  const state=thumbnailState();setMarkup($('#tray'),trayGroups().map(g => {
     const left = g.items.reduce((s, it) => s + (it.left || 0), 0);
-    return `<details class="tgroup" data-g="${g.id}"${UI.trayOpen.has(g.id) ? ' open' : ''}><summary><span>${esc(g.name)}</span>${g.id === 'wire' ? '' : `<span class="gleft">${left}개 남음</span>`}</summary><div class="tray-items">${g.items.map(trayItemHTML).join('')}</div></details>`;
-  }).join('');
+    return `<details class="tgroup" data-g="${g.id}"${UI.trayOpen.has(g.id) ? ' open' : ''}><summary><span>${esc(g.name)}</span>${g.id === 'wire' ? '' : `<span class="gleft">${left}개 남음</span>`}</summary><div class="tray-items">${g.items.map(it=>trayItemHTML(it,state)).join('')}</div></details>`;
+  }).join(''));
 }
 function renderDemoSteps() {   // 시연 보기: 할 일을 체크박스로. 시연이 해낼 때마다 체크된다
   const cur = DEMO.steps[DEMO.i], stg = cur ? cur.st : -1, all = [], prev = UI.dsPrev && UI.dsPrev.i === DEMO.i - 1 ? UI.dsPrev.done : null;
@@ -4991,8 +5011,10 @@ function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리
 function renderOver() {
   if(overlayFrame){cancelAnimationFrame(overlayFrame);overlayFrame=0;}
   if (MODE === 'prac' && UI.pending !== UI.pracPend) { UI.pracPend = UI.pending; pracNext(); pracCapUI(); renderSteps(); }   // 연습: 단자 하나를 누르면 안내가 다음 단자로
+  const parts=[],part=name=>{parts.push([name,s]);s='';};
   let s = ''; if(UI.powerPlug&&powerPlaced()){const p=powerPlaced();s+=C(p.x+82,p.y+20,19,'fill="none" stroke="#f3c11b" stroke-width="1.2" stroke-dasharray="3 2"');} const p = UI.pointer;
   s += hoverHL(p);
+  part('hover');
   const px1 = UI.cam.w / Math.max(1, svg.clientWidth);   // 화면 1px의 실제 크기
   const ti = p && UI.overBoard && !UI.carry ? instAt(p) : null;
   if (ti && ti.type === 'timer' && S.plug[ti.id]) s += `<text x="${F(ti.x + DEV.timer.w / 2)}" y="${F(devY(ti) - 5 * px1)}" font-size="${F(12 * px1)}" font-weight="800" text-anchor="middle" fill="#fff" stroke="#1a1a1a" stroke-width="${F(3 * px1)}" paint-order="stroke" pointer-events="none">Tab: 시간 맞추기</text>`;
@@ -5003,30 +5025,46 @@ function renderOver() {
     for (const r of ws) s += C(r.x, r.y, 4.6 * px1, `fill="#f3c11b" stroke="#261f00" stroke-width="${F(px1)}" pointer-events="none"`);
     s += `<text x="${F(p1.x + 10 * px1)}" y="${F(p1.y - 8 * px1)}" font-size="${F(12 * px1)}" font-weight="800" fill="${ok ? '#f3c11b' : '#fff'}" stroke="#1a1a1a" stroke-width="${F(3 * px1)}" paint-order="stroke" pointer-events="none">${long ? '너무 길어요' : ok ? `전선 ${ws.length}개 묶기` : '전선을 가로질러요'}</text>`;
   }
+  part('tie');
   if (UI.carry && p && UI.overBoard) { s += ghost(p); if ((UI.carry.count || 1) > 1) s += `<g transform="translate(${F(p.x)} ${F(p.y)}) scale(${(UI.cam.w / Math.max(1, svg.clientWidth)).toFixed(5)})" pointer-events="none"><circle cx="22" cy="-22" r="12" fill="#f3c11b" stroke="#261f00" stroke-width="1.2"/><text x="22" y="-17.5" font-size="12" font-weight="800" text-anchor="middle" fill="#261f00">×${UI.carry.count}</text></g>`; }
+  part('carry');
   {
     const due = S.guide && MODE !== 'prac' && S.tool === 'wire' ? dressDue() : null;
     if (due && S.tool === 'wire') s += dressGuide(due.ws);
     else if (S.guide && S.tool === 'wire' && MODE !== 'prac') { const np = nextPair(); if (np) { const a = TERM[np[0]], b = TERM[np[1]]; s += LN(a.x, a.y, b.x, b.y, 'class="guide-line"') + C(a.x, a.y, 4.2, 'class="guide-ring"') + C(b.x, b.y, 4.2, 'class="guide-ring"'); } }
+    part('guide');
     if (UI.replug && TERM[UI.replug.keep]) { const a = TERM[UI.replug.keep], e = UI.hoverTerm || p; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (e) s += `<path d="M${F(a.x)} ${F(a.y)}Q${F((a.x + e.x) / 2)} ${F(Math.max(a.y, e.y) + 25)} ${F(e.x)} ${F(e.y)}" class="wire-o"/><path d="M${F(a.x)} ${F(a.y)}Q${F((a.x + e.x) / 2)} ${F(Math.max(a.y, e.y) + 25)} ${F(e.x)} ${F(e.y)}" class="wire-i"/>`; }
     if (UI.hoverTerm) s += C(UI.hoverTerm.x, UI.hoverTerm.y, 3.6, 'class="hov-ring"');
     if (UI.pending && TERM[UI.pending]) { const a = TERM[UI.pending]; s += C(a.x, a.y, 4, 'class="pend-ring"'); if (p) s += LN(a.x, a.y, p.x, p.y, 'class="rubber"'); }
     if (UI.flash && TERM[UI.flash.a] && TERM[UI.flash.b]) { const a = TERM[UI.flash.a], b = TERM[UI.flash.b]; s += LN(a.x, a.y, b.x, b.y, 'class="bad-wire"'); }
   }
+  part('pending');
   if (S.tool === 'meter') s += meterOver(p, px1);
+  part('meter');
   if (S.tool === 'dress') s += dressOver(p, px1);
+  part('dress');
   if (S.opBack && !S.helical && ((UI.carry && UI.carry.kind === 'helical') || S.hcov > 0 || (UI.gesture && UI.gesture.type === 'hpush'))) s += helicalOver(p, px1);   // 헬리컬 밴드: 모을 선, 끄는 선, 밀 자리
+  part('band');
   if (S.guide && MODE !== 'prac' && S.tool === 'hand' && nBolted() === 9 && nBroken() < 8) for (const j of JUNC) if (!S.dbreak[j.id] && ductStuck(j.d) && ductStuck(j.v)) s += R(j.x - 1.5, j.y + 1, j.w + 3, j.h - 2, 'rx="1.5" class="guide-ring" fill="none"');
+  part('junction');
   if (p && UI.overBoard && !UI.carry && !['hand', 'inspect'].includes(S.tool) && SET.toolArt) s += toolCursor(p);
+  part('tool');
   if (DEMO.on) s += DEMO.hl;   // 시연: 이번 동작 자리
   if (MODE === 'prac' && PRAC.hl) s += PRAC.hl;   // 연습: 할 자리
   if (MODE === 'prac' && PRAC.L && PRAC.L.wg !== undefined) pracDia();   // 단자 하나를 누르면 그 선이 빨강
+  part('practice');
   if(UI.wiringError){const {a,b}=UI.wiringError,A=TERM[a],B=TERM[b];s+='<g id="wiringErrorMarks" pointer-events="none">';for(const t of [A,B].filter(Boolean))s+=C(t.x,t.y,Math.max(7,8*px1),`fill="none" stroke="#ff6666" stroke-width="${2*px1}"`);if(A&&B)s+=LN(A.x,A.y,B.x,B.y,'stroke="#ff6666" stroke-width="2" stroke-dasharray="5 4"');s+='</g>';}
   s += inspectionOverlay();
   s += fdOverlay();
-  s += bigLabels(px1);   // 멀리서도 단자 이름
-  if (SET.termName && p && UI.overBoard && !(UI.gesture && UI.gesture.moved)) { const t = termNear(p, tolMM(12)); if (t) s += hoverTag(p, wireName(t.id), px1); }
-  setMarkup(gOver,s); refreshProjectionOverlays();lensUpdate();
+  part('inspection');
+  s=bigLabels(px1);part('labels');
+  let tag='';   // Stable labels and guides keep their SVG nodes while the pointer moves.
+  if (SET.termName && p && UI.overBoard && !(UI.gesture && UI.gesture.moved)) { const t = termNear(p, tolMM(12)); if (t) tag = hoverTag(p, wireName(t.id), px1); }
+  parts.push(['tag',tag]);
+  if(!gOver._parts||gOver._parts.length!==parts.length||gOver._parts.some((n,i)=>n.parentNode!==gOver||n.dataset.overlayPart!==parts[i][0])){
+    gOver.innerHTML=parts.map(([name])=>`<g data-overlay-part="${name}"></g>`).join('');gOver._parts=[...gOver.children];
+  }
+  parts.forEach(([,html],i)=>setMarkup(gOver._parts[i],html));refreshProjectionOverlays();lensUpdate();
   updateFollower();
   const status=statusText(); if($('#status').textContent!==status)$('#status').textContent=status;
 }
@@ -6087,9 +6125,12 @@ function meterOver(p, px1) {   // 리드봉 자리와 읽은 값 (값은 검은 
 
 /* ---------- 멀리서도 단자 이름: 큰 번호표, 마우스 올린 단자 이름, 돋보기 ---------- */
 const txtW = (t, fs) => [...t].reduce((n, c) => n + (c.charCodeAt(0) > 255 ? fs * 1.02 : fs * .62), 0);
+let BIG_LABEL_CACHE=null;
 function bigLabels(px1) {   // 원래 글씨가 작게 보일 때(1mm가 3.2px 미만) 단자대·PLC·서보 단자 이름을 화면에서 11px로. 겹치면 중요한 것부터
   if (!SET.bigLab || 1 / px1 >= 3.2) return '';
-  const used = new Set(S.wires.flatMap(w => [w.a, w.b])), L = [], c = UI.cam, W = svg.clientWidth, H = svg.clientHeight, ppm = 1 / px1;
+  const c=UI.cam,W=svg.clientWidth,H=svg.clientHeight,old=BIG_LABEL_CACHE;
+  if(old&&old.terms===TERMS&&old.px1===px1&&old.x===c.x&&old.y===c.y&&old.W===W&&old.H===H&&old.ends.length===S.wires.length*2&&S.wires.every((w,i)=>w.a===old.ends[i*2]&&w.b===old.ends[i*2+1]))return old.html;
+  const ends=S.wires.flatMap(w=>[w.a,w.b]),used = new Set(ends), L = [], ppm = 1 / px1;
   for (const t of TERMS) {
     let m, o = null;
     if ((m = /^TB\.(\d+)\.t$/.exec(t.id))) { const n = +m[1], b = TERM[`TB.${n}.b`]; o = { x: t.x, y: b ? (t.y + b.y) / 2 : t.y + 13, tx: t.lab || String(n), pr: t.lab ? 0 : n % 5 ? 3 : 1, col: t.lab ? '#ffd34d' : '#fff' }; }   // 단자대: 신호 이름 먼저, 빈칸은 5번마다
@@ -6106,7 +6147,7 @@ function bigLabels(px1) {   // 원래 글씨가 작게 보일 때(1mm가 3.2px �
     put.push(box);
     s += `<g transform="translate(${F(o.x)} ${F(o.y)}) scale(${px1.toFixed(5)})" pointer-events="none"><rect x="${F(-o.w / 2)}" y="-7.5" width="${F(o.w)}" height="15" rx="4" fill="#0a0c0e" fill-opacity=".82"/><text y="4" font-size="11" font-weight="800" text-anchor="middle" fill="${o.col}">${esc(o.tx)}</text></g>`;
   }
-  return s;
+  BIG_LABEL_CACHE={terms:TERMS,px1,x:c.x,y:c.y,W,H,ends,html:s};return s;
 }
 function hoverTag(p, txt, px1) {   // 마우스 올린 단자: 포인터 아래에 이름 (오른쪽 위는 도구 그림)
   const w = txtW(txt, 12.5) + 14;
@@ -6418,7 +6459,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.35.0', date: '2026.11.11', notes: ['최고 그래픽 추가 최적화: 전선 경로 출력 버퍼 재사용, 화면 밖 경로의 투영 지연과 재진입 즉시 갱신, 고정 그림자와 동일 화면의 SVG 속성 쓰기 생략', '최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.36.0', date: '2026.11.12', notes: ['전선이 많은 배선 작업 최적화: 설치 기구 좌표·안내선·단자 번호표·재료함 미리보기 재사용으로 전선 추가와 포인터 이동의 반복 계산·화면 교체 감소', '최고 그래픽 추가 최적화: 전선 경로 출력 버퍼 재사용, 화면 밖 경로의 투영 지연과 재진입 즉시 갱신, 고정 그림자와 동일 화면의 SVG 속성 쓰기 생략', '최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;

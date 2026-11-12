@@ -1,0 +1,327 @@
+{
+  "date": "2026-11-12",
+  "baseline": "v2.35.0",
+  "updated": "v2.36.0",
+  "browser": "Chromium, headless, /usr/bin/chromium",
+  "order": "before 0, after 0, before 1, after 1, before 2, after 2",
+  "timer": "live simulation stopped",
+  "percentile": "nearest rank",
+  "runs": {
+    "before": [
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "hoverSamples": 50,
+        "editSamples": 40,
+        "rows": [
+          {
+            "wires": 40,
+            "worldNodes": 9790,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.8,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 116.7,
+              "p95Ms": 150,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 97.5,
+              "p95Ms": 151.1,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 19820,
+            "allEffectsOn": true
+          },
+          {
+            "wires": 122,
+            "worldNodes": 12737,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 66.7,
+              "over50": 5
+            },
+            "editFrames": {
+              "p50Ms": 183.2,
+              "p95Ms": 350,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 154.4,
+              "p95Ms": 286.7,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 36700,
+            "allEffectsOn": true
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "hoverSamples": 50,
+        "editSamples": 40,
+        "rows": [
+          {
+            "wires": 40,
+            "worldNodes": 9790,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.8,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 133.3,
+              "p95Ms": 166.7,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 111,
+              "p95Ms": 153.6,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 19820,
+            "allEffectsOn": true
+          },
+          {
+            "wires": 122,
+            "worldNodes": 12737,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 33.4,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 183.4,
+              "p95Ms": 250,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 163.4,
+              "p95Ms": 222.2,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 36700,
+            "allEffectsOn": true
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "hoverSamples": 50,
+        "editSamples": 40,
+        "rows": [
+          {
+            "wires": 40,
+            "worldNodes": 9790,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.7,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 133.3,
+              "p95Ms": 166.7,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 103.3,
+              "p95Ms": 144.9,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 19820,
+            "allEffectsOn": true
+          },
+          {
+            "wires": 122,
+            "worldNodes": 12737,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.7,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 166.7,
+              "p95Ms": 216.7,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 142.1,
+              "p95Ms": 195.4,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 36700,
+            "allEffectsOn": true
+          }
+        ]
+      }
+    ],
+    "after": [
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "hoverSamples": 50,
+        "editSamples": 40,
+        "rows": [
+          {
+            "wires": 40,
+            "worldNodes": 9790,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.8,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 83.3,
+              "p95Ms": 116.6,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 65.7,
+              "p95Ms": 90.2,
+              "over50": 39
+            },
+            "coordinateMatrixReads": 3060,
+            "allEffectsOn": true
+          },
+          {
+            "wires": 122,
+            "worldNodes": 12737,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.8,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 116.7,
+              "p95Ms": 166.6,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 101.7,
+              "p95Ms": 140.9,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 420,
+            "allEffectsOn": true
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "hoverSamples": 50,
+        "editSamples": 40,
+        "rows": [
+          {
+            "wires": 40,
+            "worldNodes": 9790,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.7,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 83.4,
+              "p95Ms": 150,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 74.2,
+              "p95Ms": 125.8,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 3060,
+            "allEffectsOn": true
+          },
+          {
+            "wires": 122,
+            "worldNodes": 12737,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.8,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 133.3,
+              "p95Ms": 183.3,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 114.9,
+              "p95Ms": 169.3,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 420,
+            "allEffectsOn": true
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "hoverSamples": 50,
+        "editSamples": 40,
+        "rows": [
+          {
+            "wires": 40,
+            "worldNodes": 9790,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.7,
+              "over50": 0
+            },
+            "editFrames": {
+              "p50Ms": 83.4,
+              "p95Ms": 133.3,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 72.1,
+              "p95Ms": 110.9,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 3060,
+            "allEffectsOn": true
+          },
+          {
+            "wires": 122,
+            "worldNodes": 12737,
+            "hoverFrames": {
+              "p50Ms": 16.7,
+              "p95Ms": 16.8,
+              "over50": 1
+            },
+            "editFrames": {
+              "p50Ms": 150.1,
+              "p95Ms": 283.3,
+              "over50": 40
+            },
+            "editHandlers": {
+              "p50Ms": 130.3,
+              "p95Ms": 245,
+              "over50": 40
+            },
+            "coordinateMatrixReads": 420,
+            "allEffectsOn": true
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -562,6 +562,57 @@ test('stationary full-quality scenes do not rewrite SVG attributes and camera pa
   });assert.deepEqual(result,{stationaryWrites:0,shadowWrites:0,moved:true,sameShadows:true,graphics:true});
 });
 
+test('adding a wire reuses mounted model geometry and preserves the full projection result',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.finished=true;UI.cam={x:-200,y:-150,w:1300,h:976};renderAll();applyCam(svg.getBoundingClientRect());
+    const models=new Set(PROJECTION.models),wire=S.wires.at(-1),original=svgLocalMatrix,prepare=prepareProjection;let inPrepare=false,reads=0;
+    prepareProjection=(...args)=>{inPrepare=true;try{return prepare(...args);}finally{inPrepare=false;}};svgLocalMatrix=(...args)=>{if(inPrepare)reads++;return original(...args);};
+    let removedReads,addedReads;
+    try{S.wires.pop();buildTerms();renderAll();removedReads=reads;reads=0;S.wires.push(wire);buildTerms();renderAll();addedReads=reads;}
+    finally{svgLocalMatrix=original;prepareProjection=prepare;}
+    const retained=PROJECTION.models.every(r=>models.has(r)),paths=PROJECTION.paths.map(a=>[a.node,a.node.getAttribute('d')]),terms=JSON.stringify(TERMS);
+    for(const r of reliefNodes)delete r.matrix;PROJECTION.models=[];prepareProjection();reliefView='';updateRelief();
+    const reference=paths.every(([node,d])=>node.getAttribute('d')===d)&&terms===JSON.stringify(TERMS);
+    const dev=S.inst.find(i=>i.type==='smps'),key='device-'+dev.id,x=PROJECTION.owners.get(key).world.x;dev.x+=4;buildTerms();renderAll();
+    return{removedReads,addedReads,retained,reference,moved:Math.abs(PROJECTION.owners.get(key).world.x-x-4)<.01,graphics:GRAPHICS_KEYS.every(k=>SET[k])};
+  });
+  assert.ok(result.removedReads<60);assert.ok(result.addedReads<60);
+  for(const key of ['retained','reference','moved','graphics'])assert.equal(result[key],true,key);
+});
+
+test('wire pointer motion retains guide and label nodes and does not remeasure their geometry',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.finished=true;S.wires=S.wires.slice(0,40);buildTerms();renderAll();setTool('wire');UI.overBoard=true;UI.pending='PLC.N';UI.pointer={x:330,y:250};renderOver();
+    const roots=[gOver.querySelector('[data-overlay-part="guide"]'),gOver.querySelector('[data-overlay-part="labels"]')],nodes=roots.flatMap(r=>[...r.querySelectorAll('*')]),saved=new Set(nodes);
+    const tool=gOver.querySelector('[data-overlay-part="tool"]'),cursor=tool.firstChild,bbox=SVGGraphicsElement.prototype.getBBox;let reads=0;
+    SVGGraphicsElement.prototype.getBBox=function(...args){if(saved.has(this))reads++;return bbox.apply(this,args);};
+    try{for(let i=0;i<12;i++){UI.pointer={x:330+i,y:250+i*.1};renderOver();}}
+    finally{SVGGraphicsElement.prototype.getBBox=bbox;}
+    const retained=nodes.length>0&&nodes.every(n=>n.isConnected),counts=roots.map(r=>r.querySelectorAll('*').length),cursorMoves=tool.firstChild!==cursor;
+    const oldText=roots[1].textContent;S.tbLabels[0]='새번호';buildTerms();renderAll();
+    return{reads,retained,counts,cursorMoves,labelUpdated:roots[1].textContent!==oldText&&roots[1].textContent.includes('새번호'),graphics:GRAPHICS_KEYS.every(k=>SET[k])};
+  });assert.equal(result.reads,0);assert.equal(result.retained,true);assert.ok(result.counts.every(n=>n>0));assert.equal(result.cursorMoves,true);assert.equal(result.labelUpdated,true);assert.equal(result.graphics,true);
+});
+
+test('wire edits keep unchanged tray thumbnails and toolbar mounted and refresh changed preview labels',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    S.finished=true;S.guide=false;setTool('wire');renderAll();
+    const thumb=document.querySelector('#tray [data-key="tb"] svg'),button=document.querySelector('#tools [data-tool="wire"]');
+    const item=thumb.closest('button'),empty=item.classList.contains('empty')&&item.getAttribute('aria-disabled')==='true';
+    S.wires.pop();buildTerms();renderAll();
+    const retained=thumb===document.querySelector('#tray [data-key="tb"] svg')&&button===document.querySelector('#tools [data-tool="wire"]');
+    S.tbLabels[0]='프리뷰';buildTerms();renderAll();
+    const fresh=document.querySelector('#tray [data-key="tb"] svg'),labelsUpdated=fresh!==thumb&&fresh.textContent.includes('프리뷰');
+    const expected=trayThumb({kind:'dev',key:'tb'});TRAY_THUMBS.clear();
+    const cacheMatchesFresh=expected===trayThumb({kind:'dev',key:'tb'});
+    UI.carry={kind:'dev',key:'tb',count:1};renderTray();const held=document.querySelector('#tray [data-key="tb"]');
+    return{retained,labelsUpdated,cacheMatchesFresh,empty,heldEnabled:held.classList.contains('held')&&!held.hasAttribute('aria-disabled'),graphics:GRAPHICS_KEYS.every(k=>SET[k])};
+  });assert.deepEqual(result,{retained:true,labelsUpdated:true,cacheMatchesFresh:true,empty:true,heldEnabled:true,graphics:true});
+});
+
 test('camera movement preserves model terminals, wiring, score and SVG nodes while projecting height',async()=>{
   await fullState();await page.evaluate(()=>hideHome());
   const result=await page.evaluate(()=>{
@@ -1084,8 +1135,9 @@ test('pointer cancel clears a pending selection rectangle without a stale next-f
     svg.dispatchEvent(new PointerEvent('pointermove',{clientX:b.left+80,clientY:b.top+80,pointerId:1,pointerType:'mouse',bubbles:true}));
     svg.dispatchEvent(new PointerEvent('pointercancel',{pointerId:1,pointerType:'mouse',bubbles:true}));
     // A legitimate ResizeObserver update can change projection transforms after the hint bar changes height.
-    const html=gOver._markup;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-    return{gesture:UI.gesture,pending:overlayFrame,stable:html===gOver._markup};
+    const markup=()=>gOver._parts.map(n=>n._markup).join('');
+    const html=markup();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    return{gesture:UI.gesture,pending:overlayFrame,stable:html===markup()};
   });
   assert.deepEqual(r,{gesture:null,pending:0,stable:true});
 });
