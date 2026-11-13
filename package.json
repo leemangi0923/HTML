@@ -1,6 +1,6 @@
 {
   "name": "robot-assembly-simulator",
-  "version": "2.36.1",
+  "version": "2.37.0",
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",

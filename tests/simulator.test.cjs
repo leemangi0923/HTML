@@ -40,6 +40,42 @@ async function fullState() {
   await page.waitForTimeout(60); // Allow the existing camera requestAnimationFrame to finish.
 }
 
+test('connected robot, floor and desk let the plate move by its rim while room objects stay put',async()=>{
+  await page.evaluate(()=>{setMode('free',pClone(pracRef()));positionPanel(0,0);S.finished=true;S.tool='hand';S.floor.push({id:'loose-test',kind:'dev',key:'relay',x:120,y:720});buildTerms();renderAll();fit();});
+  await page.waitForTimeout(100);
+  const before=await page.evaluate(()=>({wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),cv:{...S.conveyor},floor:{...S.floor.at(-1)},robot:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},term:{...TERM['PLC.L']},score:scoreSheet().total}));
+  const drag=await page.evaluate(()=>{const r=svg.getBoundingClientRect(),p=projectWorkPoint({x:4,y:300});return{x:r.left+(p.x-UI.cam.x)/UI.cam.w*r.width,y:r.top+(p.y-UI.cam.y)/UI.cam.h*r.height,dx:900/UI.cam.w*r.width};});
+  await page.mouse.move(drag.x,drag.y);await page.mouse.down();await page.mouse.move(drag.x+drag.dx,drag.y,{steps:6});await page.mouse.up();
+  const after=await page.evaluate(()=>({x:S.panelPos.x,y:S.panelPos.y,place:panelWorkplace(),wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),cv:{x:S.conveyor.x+ROOM_X,y:S.conveyor.y+ROOM_Y},floor:{x:S.floor.at(-1).x+ROOM_X,y:S.floor.at(-1).y+ROOM_Y},robot:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},term:{...TERM['PLC.L']},score:scoreSheet().total,areas:[...gMat.querySelectorAll('[data-workspace]')].map(n=>n.dataset.workspace),upright:PROJECTION.models.filter(r=>r.surface.closest('[data-scene-part]')?.dataset.scenePart?.startsWith('op-')).every(r=>r.tx===0&&r.ty===0),saved:JSON.parse(localStorage.getItem(STORE)).panelPos,gesture:UI.gesture}));
+  assert.ok(Math.abs(after.x-900)<.1);assert.equal(after.y,0);assert.equal(after.place,'desk');assert.equal(after.wires,before.wires);assert.equal(after.inst,before.inst);assert.deepEqual(after.term,before.term);assert.equal(after.score,before.score);
+  assert.deepEqual(after.cv,before.cv);assert.deepEqual(after.floor,{x:before.floor.x,y:before.floor.y});assert.ok(Math.abs(after.robot.x-before.robot.x)<1e-6&&Math.abs(after.robot.y-before.robot.y)<1e-6);assert.deepEqual(after.areas,['robot','floor','desk']);assert.equal(after.upright,true);assert.equal(after.gesture,null);assert.deepEqual(after.saved,{x:after.x,y:after.y});
+  await page.reload();await page.waitForFunction(()=>window.SIM);assert.ok(Math.abs(await page.evaluate(()=>S.panelPos.x)-900)<.1);
+});
+
+test('plate drag cancellation and blur flush movement, support flat graphics and undo the room position',async()=>{
+  for(const kind of ['cancel','blur']){
+    await page.evaluate(kind=>{setMode('free',newState(false));S.finished=true;if(kind==='blur'){for(const k of GRAPHICS_KEYS)SET[k]=false;applyGraphics();}renderAll();fit();},kind);
+    await page.waitForTimeout(80);
+    const drag=await page.evaluate(()=>{const r=svg.getBoundingClientRect(),p=projectWorkPoint({x:4,y:300});return{x:r.left+(p.x-UI.cam.x)/UI.cam.w*r.width,y:r.top+(p.y-UI.cam.y)/UI.cam.h*r.height,dx:750/UI.cam.w*r.width};});
+    await page.mouse.move(drag.x,drag.y);await page.mouse.down();await page.mouse.move(drag.x+drag.dx,drag.y);
+    await page.evaluate(kind=>{if(kind==='cancel')svg.dispatchEvent(new PointerEvent('pointercancel',{pointerId:1,bubbles:true}));else window.dispatchEvent(new Event('blur'));},kind);
+    await page.mouse.up();
+    const state=await page.evaluate(async()=>{const x=S.panelPos.x;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return{x,stable:x===S.panelPos.x,gesture:UI.gesture,dragging:document.body.classList.contains('dragging'),saved:JSON.parse(localStorage.getItem(STORE)).panelPos.x};});
+    assert.ok(Math.abs(state.x-750)<.1);assert.equal(state.stable,true);assert.equal(state.gesture,null);assert.equal(state.dragging,false);assert.equal(state.saved,state.x);
+    await page.evaluate(()=>undo());assert.equal(await page.evaluate(()=>S.panelPos.x),0);
+  }
+});
+
+test('floor preparation and desk wiring obey the plate location without automatic transfers',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    positionPanel(0,0);buildTerms();renderAll();S.tool='wire';UI.pending=null;tap3(TERM['PLC.L']);const blocked=UI.pending===null&&$('#toast').textContent.includes('책상');
+    positionPanel(900,0);S.plcLid={t:false,b:false};buildTerms();renderAll();tap3(TERM['PLC.L']);const allowed=UI.pending==='PLC.L';
+    S.tool='drill';const holes=JSON.stringify([S.svHoles,frList().map(([,q])=>q.holes)]);tap1({x:SERVO.holes[0][0],y:SERVO.holes[0][1]});
+    return{blocked,allowed,drillBlocked:holes===JSON.stringify([S.svHoles,frList().map(([,q])=>q.holes)])&&$('#toast').textContent.includes('바닥'),pos:S.panelPos.x};
+  });assert.deepEqual(result,{blocked:true,allowed:true,drillBlocked:true,pos:900});
+});
+
 test('reference wiring passes all circuit and conveyor checks and scores 30', async () => {
   await fullState();
   const result = await page.evaluate(() => ({
@@ -367,7 +403,7 @@ test('terminal strip clear cover follows its body while terminal screws and conn
   assert.equal(result.cells,40);for(const[k,v]of Object.entries(result))if(k!=='cells')assert.equal(v,true,k);
 });
 
-test('real iXP2 rear housing has recessed aligned power terminals and exposes its real connector wall only from below',async()=>{
+test('real iXP2 rear housing has recessed aligned power terminals and stays frontal on the robot as the camera moves',async()=>{
   await fullState();await page.evaluate(()=>{hideHome();S.finished=true;S.opBack=true;S.tool='wire';UI.carry=null;buildTerms();renderAll();});
   const initial=await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS)}));
   const result=await page.evaluate(()=>{
@@ -380,7 +416,7 @@ test('real iXP2 rear housing has recessed aligned power terminals and exposes it
         if(wire){const b=new DOMPoint(t.x,t.y).matrixTransform(svgLocalMatrix(wire));aligned&&=Math.hypot(a.x-b.x,a.y-b.y)<.04;}
         inverse&&=Math.hypot(t.x-picked.x,t.y-picked.y)<.04;recessed&&=projectionBinding(t.x,t.y).r.z===38;
       }
-      const wall=root.querySelector('[data-hmi-connector-wall]').closest('[data-housing-cap-bottom]');edge&&=wall.getAttribute('display')===(vertical>0?'inline':'none');
+      const wall=root.querySelector('[data-hmi-connector-wall]').closest('[data-housing-cap-bottom]');edge&&=wall.closest('[data-housing-cap]').getAttribute('display')==='none';
     }
     return{ports,usb,aligned,inverse,recessed,edge,features:['[data-hmi-vent-panel]','[data-hmi-battery-cover]','[data-hmi-cf-bay]','[data-hmi-rating-plate]'].every(q=>!!root.querySelector(q)),text:root.textContent};
   });
@@ -467,7 +503,7 @@ test('rear housings meet their real body bounds and device sides have no detache
 });
 
 test('unplugged mains cannot energize a fully wired circuit; physical plug and outlet clicks restore supply',async()=>{
-  await fullState();await page.evaluate(()=>{hideHome();S.tool='hand';fitTo({x:-65,y:660,w:360,h:245});renderTools();});
+  await fullState();await page.evaluate(()=>{hideHome();S.tool='hand';fitTo({x:powerPlaced().x-75,y:powerPlaced().y-100,w:440,h:300});renderTools();});
   const power=()=>page.evaluate(()=>evalOnce(staticLinks(S.wires),newSim(),{...LIVE.inp,mcb:true,cab:S.cables,fuses:fuseState(),plug:plugMap(),leads:convLeads()}).acOn);
   assert.equal(await power(),true);const outlet=await page.evaluate(()=>S.cables.outlet);
   await clickWorld(outlet.x,outlet.y);assert.equal(await power(),false);
@@ -536,11 +572,11 @@ test('offscreen wire paths defer projection and refresh before returning into vi
   const result=await page.evaluate(()=>{
     S.finished=true;UI.cam={x:-100,y:-100,w:1800,h:1300};renderAll();applyCam(svg.getBoundingClientRect());
     const before=JSON.stringify(S),terms=JSON.stringify(TERMS),nodes=[...gWorld.querySelectorAll('*')];
-    const art=PROJECTION.paths.find(a=>a.plan?.bounds&&a.plan.keys.length&&a.plan.bounds[0]>700&&a.plan.bounds[2]-a.plan.bounds[0]<250);
+    const art=PROJECTION.paths.find(a=>a.plan?.bounds&&a.plan.keys.some(k=>{const r=PROJECTION.byKey.get(k);return r&&r.world.x>=0&&r.world.x<760&&r.box[4]>20;})&&a.plan.bounds[0]>100&&a.plan.bounds[0]<700&&a.plan.bounds[2]-a.plan.bounds[0]<200);
     if(!art)return{found:false};const d=art.node.getAttribute('d'),b=art.plan.bounds;
     UI.cam={x:2600,y:1600,w:500,h:600};applyCam();
     const skipped=PROJECTION.culledPaths>0&&art.node.getAttribute('d')===d;
-    UI.cam={x:b[0]-50,y:b[1]-50,w:500,h:600};applyCam();
+    UI.cam={x:b[0]-400,y:b[1]-200,w:500,h:600};applyCam();
     const fresh=art.node.getAttribute('d')===projectedPath(art),changed=art.node.getAttribute('d')!==d;
     const arc={commands:projectionCommands('M900 100A1 300 45 1 0 1200 110'),matrix:new DOMMatrix()};projectedPath(arc);
     return{found:true,skipped,fresh,changed,arcConservative:arc.plan.bounds===null,retained:nodes.length===gWorld.querySelectorAll('*').length&&nodes.every(n=>n.isConnected),
@@ -969,8 +1005,8 @@ test('label tool opens the physical white terminal label and cancel leaves data 
 });
 
 test('power cable is placed on the floor and its three colored leads connect individually', async () => {
-  await fullState();await page.evaluate(()=>{S.cables={power:false};S.tbCover=false;LIVE.inp.mcb=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};buildTerms();renderAll();fitTo({x:-50,y:440,w:650,h:450});});
-  await clickWorld(10,785);
+  await fullState();await page.evaluate(()=>{S.cables={power:false};S.tbCover=false;LIVE.inp.mcb=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};buildTerms();renderAll();fitTo({x:-960,y:440,w:1760,h:450});});
+  const floorPoint=await page.evaluate(()=>({...POWER_POS}));await clickWorld(floorPoint.x,floorPoint.y);
   assert.deepEqual(await page.evaluate(()=>S.cables.powerLeads),{});
   assert.equal(await page.evaluate(()=>S.cables.power),false);
   assert.equal(await page.evaluate(()=>UI.carry),null);
@@ -1166,7 +1202,7 @@ test('older lamp ties migrate onto the new route once, including a save viewed f
   for(const back of [true,false]) {
     await fullState();
     const result=await page.evaluate(({fixture,back})=>{
-      const st=pClone(S);st.ties=pClone(fixture.ties);delete st.lampRouteV;st.opBack=back;
+      const st=pClone(S);st.ties=pClone(fixture.ties);delete st.lampRouteV;delete st.roomV;st.opBack=back;
       const wires=JSON.stringify(st.wires);setMode('free',st);effects();buildTerms();
       const first=JSON.stringify(S.ties),score=scoreSheet().total;fixState();
       return{ties:nTies(),cut:nTieCut(),score,view:S.opBack,unchangedWires:wires===JSON.stringify(S.wires),stable:first===JSON.stringify(S.ties),version:S.lampRouteV};
@@ -1342,9 +1378,9 @@ test('walkthrough places the cable then connects all three leads and retains a v
   const result=await page.evaluate(()=>{
     const steps=demoScript(),st=newState(true),power=[];
     for(const step of steps){demoApply(st,step.ops);if(step.text.includes('전원 케이블을 바닥')||/^(갈색 R|파란색 T|초록색 E)선/.test(step.text))power.push(JSON.parse(JSON.stringify(st.cables)));}
-    setMode('free',st);return {power,ready:powerConnected(),inspected:judgeRan(),error:powerFault(S.cables,staticLinks(S.wires))};
+    setMode('free',st);return {power,ready:powerConnected(),inspected:judgeRan(),error:powerFault(S.cables,staticLinks(S.wires)),desk:S.panelPos.x===900};
   });
-  assert.equal(result.power.length,4);assert.deepEqual(result.power.map(x=>Object.keys(x.powerLeads).length),[0,1,2,3]);
+  assert.equal(result.desk,true);assert.equal(result.power.length,4);assert.deepEqual(result.power.map(x=>Object.keys(x.powerLeads).length),[0,1,2,3]);
   assert.deepEqual(result.power.map(x=>x.power),[false,false,false,true]);assert.equal(result.ready,true);assert.equal(result.inspected,true);assert.equal(result.error,'');
 });
 
