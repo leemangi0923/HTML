@@ -40,6 +40,73 @@ async function fullState() {
   await page.waitForTimeout(60); // Allow the existing camera requestAnimationFrame to finish.
 }
 
+test('fresh work starts on a bare tiled floor and preparation uses real tray items before the task timer',async()=>{
+  await page.locator('[data-home="free"]').click();await page.waitForTimeout(80);
+  assert.equal(await page.evaluate(()=>isPreparing()),true);
+  assert.equal(await page.locator('#gMat [data-prep-wood]').count(),0);
+  assert.equal(await page.locator('#gWorld [data-prep-plate]').count(),0);
+  assert.equal(await page.locator('#gWorld [data-scene-part="panel"]').count(),0);
+  assert.match(await page.locator('#gMat [data-workspace="floor"] rect').first().getAttribute('fill'),/roomTerrazzo/);
+  assert.equal(await page.locator('#pracCap [data-prep="start"]').isDisabled(),true);
+  await page.locator('[data-tool="drill"]').click();assert.equal(await page.evaluate(()=>S.tool),'hand');
+  await page.evaluate(()=>fitAvoid({x:-60,y:-60,w:940,h:1230}));
+  for(const[key,x,y]of [['wood',380,350],['panelplate',380,350],['opplate',380,880]]){
+    await page.locator(`[data-key="${key}"]`).click();await clickWorld(x,y);
+    assert.equal(await page.evaluate(()=>UI.carry),null,key+' was placed '+JSON.stringify(await page.evaluate(()=>({toast:$('#toast').textContent,p:UI.pointer,cam:UI.cam,rect:svg.getBoundingClientRect().toJSON()}))));
+  }
+  await page.evaluate(()=>{UI.trayOpen.add('op');renderTray();});
+  await page.locator('[data-key="hmi"]').click();await clickWorld(650,1040);
+  assert.equal(await page.evaluate(()=>S.op.hmi),false);assert.equal(await page.evaluate(()=>S.floor[0].key),'hmi');
+  await clickWorld(650,1040);assert.equal(await page.evaluate(()=>UI.carry.key),'hmi');
+  await page.locator('[data-key="hmi"]').click();assert.equal(await page.evaluate(()=>UI.carry),null);
+  await page.locator('[data-key="hmi"]').click();await clickWorld(650,1040);
+  await page.evaluate(()=>{S.setup.elapsed=42000;save();});
+  await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="free"]').click();
+  assert.equal(await page.evaluate(()=>S.elapsed),0);assert.ok(await page.evaluate(()=>S.setup.elapsed>=42000));
+  assert.equal(await page.locator('#gMat [data-prep-wood]').count(),1);
+  assert.equal(await page.locator('#pracCap [data-prep="start"]').isEnabled(),true);
+  await page.locator('#pracCap [data-prep="start"]').click();
+  const started=await page.evaluate(()=>({status:S.setup.status,t:S.elapsed,prep:S.setup.elapsed,pos:S.panelPos,wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y},floor:{x:S.floor[0].x+ROOM_X,y:S.floor[0].y+ROOM_Y},mounted:opPlateMounted()}));
+  assert.equal(started.status,'active');assert.ok(started.t<1000);assert.ok(started.prep>=42000);assert.deepEqual(started.pos,{x:0,y:50});assert.deepEqual(started.wood,{x:380,y:350});assert.deepEqual(started.floor,{x:650,y:1040});assert.equal(started.mounted,false);
+  await page.evaluate(()=>{fit();});await page.waitForTimeout(80);
+  await clickWorld(380,830);assert.equal(await page.evaluate(()=>UI.carry.key),'opplate');
+  await clickWorld(-510,255);assert.equal(await page.evaluate(()=>opPlateMounted()),true);
+  assert.equal(await page.locator('#gWorld [data-prep-plate="opplate"]').count(),0);
+  await clickWorld(650,990);assert.equal(await page.evaluate(()=>UI.carry.key),'hmi');
+  const hmi=await page.evaluate(()=>({x:OPW.x+OP.cut.x+OP.cut.w/2,y:OPW.y+OP.cut.y+OP.cut.h/2}));
+  await clickWorld(hmi.x,hmi.y);assert.equal(await page.evaluate(()=>S.op.hmi),true);assert.equal(await page.evaluate(()=>S.floor.length),0);
+  const fixed=await page.evaluate(()=>{positionPanel(900,50);renderAll();return{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y,left:trayItems().find(i=>i.key==='wood').left};});
+  assert.deepEqual(fixed,{x:380,y:350,left:0});
+});
+
+test('preparation plates and wood can be picked, returned and undone without duplicates or starting early',async()=>{
+  await page.evaluate(()=>{setMode('free',newPreparationState());trayTap('wood');drop({x:380,y:350});trayTap('panelplate');drop({x:380,y:350});trayTap('opplate');drop({x:380,y:880});});
+  await page.evaluate(()=>{pickPrepObject('wood');returnCarry();beginWork();});
+  assert.equal(await page.evaluate(()=>isPreparing()),true);assert.equal(await page.evaluate(()=>trayItems().find(i=>i.key==='wood').left),1);
+  await page.evaluate(()=>undo());assert.equal(await page.evaluate(()=>!!S.wood),true);assert.equal(await page.evaluate(()=>trayItems().find(i=>i.key==='wood').left),0);
+  await page.evaluate(()=>{pickPrepObject('panelplate');drop({x:450,y:350});beginWork();});
+  assert.equal(await page.evaluate(()=>isPreparing()),true,'the control plate must fit on the wood');
+  await page.evaluate(()=>{pickPrepObject('panelplate');drop({x:380,y:350});pickPrepObject('opplate');beginWork();});
+  assert.equal(await page.evaluate(()=>isPreparing()),true,'a held item must be placed');
+  await page.evaluate(()=>{drop({x:380,y:880});beginWork();const t=S.elapsed;beginWork();S.setup.testTime=t;});
+  assert.equal(await page.evaluate(()=>S.setup.status),'active');assert.equal(await page.evaluate(()=>S.elapsed),await page.evaluate(()=>S.setup.testTime));
+});
+
+test('exam and the first lesson prepare before assembly while old saved work keeps its progress',async()=>{
+  await page.locator('[data-home="exam"]').click();await page.locator('#modal [data-act="ok"]').click();
+  await page.waitForTimeout(1150);
+  assert.equal(await page.evaluate(()=>S.elapsed),0);assert.ok(await page.evaluate(()=>S.setup.elapsed>=1000));assert.equal(await page.locator('#btnExam').isDisabled(),true);
+  await page.evaluate(()=>save());await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="exam"]').click();
+  assert.equal(await page.evaluate(()=>isPreparing()),true);assert.equal(await page.evaluate(()=>S.elapsed),0);
+  await page.evaluate(()=>{S.wood={x:380,y:350};S.setup.panelPlate={x:380,y:350};S.setup.opPlate={x:380,y:880};beginWork();});
+  assert.equal(await page.locator('#btnExam').isEnabled(),true);assert.match(await page.locator('#clock').textContent(),/남은/);
+  await page.evaluate(()=>pracStart(LESSONS[0].id));assert.equal(await page.evaluate(()=>isPreparing()),true);assert.equal(await page.evaluate(()=>PRAC.state),'run');
+  await page.evaluate(()=>{trayTap('hmi');drop({x:700,y:900});S.wood={x:380,y:350};S.setup.panelPlate={x:380,y:350};S.setup.opPlate={x:380,y:880};beginWork();pickPrepObject('opplate');drop({x:OPW.x+100,y:OPW.y+100});});
+  assert.equal(await page.evaluate(()=>PRAC.state),'run');assert.equal(await page.evaluate(()=>PRAC.cur.tray),'hmi');
+  await page.evaluate(()=>{const old=pClone(pracRef());delete old.wood;setMode('free',old);});
+  assert.equal(await page.evaluate(()=>isPreparing()),false);assert.equal(await page.evaluate(()=>opPlateMounted()),true);assert.ok(await page.evaluate(()=>S.wires.length>100));assert.deepEqual(await page.evaluate(()=>({x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y})),{x:380,y:300});
+});
+
 test('connected robot, floor and desk let the plate move by its rim while room objects stay put',async()=>{
   await page.evaluate(()=>{setMode('free',pClone(pracRef()));positionPanel(0,0);S.finished=true;S.tool='hand';S.floor.push({id:'loose-test',kind:'dev',key:'relay',x:120,y:720});buildTerms();renderAll();fit();});
   await page.waitForTimeout(100);
