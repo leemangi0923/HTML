@@ -53,11 +53,25 @@ test('tabletop HMI sits above the controller-left and task-right bays and a wire
   await dragMainPanelTo(before.dock.x,before.dock.y);
   const mounted=await page.evaluate(()=>({mounted:S.panelDocked,pos:S.panelPos,place:panelWorkplace(),wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),ties:nTies(),score:scoreSheet().total,wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y},cv:{x:S.conveyor.x+ROOM_X,y:S.conveyor.y+ROOM_Y},term:{...TERM['PLC.L']},op:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},front:PROJECTION.models.filter(r=>/^(panel$|frame-|stopper-|device-|servo$)/.test(r.surface.closest('[data-scene-part]')?.dataset.scenePart||'')).every(r=>r.tx===0&&r.ty===0),outside:bandCurve().slice(1).every(([x,y])=>x<=0||x>=PANEL.w||y<=0||y>=PANEL.h)}));
   assert.equal(mounted.mounted,true);assert.deepEqual(mounted.pos,before.dock);assert.equal(mounted.place,'robot');assert.equal(mounted.front,true);assert.equal(mounted.outside,true);
-  for(const k of ['wires','inst','ties','score','wood','cv','term','op'])assert.deepEqual(mounted[k],before[k],k);
+  for(const k of ['wires','inst','ties','score','term','op'])assert.deepEqual(mounted[k],before[k],k);for(const k of ['wood','cv'])for(const axis of ['x','y'])assert.ok(Math.abs(mounted[k][axis]-before[k][axis])<1e-8,k+'.'+axis);
   await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="free"]').click();
   assert.equal(await page.evaluate(()=>S.panelDocked),true);assert.deepEqual(await page.evaluate(()=>S.panelPos),before.dock);
   await dragMainPanelTo(2400,0);assert.equal(await page.evaluate(()=>S.panelDocked),false);assert.equal(await page.evaluate(()=>panelWorkplace()),'desk');
   await page.evaluate(()=>undo());assert.equal(await page.evaluate(()=>S.panelDocked),true);assert.deepEqual(await page.evaluate(()=>S.panelPos),before.dock);
+});
+
+test('enlarged installed task keeps terminal hits, live switches and flat graphics aligned',async()=>{
+  await fullState();await page.evaluate(()=>{S.finished=true;S.tool='hand';S.panelDocked=true;const d=panelDockPosition();positionPanel(d.x,d.y);renderAll();fitRoom('robot');});
+  for(const flat of [false,true]){
+    const state=await page.evaluate(flat=>{
+      if(flat){for(const k of GRAPHICS_KEYS)SET[k]=false;applyGraphics();renderAll();}
+      const m=S.inst.find(i=>i.type==='mcb'),r=mcbSwRect(m),p={x:r.x+r.w/2,y:r.y+r.h/2},v=projectWorkPoint(p),back=unprojectWorkPoint(v),bounds=$('[data-scene-part="panel"]').getBoundingClientRect(),world=svg.getBoundingClientRect(),width=bounds.width/world.width*UI.cam.w;
+      renderAll();applyCam();renderOver();const stable=$('[data-scene-part="panel"]').getBoundingClientRect().width===bounds.width;
+      return {p,v,back,width,stable,hit:liveHit(back),click:{x:world.left+(v.x-UI.cam.x)/UI.cam.w*world.width,y:world.top+(v.y-UI.cam.y)/UI.cam.h*world.height},before:LIVE.inp.mcb,score:scoreSheet().total};
+    },flat);
+    assert.ok(state.width>980&&state.width<1030);assert.equal(state.stable,true);assert.equal(state.hit,'mcb');assert.ok(Math.hypot(state.back.x-state.p.x,state.back.y-state.p.y)<.01);assert.equal(state.score,30);
+    await page.mouse.click(state.click.x,state.click.y);assert.equal(await page.evaluate(()=>LIVE.inp.mcb),!state.before);
+  }
 });
 
 test('dropping on the controller bay returns the task to its starting position',async()=>{
