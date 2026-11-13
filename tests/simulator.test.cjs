@@ -76,6 +76,36 @@ test('floor preparation and desk wiring obey the plate location without automati
   });assert.deepEqual(result,{blocked:true,allowed:true,drillBlocked:true,pos:900});
 });
 
+test('external HMI wiring leaves TB through the upper-right exit and loops down to the HMI with its helical sleeve',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    const wires=JSON.stringify(S.wires),bad=[];let checked=0;
+    for(const pos of [[0,0],[900,0],[750,120]]){
+      positionPanel(...pos);S.opBack=true;S.helical=2;buildTerms();renderAll();const B=bandCurve(),start=B[0],end=B.at(-1);
+      if(Math.abs(start[0]-HOLE.x)>1e-6||Math.abs(start[1]-HOLE.y-1)>1e-6||end[0]<OPW.x||end[0]>OPW.x+OP.w||end[1]<=OPW.y+OP.h||Math.max(...B.map(p=>p[1]))<Math.max(start[1],end[1])+60)bad.push('trunk');
+      for(const w of S.wires.filter(isExtWire)){
+        const p=TERM[w.a.startsWith('OP.')?w.b:w.a],i=S.wires.indexOf(w),pts=basePts(w,i),q=w.a.startsWith('OP.')?pts.slice().reverse():pts,lane=(((i*7)%13)-6)*1.7,band=bandCurve(lane*.35);
+        if(!/^TB\.\d+\.b$/.test(p.id)||Math.hypot(q[0][0]-p.x,q[0][1]-p.y)>p.r+1||q[1][1]<=p.y||band.some(a=>projOn(pts,{x:a[0],y:a[1]}).dist>1e-6))bad.push(w.a+'>'+w.b);
+        if(!routeDucts(w.a,w.b).includes('dR'))bad.push('upper exit');checked++;
+      }
+      if(B.some((p,i)=>i&&p[0]>0&&p[0]<PANEL.w&&p[1]>0&&p[1]<PANEL.h))bad.push('crosses plate');
+      const rear=JSON.stringify(B);S.opBack=false;buildTerms();renderAll();const ft=opFrontTerms();
+      if(rear!==JSON.stringify(bandCurve()))bad.push('front band');
+      for(const w of S.wires.filter(isExtWire)){const i=S.wires.indexOf(w),pts=frontWirePts(w,i,ft),lane=(((i*7)%13)-6)*1.7;if(bandCurve(lane*.35).some(p=>projOn(pts,{x:p[0],y:p[1]}).dist>1e-6))bad.push('front wire');}
+      S.opBack=true;buildTerms();renderAll();
+      if(SCENE_PARTS.get('band-duct').childElementCount===0||!SCENE_PARTS.get('band-external').querySelector('path')?.getAttribute('d'))bad.push('band paint');
+    }
+    return{checked,bad,unchanged:wires===JSON.stringify(S.wires),functional:Object.values(getChecks().res).every(r=>r.ok)};
+  });assert.ok(result.checked>=27);assert.deepEqual(result.bad,[]);assert.equal(result.unchanged,true);assert.equal(result.functional,true);
+});
+
+test('the upper-right bundle exit accepts a hand click without lifting the plate and preserves wrapping on reload',async()=>{
+  await fullState();const point=await page.evaluate(()=>{S.helical=1;S.opBack=true;S.tool='hand';for(const[,q]of frList())q.covered=false;buildTerms();renderAll();fitTo({x:HOLE.x-100,y:HOLE.y-80,w:240,h:200});return{x:HOLE.x,y:HOLE.y,pos:JSON.stringify(S.panelPos)};});
+  await clickWorld(point.x,point.y);assert.equal(await page.evaluate(()=>S.helical),2);assert.equal(await page.evaluate(()=>JSON.stringify(S.panelPos)),point.pos);
+  await page.reload();await page.waitForFunction(()=>window.SIM);assert.equal(await page.evaluate(()=>S.helical),2);
+  assert.equal(await page.evaluate(()=>Math.max(...bandNow().map(p=>p[1]))>PANEL.h+120),true);
+});
+
 test('reference wiring passes all circuit and conveyor checks and scores 30', async () => {
   await fullState();
   const result = await page.evaluate(() => ({

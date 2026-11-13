@@ -2975,7 +2975,7 @@ function newFrame() { const fr = {}; for (const [id, type] of FRAME_INIT) fr[id]
 function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
-    roomV:1, panelPos:{x:0,y:0}, op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
+    roomV:1, bundleV:1, panelPos:{x:0,y:0}, op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
     inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, smpsLid: {t:false,b:false}, plug: {}, tset: {}, dressV: 2, dbreak: {}, extV: 2, hgath: [], hcov: 0 };
 }
 function save() { if (DEMO.on || MODE === 'prac') return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : MODE === 'fault' ? STORE_FAULT : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
@@ -3055,11 +3055,9 @@ function routeDucts(a, b) {   // 전선이 지나가는 덕트 (route()와 같�
 }
 const isOPWire = w => w.a.startsWith('OP.') || w.b.startsWith('OP.');
 const isExtWire = w => w.a.startsWith('OP.') !== w.b.startsWith('OP.');   // 제어판과 조작판 사이 (외부 입출력 전선)
-const HOLE = { x: 700, y: 3 };                            // 오른쪽 세로 덕트 위 끝 구멍 (헬리컬 밴드를 빼는 곳)
-const BAND_C = [[700, 4], [700, -78], [830, 36], [830, 226]];   // 구멍에서 조작판까지 밴드 중심선
-// 조작판(HMI)으로 가는 선은 190cm (가장 먼 선이 덕트를 거쳐 조작판까지 약 180cm). 남는 길이는:
-// 처음엔 단자대에서 조작판 단자(아래에서 들어감)까지 이음매 없이 한 줄로 길게 늘어지고, 밴드로 감으면 묶음이 길게 늘어지고(각 선의 나머지는 밴드 들어가기 전 작은 고리), 덕트에 넣으면 구멍에서 조작판까지 밴드가 길게 늘어진다(나머지는 오른쪽 세로 덕트 안에서 접힘)
-let EXT_LEN = 1900, BAND_ADD = 0, BUNDLE_ADD = 450;
+const HOLE = {x:700,y:3};                            // 오른쪽 위 출구 (헬리컬 밴드를 빼는 곳)
+// TB feeds the upper-right exit; the external trunk loops below the room and rises beneath the operator panel.
+let EXT_LEN = 1900, BAND_ADD = 0, BUNDLE_ADD = 0;
 const EXT_OLD = [2400, 550, 1040];   // 예전(240cm) 값: 저장한 타이 옮길 때
 const unitV = (P, Q) => { const l = Math.hypot(Q[0] - P[0], Q[1] - P[1]) || 1; return [(Q[0] - P[0]) / l, (Q[1] - P[1]) / l]; };   // P에서 Q 쪽 단위 벡터
 let EXT_RAW = false, EXT_C = { tv: -1, m: new Map() };   // EXT_RAW: 늘이기 전 모양 (예전 저장의 타이 자리 옮길 때)
@@ -3071,14 +3069,20 @@ function stretch(P, add, d, d2 = d) {   // 3차 곡선 조절점을 d(두 번째
   for (let k = 0; k < 22; k++) { const a = (lo + hi) / 2; if (len(mv(a)) < L0) lo = a; else hi = a; }
   return (_stretch[key] = mv((lo + hi) / 2));
 }
-function bandCurve(off = 0) { return EXT_RAW ? cubicOff(BAND_C, off) : cubicOff(stretch(BAND_C, BAND_ADD, [-.15, -1]), off, 40); }
-function extXs() { const xs = []; for (const w of S.wires) if (isExtWire(w)) { const P = opStart(w) ? TERM[w.b] : TERM[w.a]; if (P) xs.push(P.x); } return xs; }
-function bundle1(off = 0) {   // 감기만 한 상태: 제어판 아래로 늘어진 묶음
-  const xs = extXs(), bx = xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 220, P = [[bx, 640], [bx, 772], [905, 772], [905, 468]];
-  return EXT_RAW ? cubicOff(P, off) : cubicOff(stretch(P, BUNDLE_ADD, [.55, .85], [0, 1]), off, 40);
+function externalBundleControls(extra=0){
+  const start=[bandStartX(),PANEL.h+42],end=[OPW.x+OP.cut.x+OP.cut.w/2,OPW.y+OP.h+55],sag=Math.max(start[1],end[1])+230+extra;
+  return [start,[start[0],sag],[end[0],sag],end];
 }
-const bandStartX = () => { const xs = extXs(); return xs.length ? Math.min(...xs) - 8 : 200; };
-const band2Duct = (off = 0) => [[bandStartX(), 580 + off], [700 + off, 580 + off], [700 + off, 4]];   // 덕트에 넣은 상태: 단자대 아래 → 오른쪽 → 위 구멍
+function bandCurve(off=0){
+  const end=[OPW.x+OP.cut.x+OP.cut.w/2,OPW.y+OP.h+55],right=PANEL.w+90,low=Math.max(PANEL.h+100,end[1]+80),sag=Math.max(low+260,S.conveyor?S.conveyor.y+CVW.bw+230:0);
+  const exit=[[HOLE.x,HOLE.y+1],[HOLE.x,-85],[right,-85],[right,low]],loop=[[right,low],[right,sag],[end[0],sag],end];
+  return [...cubicOff(exit,off,24),...cubicOff(loop,off,40).slice(1)];
+}
+function extXs(){return S.wires.filter(isExtWire).map(w=>w.a.startsWith('OP.')?TERM[w.b]:TERM[w.a]).filter(Boolean).map(t=>t.x);}
+function bandStartX(){const xs=extXs(),tb=tbRect();return xs.length?xs.reduce((a,b)=>a+b,0)/xs.length:tb?tb.x+tb.w/2:220;}
+function bundle1(off=0){const p=externalBundleControls(45);return cubicOff(BUNDLE_ADD?stretch(p,BUNDLE_ADD,[0,1]):p,off,40);}
+const band2Duct=(off=0)=>[[bandStartX(),580+off],[700+off,580+off],[700+off,4]];
+
 function cubicOff(P, off = 0, n = 18) {
   const out = [];
   for (let k = 0; k <= n; k++) {
@@ -3289,7 +3293,7 @@ function cutPath(pts, f) {   // 앞에서부터 길이 비율 f까지
 }
 const hcovNow = () => UI.hcovLive !== undefined && UI.hcovLive !== null ? UI.hcovLive : (S.hcov || 0);
 const bundleR = () => bundle1(0).slice().reverse();   // 다발을 조작판(HMI) 쪽 끝부터: 헬리컬 밴드는 여기서부터 제어판 쪽으로 감는다
-const bandNow = () => S.helical === 2 ? [...band2Duct(0), ...bandCurve(0).slice(1)] : S.helical === 1 ? bundle1(0) : hcovNow() > 0 ? cutPath(bundleR(), hcovNow()) : [];   // 밴드가 덮은 곳
+const bandNow = () => S.helical === 2 ? bandCurve(0) : S.helical === 1 ? bundle1(0) : hcovNow() > 0 ? cutPath(bundleR(), hcovNow()) : [];   // 밴드가 덮은 곳
 function bandSvg() { if (S.helical === 1) return drawBand(bundle1(0)); if (S.helical === 2) return drawBand(bandCurve(0)); const B = bandNow(); return B.length > 1 ? drawBand(B) : ''; }
 function gatherLine() {   // 모으기 안내: 아직 안 모은 조작판 선을 모두 가로지르는 가로선 (제어판 바로 아래, 단자대에서 내려온 쪽에서 가장 짧은 것)
   const ws = extLoose(); if (!ws.length) return null; let best = null;
@@ -3329,16 +3333,16 @@ function pushEnd(g) {
   const c = UI.hcovLive; UI.hcovLive = null;
   if (c === null || c === undefined || c <= (S.hcov || 0) + .002) { renderWorld(); renderOver(); return say('다발을 따라 제어판 쪽으로 쭉 끌어요', 'info'); }
   snap(); if (UI.carry && UI.carry.kind === 'helical') consumeCarry();
-  if (c >= .985) { S.helical = 1; S.hcov = 0; S.hgath = []; say('헬리컬 밴드가 조작판 선을 다 감쌌어요. 손으로 빨간 원 구멍을 누르면 단자대 아래부터 덕트에 넣고 구멍으로 빼요', 'ok'); }
+  if (c >= .985) { S.helical = 1; S.hcov = 0; S.hgath = []; say('헬리컬 밴드가 조작판 선을 다 감쌌어요. 손으로 빨간 원 출구를 누르면 단자대 아래부터 덕트에 넣고 구멍으로 빼요', 'ok'); }
   else { S.hcov = c; say(`헬리컬 밴드를 ${Math.round(c * 100)}%까지 밀었어요. 손으로 밴드 끝을 잡고 마저 밀어요`, 'ok'); }
   commit();
 }
 function bandHit(p) { const pts = bandNow(); if (pts.length < 2) return false; for (let k = 1; k < pts.length; k++) if (segDist(p, pts[k - 1], pts[k]) < 8) return true; return false; }
 function tuckBand() {
-  if (!frList().some(([, q]) => q.slot === 'dR' && q.stuck)) return say('오른쪽 세로 덕트가 붙어 있어야 넣을 수 있어요', 'info');
+  if (!frList().some(([, q]) => q.slot === 'dR' && q.stuck)) return say('오른쪽 세로 덕트가 붙어 있어야 다발을 위쪽 출구로 뺄 수 있어요', 'info');
   const ducts = new Set(['dR']); for (const w of S.wires) if (isExtWire(w)) { const P = opStart(w) ? TERM[w.b] : TERM[w.a]; if (P && P.duct) ducts.add(P.duct); }
   const cv = [...ducts].find(coveredSlot); if (cv) return say(`${SLOT[cv].name} 커버를 열어야 전선을 넣을 수 있어요`, 'info');
-  snap(); S.helical = 2; say('감은 전선을 덕트에 넣고, 빨간 원 구멍으로 헬리컬 밴드를 뺐어요', 'ok'); commit();
+  snap(); S.helical = 2; say('감은 전선을 덕트에 넣고, 빨간 원 출구로 헬리컬 밴드를 뺐어요', 'ok'); commit();
 }
 function wireHidden(x, y, w) {   // 덕트 커버, 단자대 커버, 헬리컬 밴드에 가려진 곳
   if (frList().some(([, q]) => q.covered && q.slot && inRect({ x, y }, frRect(q), 0))) return true;
@@ -3570,7 +3574,7 @@ function stepsFor(stage) {
     { no: '마무리', title: '튀어나온 타이 꼬리 니퍼로 자르기', n: nTieCut(), m: Math.max(12, nTies()), done: nTies() > 0 && nTieCut() === nTies(), tip: '니퍼를 들고 조인 타이를 누르면 꼬리가 잘려요. 한 번 더 누르면 타이를 잘라서 빼요' },
     { no: '제작 (8)', title: '늘어진 조작판 전선을 한 다발로 모으기', n: S.helical ? nExt() : nExt() - extLoose().length, m: nExt(), done: !!S.helical || allGathered(), tip: '조작판 뒷면에서 헬리컬 밴드를 들고, 늘어진 조작판 전선들을 가로질러 끌면 한 다발로 모여요 (선을 하나씩 눌러도 돼요)' },
     { no: '제작 (8)', title: '헬리컬 밴드를 다발 끝까지 밀어 감싸기', n: S.helical ? 100 : Math.round((S.hcov || 0) * 100), m: 100, done: !!S.helical, tip: '모은 다발의 조작판(HMI) 쪽 끝(빨간 원)에 밴드를 대고 제어판 쪽으로 쭉 끌어요. 중간에 놓으면 손으로 밴드 끝을 잡고 마저 밀어요' },
-    { no: '제작 (8)', title: '감은 전선을 덕트에 넣고 빨간 원 구멍으로 밴드 빼기', n: S.helical === 2 ? 1 : 0, m: 1, done: S.helical === 2, tip: '손으로 오른쪽 세로 덕트 위 끝의 빨간 원을 눌러요. 지나가는 덕트 커버는 열려 있어야 해요. 안 하면 시간점수 0점' }
+    { no: '제작 (8)', title: '감은 전선을 덕트에 넣고 빨간 원 출구로 밴드 빼기', n: S.helical === 2 ? 1 : 0, m: 1, done: S.helical === 2, tip: '손으로 오른쪽 위의 빨간 원 출구를 눌러요. 지나가는 덕트 커버는 열려 있어야 해요. 안 하면 시간점수 0점' }
   ];
   if (stage === 4) return judgeSteps();
   return checkSteps();
@@ -4061,7 +4065,7 @@ function handleTap(p, e) {
     if (S.opBack && S.helical === 1 && Math.hypot(p.x - HOLE.x, p.y - HOLE.y) < Math.max(14, tolMM(16))) return tuckBand();
     if (S.opBack && bandHit(p)) {
       snap();
-      if (S.helical === 2) { S.helical = 1; say('헬리컬 밴드를 덕트에서 꺼냈어요. 다시 넣으려면 빨간 원 구멍을 눌러요', 'info'); }
+      if (S.helical === 2) { S.helical = 1; say('헬리컬 밴드를 덕트에서 꺼냈어요. 다시 넣으려면 빨간 원 출구를 눌러요', 'info'); }
       else { if (S.helical === 1) S.hgath = S.wires.filter(isExtWire).map(w => pairKey(w.a, w.b)); S.helical = 0; S.hcov = 0; UI.carry = { kind: 'helical', key: 'helical', from: 'floor', count: 1 }; say('헬리컬 밴드를 풀었어요. 선은 모은 다발 그대로예요', 'info'); }
       return commit();
     }
@@ -4251,23 +4255,17 @@ function route(a, b, lane, gath) {   // gath: 한 다발로 모은 조작판 선
     const p = a.op ? b : a, o0 = a.op ? a : b, pts = [[p.x, p.y]], H = o0.top ? opHook(o0) : null, o = H ? { x: H[H.length - 1][0], y: H[H.length - 1][1] } : o0;   // o: 조작판 쪽 끝 (위쪽 단자는 고리 끝)
     const dn = DUCT_Y[p.duct] < p.y ? -1 : 1, s0 = [p.x, p.y + dn * 9];
     const hs = S.helical === 2 ? 2 : S.helical === 1 || gath ? 1 : 0;
-    if (hs === 2) {        // 밴드로 감아 덕트에 넣음: 단자대 아래 덕트 → 오른쪽 세로 덕트 → 위 구멍 → 조작판
-      const off = lane * .35, px = p.sx !== undefined ? p.sx : p.x, yd = (p.duct === 'dB' ? 580 : DUCT_Y[p.duct]) + off, ex = 700 + off, band = bandCurve(off), e = band[band.length - 1];
-      if (p.sx !== undefined) pts.push([p.sx, p.y]);
-      pts.push([px, yd], [ex, yd]); const ic = pts.length - 1;   // 남는 길이는 오른쪽 세로 덕트 아래 모서리에서 위로 접는다
-      const te = unitV(band[band.length - 2], e);   // 밴드 끝에서 나가는 방향 그대로 조작판으로 (꺾이지 않게)
-      pts.push([ex, 14], ...band.slice(1), ...bez(e, EXT_RAW ? [e[0] + 4, e[1] + 30] : [e[0] + te[0] * 30, e[1] + te[1] * 30], opSideControl(o,60), [o.x, o.y]));
-      if (H) pts.push(...H.slice(0, -1).reverse());
-      const sl = EXT_RAW ? 0 : EXT_LEN - pathLen(pts); if (sl > 4) pts.splice(ic + 1, 0, ...zigzag(pts[ic], true, -1, ex > 700 ? -1.1 : 1.1, sl, yd - 30, true));
-      return a.op ? pts.reverse() : pts;
-    } else if (hs === 1) { // 감기만 함 (또는 모아서 밴드를 미는 중): 늘어진 묶음 하나로 모여서 조작판으로 (남는 길이는 묶음에 들어가기 전 작은 고리)
-      const B = bundle1(lane * .4), b0 = B[0], e = B[B.length - 1], tb = unitV(B[1], b0), te = unitV(B[B.length - 2], e);   // 묶음 시작·끝의 방향 그대로 이어서 (꺾이지 않게)
-      const tl = bez(e, EXT_RAW ? [e[0], e[1] - 25] : [e[0] + te[0] * 25, e[1] + te[1] * 25], opSideControl(o,55), [o.x, o.y]), raw = bez(s0, [p.x, p.y + dn * 40], EXT_RAW ? [b0[0], b0[1] - 30] : [b0[0] + tb[0] * 30, b0[1] + tb[1] * 30], b0);
-      const need = EXT_LEN - 9 - pathLen(B) - pathLen([e, ...tl]) - (H ? pathLen(H) : 0);
-      pts.push(s0, ...(!EXT_RAW && need > pathLen([s0, ...raw]) + 2 ? slackCurve(s0, [0, dn], b0, tb, need, Math.round(Math.abs(lane) * 3)) : raw), ...B.slice(1), ...tl);
-    } else {                      // 처음: 덕트를 거치지 않고 단자에서 빠져서 조작판으로. 190cm가 이음매 없이 한 줄로 길게 늘어진다 (조작판 단자에는 아래에서 들어간다)
-      if (EXT_RAW) pts.push(s0, ...bez(s0, [p.x, 820 + lane * 2.4], [o.x - 30 + lane, 800 + lane * 2], [o.x, o.y], 24));
-      else { const E = opSideControl(o,8); pts.push(s0, ...slackCurve(s0, [0, dn], E, o.sideEntry ? [o.sideEntry,0] : [0, 1], EXT_LEN - 9 - 8 - (H ? pathLen(H) : 0), Math.round(Math.abs(lane) * 3)), [o.x, o.y]); }
+    if(hs){
+      const B=hs===2?bandCurve(lane*.35):bundle1(lane*.4),start=B[0],end=B.at(-1),up=unitV(B.at(-2),end);
+      if(hs===2){
+        const off=lane*.35,px=p.sx??p.x,yd=DUCT_Y[p.duct]+off;
+        if(p.sx!==undefined)pts.push([p.sx,p.y]);
+        pts.push([px,yd],[700+off,yd],start);
+      }else pts.push(s0,...bez(s0,[s0[0],start[1]-15],[start[0],start[1]-18],start));
+      pts.push(...B.slice(1),...bez(end,[end[0]+up[0]*25,end[1]+up[1]*25],opSideControl(o,55),[o.x,o.y]));
+    }else{
+      const end=opSideControl(o,8),sag=Math.max(PANEL.h+240,o.y+220)+Math.abs(lane)*3;
+      pts.push(s0,...bez(s0,[s0[0],sag],[end[0],sag],end,40),[o.x,o.y]);
     }
     if (H) pts.push(...H.slice(0, -1).reverse());
     return a.op ? pts.reverse() : pts;
@@ -4952,7 +4950,7 @@ function renderWorld(geometryChanged = true) {
   const lifted = w => UI.replug && UI.replug.w === w;
   parts.push(...wires(w => !loose(w) && !lifted(w), 'wire-inner'));
   parts.push(['duct-teeth',frList().filter(([,q])=>q.type==='duct'&&q.slot&&q.stuck&&!q.covered).map(([,q])=>{const r=frRect(q);return projectFaceAt(r.x,r.y,r.w,r.h,40,ductTeeth(r));}).join('')]);
-  parts.push(['band-duct', S.helical === 2 ? drawBand(band2Duct(0)) : '']);
+  parts.push(['band-duct',S.helical===2?drawBand(band2Duct()):'']);
   parts.push(['conveyor-leads', drawConvLeads()]);
   parts.push(['duct-covers', frList().filter(([,q]) => q.type === 'duct' && q.slot && q.covered).map(([,q]) => drawDuctCover(frRect(q))).join('')]);
   parts.push(...wires(w => loose(w) && !lifted(w), 'wire-loose'));
@@ -5690,7 +5688,7 @@ svg.addEventListener('pointerdown', e => {
   if(UI.ptrs.size===2&&UI.gesture?.type==='panelmove')finishPanelDrag(UI.gesture);
   if (UI.ptrs.size === 2) { const [a, b] = [...UI.ptrs.values()]; UI.gesture = { type: 'pinch', d0: Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)), cam0: { ...UI.cam }, m0: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, rect:svg.getBoundingClientRect() }; beginCameraGesture(); return; }
   UI.overBoard = true; UI.gesture = { type: 'press', sx: e.clientX, sy: e.clientY, cam0: { ...UI.cam }, rect:svg.getBoundingClientRect(), moved: false };
-  if(S.tool==='hand'&&!UI.carry&&!UI.replug&&panelEdge(toWorkWorld(e.clientX,e.clientY))){
+  if(S.tool==='hand'&&!UI.carry&&!UI.replug&&panelEdge(toWorkWorld(e.clientX,e.clientY))&&!(S.opBack&&S.helical===1&&Math.hypot(toWorkWorld(e.clientX,e.clientY).x-HOLE.x,toWorkWorld(e.clientX,e.clientY).y-HOLE.y)<Math.max(14,tolMM(16)))){
     if(LIVE.inp.mcb){UI.gesture=null;return say('MCB를 내린 뒤 제어판을 들어요','info');}
     UI.gesture={...UI.gesture,type:'panelmove',pos:{...(S.panelPos||{x:0,y:0})}};return;
   }
@@ -6044,7 +6042,7 @@ function demoScript() {   // 예시 채우기를 동작 하나 단위로 쪼갠�
     if (S.helical === 2) {   // 덕트 커버를 닫기 전에 감아서 넣는다
       add(5, '늘어진 조작판 전선을 한 다발로 모으기', [['set', ['hgath'], S.wires.filter(isExtWire).map(w => pairKey(w.a, w.b))]], { focus: FIT_V, sub: '헬리컬 밴드를 들고 늘어진 선들을 가로질러 끌어 모아요' });
       add(5, '헬리컬 밴드를 다발 끝까지 밀어 감싸기', [['set', ['helical'], 1], ['set', ['hgath'], []], ['set', ['hcov'], 0]], { focus: FIT_V, sub: '제작 조건 (8): 외부 입출력 전선은 헬리컬 밴드와 케이블 타이로 정리. 다발의 조작판(HMI) 쪽 끝에서 제어판 쪽으로 쭉 밀어요' });
-      add(5, '감은 전선을 덕트에 넣고, 밴드를 오른쪽 세로 덕트 위 구멍으로 빼기', [['set', ['helical'], 2]], { focus: FIT_V, sub: '덕트 커버를 닫기 전에 넣어요', hl: { ring: { x: HOLE.x, y: HOLE.y, r: 13 } } });
+      add(5, '감은 전선을 덕트에 넣고, 밴드를 오른쪽 위 출구로 빼기', [['set', ['helical'], 2]], { focus: FIT_V, sub: '덕트 커버를 닫기 전에 넣어요', hl: { ring: { x: HOLE.x, y: HOLE.y, r: 13 } } });
     }
     for (const [id, q] of frList()) if (q.covered) add(5, `덕트 커버 닫기: ${SLOT[q.slot].name}`, [['set', ['fr', id, 'covered'], true]], { focus: PANEL_V, hl: { box: frRect(q) } });
     if (S.tbCover) add(5, '단자대 커버 씌우기', [['set', ['tbCover'], true]], { focus: rowV('c3'), hl: { box: tbRect() } });
@@ -6520,7 +6518,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.37.0', date: '2026.11.13', notes: ['연결된 로봇·바닥·책상 작업 환경: 밝은 회색 정면 로봇과 위에서 보는 나무 바닥·책상, 제어판 가장자리를 잡아 직접 이동, 바닥 가공·책상 배선과 위치 저장', '고장 찾기 힌트 접근 개선: 작업판 안내에 힌트 버튼 추가, 실전 고장 힌트 창에서 단계별 열람과 핵심 위치 이동', '전선이 많은 배선 작업 최적화: 설치 기구 좌표·안내선·단자 번호표·재료함 미리보기 재사용으로 전선 추가와 포인터 이동의 반복 계산·화면 교체 감소', '최고 그래픽 추가 최적화: 전선 경로 출력 버퍼 재사용, 화면 밖 경로의 투영 지연과 재진입 즉시 갱신, 고정 그림자와 동일 화면의 SVG 속성 쓰기 생략', '최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.37.1', date: '2026.11.13', notes: ['HMI 외부 배선 경로 수정: 단자대에서 오른쪽 위 출구로 올라간 뒤 크게 아래로 돌아 HMI 밑으로 들어오는 다발과 같은 경로의 헬리컬 밴드', '연결된 로봇·바닥·책상 작업 환경: 밝은 회색 정면 로봇과 위에서 보는 나무 바닥·책상, 제어판 가장자리를 잡아 직접 이동, 바닥 가공·책상 배선과 위치 저장', '고장 찾기 힌트 접근 개선: 작업판 안내에 힌트 버튼 추가, 실전 고장 힌트 창에서 단계별 열람과 핵심 위치 이동', '전선이 많은 배선 작업 최적화: 설치 기구 좌표·안내선·단자 번호표·재료함 미리보기 재사용으로 전선 추가와 포인터 이동의 반복 계산·화면 교체 감소', '최고 그래픽 추가 최적화: 전선 경로 출력 버퍼 재사용, 화면 밖 경로의 투영 지연과 재진입 즉시 갱신, 고정 그림자와 동일 화면의 SVG 속성 쓰기 생략', '최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -6580,7 +6578,7 @@ function fixState() {   // 예전에 저장한 상태를 지금 형식으로
     S.cables.powerLeads={R,T,E};S.cables.powerPlaced={...POWER_POS};
     if(S.judge?.key===oldKey&&!powerFault(S.cables,staticLinks(S.wires)))S.judge.key=judgeKey();
   }
-  migrateLampTies();if(oldRoom)withAllTerms(()=>{for(const t of S.ties||[])tieToNew(t);});
+  migrateLampTies();if(!S.bundleV){withAllTerms(()=>{for(const t of S.ties||[]){if(!t.ws?.some(r=>isExtWire(r)))continue;for(const r of t.ws){delete r.x;delete r.y;}delete t.c;delete t.u;tieToNew(t);}});S.bundleV=1;}if(oldRoom)withAllTerms(()=>{for(const t of S.ties||[])tieToNew(t);});
 }
 function setMode(m, st) {   // 모드와 그 모드의 작업 상태로 바꾼다
   UI.powerPlug=false; if (DEMO.on) demoClose(); if (TZ.id) tzClose();
@@ -6860,9 +6858,9 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
       if (S.hcov > 0) return { tx: `밴드 마저 밀기 (${Math.round(S.hcov * 100)}%)`, sub: '손으로 밴드 끝(빨간 원)을 잡고 다발을 따라 제어판 쪽으로 쭉 끌어요', tool: 'hand', hl: { ring: { x: E.x, y: E.y, r: 12 } } };
       return { tx: '헬리컬 밴드를 다발 끝까지 밀기', sub: hold ? '빨간 원(다발의 조작판 쪽 끝)을 누른 채로 다발을 따라 제어판 쪽으로 쭉 끌어요' : "재료함 '마무리 재료'의 헬리컬 밴드를 들어요", tray: hold ? null : 'helical', hl: { ring: { x: E.x, y: E.y, r: 12 } } };
     } });
-  L(5, '덕트에 넣고 밴드 빼기', '감은 전선을 덕트에 넣고, 오른쪽 세로 덕트 위 끝의 빨간 원 구멍으로 밴드를 빼요', { keys: ['helical'], focus: P_V.panel,
+  L(5, '오른쪽 위로 다발 빼기', '감은 전선을 덕트에 넣고, 오른쪽 위의 빨간 원 출구로 밴드를 빼요', { keys: ['helical'], focus: P_V.panel,
     fill: () => { S.helical = 2; }, prog: () => [S.helical === 2 ? 1 : 0, 1], goal: () => S.helical === 2,
-    next: () => ({ tx: '빨간 원 구멍 누르기', sub: '손으로 오른쪽 세로 덕트 위 끝을 눌러요. 덕트 커버는 열려 있어야 해요', tool: 'hand', hl: { ring: { x: HOLE.x, y: HOLE.y, r: 13 } } }) });
+    next: () => ({ tx: '빨간 원 출구 누르기', sub: '손으로 오른쪽 위 출구를 눌러요. 덕트 커버는 열려 있어야 해요', tool: 'hand', hl: { ring: { x: HOLE.x, y: HOLE.y, r: 13 } } }) });
   L(5, '덕트 커버 닫기', '덕트 6개에 커버를 닫아요 (채점 1-3)', { keys: ['covered'], focus: P_V.panel,
     fill: () => { for (const [, q] of frList()) if (q.type === 'duct' && q.stuck) q.covered = true; }, prog: () => [nCovered(), 6], goal: () => nCovered() === 6,
     next: () => { const e = frList().find(([, q]) => q.type === 'duct' && q.stuck && !q.covered); if (!e) return P_DONE; return { tx: `덕트 커버: ${SLOT[e[1].slot].name}`, sub: "재료함 '덕트·찬넬'의 덕트 커버를 들고 빨간 테두리를 눌러요", tray: 'cover', hl: { box: frRect(e[1]) } }; } });
