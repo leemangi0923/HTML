@@ -6459,7 +6459,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.36.0', date: '2026.11.12', notes: ['전선이 많은 배선 작업 최적화: 설치 기구 좌표·안내선·단자 번호표·재료함 미리보기 재사용으로 전선 추가와 포인터 이동의 반복 계산·화면 교체 감소', '최고 그래픽 추가 최적화: 전선 경로 출력 버퍼 재사용, 화면 밖 경로의 투영 지연과 재진입 즉시 갱신, 고정 그림자와 동일 화면의 SVG 속성 쓰기 생략', '최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
+const APP_VER = { v: '2.36.1', date: '2026.11.13', notes: ['고장 찾기 힌트 접근 개선: 작업판 안내에 힌트 버튼 추가, 실전 고장 힌트 창에서 단계별 열람과 핵심 위치 이동', '전선이 많은 배선 작업 최적화: 설치 기구 좌표·안내선·단자 번호표·재료함 미리보기 재사용으로 전선 추가와 포인터 이동의 반복 계산·화면 교체 감소', '최고 그래픽 추가 최적화: 전선 경로 출력 버퍼 재사용, 화면 밖 경로의 투영 지연과 재진입 즉시 갱신, 고정 그림자와 동일 화면의 SVG 속성 쓰기 생략', '최고 그래픽 유지 최적화: 전선 투영의 고정 좌표·부품 연결 관계 재사용, 바뀌지 않은 장면의 투영 준비 생략, 카메라의 반복 화면 크기 조회 제거', '그래픽·성능 설정: 2.5D·그림자·조명·재질·옆면 디테일·전선 반사광·애니메이션·도구 그림·돋보기 개별 조절, 렉 줄이기·모두 켜기, 설정 저장과 꺼진 효과의 계산 생략', '왼쪽 위 고정 광원: 기구·덕트·찬넬·스토퍼의 면 밝기와 높이별 그림자, 돌출 모서리와 단자·포트·소켓 홈의 반대 방향 음영 적용', 'LS iXP2-0800D 실물 HMI 뒷면 수정: 거치대 그림 제거, 통풍구·방열 핀·배터리 덮개·CF카드 홈·측면 포트·낮은 전원 단자와 성형 외장 반영', '시점·높이에 따른 기구 가림 순서와 클릭 판정 수정: 스토퍼·기구·덕트·찬넬·조작판·바닥 부품', 'SMPS 위·아래 투명 단자 보호판 독립 개폐, 닫힌 단자 배선 잠금, 저장·되돌리기', '실물 사진 기준 조작판 뒷면 접점·검정 표시등 소켓·원통 부저·HMI와 40P 단자대 재질·단자·투명 커버 개선', '제품 사진 기준 차단기·PLC·SMPS·서보 정면과 옆면 재작업: 연결 손잡이·매끈한 단자 덮개·투명 보호판·주황 레버·금속 커넥터·기구별 측면 통풍 구조', '입체 표현 기준 수정: 바닥면은 고정, 높이에 따라 윗면·단자·전선 끝 이동, 옆면 연결과 화면 클릭 좌표 보정', '사용자 제공 사진 기준 IO링크: 은색 단자 조임판·2열 다핀 커넥터·투명 힌지 커버·노란 레일 고정 레버', '덕트·찬넬은 뒷면으로 꺼내 양면테이프를 붙이고, 철판에 설치하면 정면으로 뒤집히도록 수정', '덕트 이음부 파손 뒤 이빨 재표시 수정, 기구 외곽에서 뜨는 테두리 제거·옆면 모서리 밀착', '기구 전체 입체 재질: MCB·퓨즈·SMPS·PLC·서보·소켓·릴레이·타이머·단자대·조작판·컨베이어의 높이·옆면·외장 개선', '콘센트·플러그 실제 전원 연결, 풀린 코드와 자연스러운 갈파초 분기, 덕트 이빨 아래 전선 진입', '전원 케이블 외형: 묶은 검정 코드·90도 둥근 2핀 플러그·몰딩과 핀·갈파초 분기, 재료함·들고 놓는 그림 통일', '기본 작업판에 은은한 입체감: 화면 이동에 따른 얕은 옆면·그림자, SEOIL UA-52 회색 스토퍼와 흰 견출지 자리', '스토퍼 그래픽: 걸림턱·금속 고정부·중앙 나사·성형 외장, 손에 든 도구 그림도 통일', '구조물 그래픽: 철판 절단면·덕트 빗살과 커버·찬넬 절곡과 구멍·14P/8P 소켓 단자와 핀 구멍', '2D 재질 그래픽 1차: 금속 헤어라인·투명 릴레이와 구리 코일·기구 하우징·전선 반사광', '앱 아이콘 교체: 금속 제어판·노란 배선·두 줄 제목 디자인, 브라우저 탭 아이콘 적용', '온라인 랭킹: Supabase 익명 인증·세 종류 최고 기록 공유·오프라인 재전송', '고장 10개 선택 학습·클리어 뒤 이름 공개·난이도별 4단계 힌트', '고장 10연속 무힌트 랭크와 닉네임별 시험·선 따기·고장 기기 내 랭킹', '설치형 자동 업데이트: 새 버전 확인·다운로드·작업 저장 후 재시작 적용', 'Electron 설치형 게임: 오프라인 실행, F11 전체 화면, 독립 자동 저장, TXT·CSV 파일 저장', '성능 개선: 기구·전선 부분 갱신, 동작 중 배선 경로 재사용, 타이 이동 계산을 프레임당 한 번으로 묶기', '실전 고장 실습: 무작위 고장 1개·2개, 단계별 힌트, 독립 저장과 실제 동작 판정', '3D 작업실 메뉴·실행 코드 제거, 기존 주소는 2D 메인으로 이동', '메인 메뉴의 퀴즈와 문제은행·진행 저장 기능 제거', '전원 케이블: 갈색 R·파란색 T·초록색 E를 바닥에서 한 가닥씩 연결하고 오결선 차단', '휠 버튼 화면 이동: 프레임 단위 갱신과 화면 크기 재사용으로 지연 감소', '헬리컬 밴드 구간 고정: 케이블 타이는 밴드 끝의 노출 전선만 변형', '표시등 옆 진입 배선의 불필요한 위쪽 고리 제거', '전선 모양 재사용·거리 계산·화면 갱신 최적화로 마우스 조작 개선', 'HMI 아래 표시등 배선을 왼쪽 90도 진입으로 정리', '단자대 견출지 편집, 전원·컨베이어 단자 자유 배치와 실제 회로 검사', '기구 해설: 초보자용 역할 설명, 현재 상태, 쉬운 그림으로 개편', '작업판 접점 표시 기능과 관련 버튼·설정 제거', '기구 해설(I): 설치된 기구를 눌러 단자 결선도와 현재 상태 확인', '채점표: 감점 항목의 관련 위치를 확대하고 표시', '단자 검색: 기호·한글 이름 검색, 실제 배선 연결 추적', '회로·고장 10종·채점·저장과 화면 조작 자동 검증 추가', '고장 찾기 연습 (챕터 7): 증상을 보고 원인을 찾아 고쳐요. 고장 10가지', '테스터 (M): 단자 두 개에 대면 MCB ON은 전압, OFF는 도통', '회로 해설: 교류·자동(A)·수동(M) 회로를 장면별로, 공통선·신호, 기기 역할', '연습 실패 화면: 해야 했던 것, 한 것, 이유. 이어서 하기', '퓨즈는 동작 검사 단계에서 끼워요', '메인 화면: 연습 모드, 자유 모드, 시험 모드, 도움말', '연습 모드: 챕터마다 한 가지씩. 할 자리를 빨간 테두리로 알려주고, 다른 곳에 하거나 다른 걸 하면 실패', '재료함, 할 일 칸을 화살표로 접고 펴기', '시험 모드: 자유 모드 작업과 따로 저장', '시연 보기의 1과제 동작 체크'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -6990,7 +6990,7 @@ function pracCapUI() {
   if (MODE !== 'prac' || !L || DEMO.on) { el.hidden = true; $('#boardWrap').style.removeProperty('--toast-top'); return; }
   const [n, m] = L.prog(), c = PRAC.cur || (PRAC.state === 'win' ? { tx: '성공!' } : PRAC.state === 'fail' ? { tx: '실패' } : {});
   el.innerHTML = `<div class="dc-h"><b>연습 ${L.id}</b><span>${esc(L.t)}</span><span class="dc-all">${n} / ${m}</span></div><div class="pc-bar"><i style="width:${Math.round(100 * Math.min(1, n / Math.max(1, m)))}%"></i></div>`
-    + (c.tx ? `<div class="dc-t">${esc(c.tx)}</div>` : '') + (c.sub ? `<div class="dc-s">${esc(c.sub)}</div>` : '') + (L.btn && PRAC.state === 'run' ? `<button data-pr="${L.btn[0]}">${L.btn[1]}</button>` : '');
+    + (c.tx ? `<div class="dc-t">${esc(c.tx)}</div>` : '') + (c.sub ? `<div class="dc-s">${esc(c.sub)}</div>` : '') + (L.btn && PRAC.state === 'run' ? `<button data-pr="${L.btn[0]}">${L.btn[1]}</button>` : '') + (L.fault && PRAC.state==='run' ? `<button data-pr="hint"${PRAC.hint>=2?' disabled':''}>힌트 ${PRAC.hint} / 2</button>` : '');
   el.hidden = false; $('#boardWrap').style.setProperty('--toast-top', (el.offsetHeight + 18) + 'px');
 }
 function renderPracSide() {   // 오른쪽 칸: 이 챕터의 레슨, 다음에 할 것, 버튼
@@ -7291,6 +7291,7 @@ function fdRetry(confirmed = false) {
 function fdHint(index) {
   if (MODE !== 'fault' || S.fault.status !== 'run' || !Number.isInteger(index) || index < 0 || index >= S.fault.ids.length) return;
   S.fault.hints[index] = Math.min(fdLimit(S.fault), S.fault.hints[index] + 1); save(); renderSteps();
+  if(!$('#modal').hidden&&$('#faultHints'))$('#faultHints').innerHTML=faultHintsHTML();
 }
 function fdLocate(index) {
   if (MODE !== 'fault' || !fdLimit(S.fault) || !Number.isInteger(index) || !(S.fault.hints[index] >= 3)) return;
@@ -7329,10 +7330,20 @@ function fdAction(button) {
   if (action === 'resume') return fdResume();
   if (action === 'menu') return showHome('fault');
   if (action === 'judge') return fdJudge();
+  if (action === 'show-hints') return showFaultHints();
   if (action === 'hint') return fdHint(Number(button.dataset.index));
-  if (action === 'locate') return fdLocate(Number(button.dataset.index));
+  if (action === 'locate') { if(button.closest('#faultHints'))closeModal();return fdLocate(Number(button.dataset.index)); }
   if (action === 'retry') return fdRetry();
   if (action === 'next') return fdNext();
+}
+function faultHintsHTML() {
+  const f=S.fault;
+  if(MODE!=='fault'||f.status!=='run'||!fdLimit(f))return '';
+  return f.ids.map((id,i) => `<div class="pr-card fault-hint"><b>단계별 힌트 ${f.ids.length > 1 ? i+1 : ''}</b><p>${fdKind(f)==='study'?'학습: 정답까지 4단계':fdKind(f)==='intro'?'입문: 핵심 해결 방법까지 3단계':'도전: 가벼운 해결 방법까지 2단계'}</p>${[FD_NAMES[id], FD_HINTS[id][0], FD_CORE[id], FD_SOURCE[id].reveal].slice(0,f.hints[i]).map((text,n)=>`<p><b>${n+1}. ${FD_HINT_LABELS[n]}</b><br>${esc(text)}</p>`).join('')}${f.hints[i]>=3?`<button data-fd="locate" data-index="${i}">핵심 위치 보기</button>`:''}<button data-fd="hint" data-index="${i}"${f.hints[i]>=fdLimit(f)?' disabled':''}>${f.hints[i]>=fdLimit(f)?'이 모드의 힌트를 모두 봤어요':`${f.hints[i]+1}단계 · ${FD_HINT_LABELS[f.hints[i]]} 보기`}</button></div>`).join('');
+}
+function showFaultHints() {
+  const hints=faultHintsHTML();if(!hints)return;
+  openModal(`<h2>단계별 힌트</h2><div id="faultHints">${hints}</div><div class="actions"><button data-act="close">작업으로 돌아가기</button></div>`);
 }
 function renderFaultSide() {
   const f = S.fault, checked = f.lastCheck && f.lastCheck.key === judgeKey();
@@ -7340,11 +7351,11 @@ function renderFaultSide() {
   $('#steps').innerHTML = `<li class="examcard"><b>${esc(fdTitle(f))}</b><p>처음 확인된 증상이에요. 어디가 고장인지 직접 찾아요.</p></li>` + f.symptoms.map((t,i) => `<li class="todo"><span class="no">증상 ${i+1}</span><span class="tt">${esc(t)}</span></li>`).join('');
   $('#nextWrap').innerHTML = `<div class="pr-card"><b>${f.status === 'win' ? '해결 완료' : '측정 → 수리 → 동작 검사'}</b><p>MCB와 조작판·팩으로 동작을 확인해요. 테스터(M)는 단자 두 곳을 차례로 눌러요. MCB ON은 전압, OFF는 도통이에요.</p><p>틀려도 실패하지 않아요. 전선을 고칠 때는 MCB를 내리고 작업해요.</p>${f.lastCheck ? `<p>${f.status === 'win' ? '배선·동작 검사 통과' : checked ? `마지막 검사: ${f.lastCheck.bad.length}개 항목 미통과` : '배선을 수정했어요. 동작 검사를 다시 받아요.'} · 검사 ${f.attempts}회</p>` : ''}</div>`
     + `<div class="pr-btns">${f.status === 'run' ? '<button class="primary" data-fd="judge">동작 검사 받기</button>' : '<button class="primary" data-fd="next">다른 고장 풀기</button>'}<button data-fd="retry">${fdKind(f)==='rank'?'랭크 처음부터':'같은 고장 다시'}</button><button data-fd="menu">실습 메뉴</button></div>`
-    + (f.status === 'run' && fdLimit(f) ? f.ids.map((id,i) => `<div class="pr-card fault-hint"><b>단계별 힌트 ${f.ids.length > 1 ? i+1 : ''}</b><p>${fdKind(f)==='study'?'학습: 정답까지 4단계':fdKind(f)==='intro'?'입문: 핵심 해결 방법까지 3단계':'도전: 가벼운 해결 방법까지 2단계'}</p>${[FD_NAMES[id], FD_HINTS[id][0], FD_CORE[id], FD_SOURCE[id].reveal].slice(0,f.hints[i]).map((text,n)=>`<p><b>${n+1}. ${FD_HINT_LABELS[n]}</b><br>${esc(text)}</p>`).join('')}${f.hints[i]>=3?`<button data-fd="locate" data-index="${i}">핵심 위치 보기</button>`:''}<button data-fd="hint" data-index="${i}"${f.hints[i]>=fdLimit(f)?' disabled':''}>${f.hints[i]>=fdLimit(f)?'이 모드의 힌트를 모두 봤어요':`${f.hints[i]+1}단계 · ${FD_HINT_LABELS[f.hints[i]]} 보기`}</button></div>`).join('') : fdKind(f)==='rank' ? '<div class="pr-card"><b>무힌트 랭크</b><p>10개를 모두 해결하면 총시간이 기록돼요. 메뉴에서도 시간은 계속 흘러요.</p></div>' : '');
+    + (f.status === 'run' && fdLimit(f) ? faultHintsHTML() : fdKind(f)==='rank' ? '<div class="pr-card"><b>무힌트 랭크</b><p>10개를 모두 해결하면 총시간이 기록돼요. 메뉴에서도 시간은 계속 흘러요.</p></div>' : '');
 }
 function faultCapUI() {
   const el = $('#pracCap'), f = S.fault;
-  el.innerHTML = `<div class="dc-h"><b>실전 고장 실습</b><span>${esc(fdTitle(f))}</span></div><div class="dc-t">${f.status === 'win' ? '해결 완료!' : '증상을 확인하고 원인을 찾아 고쳐요'}</div><div class="dc-s">오른쪽 증상 확인 · M 테스터 · 전선 수정 전 MCB OFF</div>${f.status === 'run' ? '<button data-fd="judge">동작 검사 받기</button>' : '<button data-fd="next">다른 고장 풀기</button>'}`;
+  el.innerHTML = `<div class="dc-h"><b>실전 고장 실습</b><span>${esc(fdTitle(f))}</span></div><div class="dc-t">${f.status === 'win' ? '해결 완료!' : '증상을 확인하고 원인을 찾아 고쳐요'}</div><div class="dc-s">오른쪽 증상 확인 · M 테스터 · 전선 수정 전 MCB OFF</div>${f.status === 'run' ? `<button data-fd="judge">동작 검사 받기</button> ${fdLimit(f)?'<button data-fd="show-hints">힌트 보기</button>':'<span class="dc-s"> · 무힌트 랭크</span>'}` : '<button data-fd="next">다른 고장 풀기</button>'}`;
   el.hidden = false; $('#boardWrap').style.setProperty('--toast-top', (el.offsetHeight + 18) + 'px');
 }
 function homeFaultHTML() {
@@ -7518,7 +7529,7 @@ $('#home').addEventListener('click', e => {
   if (a === 'set') return showSettings();
   if (a === 'ver') openModal(`<h2>현재 버전 ${APP_VER.v}</h2><p class="muted">${APP_VER.date}</p><ul>${APP_VER.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul><div class="actions"><button class="primary" data-act="close">닫기</button></div>`);
 });
-$('#pracCap').addEventListener('click', e => { const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd); const b = e.target.closest('[data-pr]'); if (b && b.dataset.pr === 'judge') takeJudge(); if (b && b.dataset.pr === 'fjudge') faultJudge(); });
+$('#pracCap').addEventListener('click', e => { const fd = e.target.closest('[data-fd]'); if (fd) return fdAction(fd); const b = e.target.closest('[data-pr]'); if (b && b.dataset.pr === 'judge') takeJudge(); if (b && b.dataset.pr === 'fjudge') faultJudge(); if(b && b.dataset.pr==='hint')$('.side [data-act="pr-hint"]')?.click(); });
 $('#btnHome').addEventListener('click', () => showHome());
 $('#brand').addEventListener('click', () => showHome());
 $('#brand').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showHome(); } });

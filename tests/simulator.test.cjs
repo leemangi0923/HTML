@@ -1466,6 +1466,27 @@ test('random fault bags cover every case before repeating and avoid a repeated b
   }
 });
 
+test('fault hints remain reachable from the board with a collapsed sidebar and on narrow screens',async()=>{
+  for(const width of [1280,390]){
+    await page.setViewportSize({width,height:850});
+    await page.evaluate(()=>{fdEnter(fdBuild([1],'intro'));document.querySelector('.main').classList.add('side-off');});
+    const open=page.locator('#pracCap [data-fd="show-hints"]');await open.click();
+    assert.equal(await page.locator('#faultHints').isVisible(),true);
+    assert.deepEqual(await page.evaluate(()=>S.fault.hints),[0]);
+    for(let n=1;n<=3;n++){await page.locator('#faultHints [data-fd="hint"]').click();assert.deepEqual(await page.evaluate(()=>S.fault.hints),[n]);}
+    assert.equal(await page.locator('#faultHints [data-fd="hint"]').isDisabled(),true);
+    await page.locator('#faultHints [data-fd="locate"]').click();
+    assert.equal(await page.locator('#modal').isHidden(),true);assert.ok(await page.locator('#faultHintMarks circle').count()>0);
+    await page.evaluate(()=>{pracStart(LESSONS.find(l=>l.fault).id);closeModal();});
+    const hint=page.locator('#pracCap [data-pr="hint"]');await hint.click();
+    assert.equal(await page.evaluate(()=>PRAC.hint),1);assert.equal(await page.evaluate(()=>PRAC.assist),true);
+    await hint.click();assert.equal(await hint.isDisabled(),true);
+  }
+  await page.evaluate(()=>fdRankStart(true));
+  assert.equal(await page.locator('#pracCap [data-fd="show-hints"]').count(),0);
+  await page.evaluate(()=>showFaultHints());assert.equal(await page.locator('#modal').isHidden(),true);
+});
+
 test('fault practice shows symptoms first, reveals hints in stages, and resumes without changing other modes', async () => {
   await fullState();
   await page.evaluate(() => {
