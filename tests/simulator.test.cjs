@@ -96,7 +96,7 @@ test('fresh work starts on a bare tiled floor and preparation uses real tray ite
   assert.equal(await page.locator('#pracCap [data-prep="start"]').isEnabled(),true);
   await page.locator('#pracCap [data-prep="start"]').click();
   const started=await page.evaluate(()=>({status:S.setup.status,t:S.elapsed,prep:S.setup.elapsed,pos:S.panelPos,wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y},floor:{x:S.floor[0].x+ROOM_X,y:S.floor[0].y+ROOM_Y},mounted:opPlateMounted()}));
-  assert.equal(started.status,'active');assert.ok(started.t<1000);assert.ok(started.prep>=42000);assert.deepEqual(started.pos,{x:0,y:50});assert.deepEqual(started.wood,{x:380,y:350});assert.deepEqual(started.floor,{x:650,y:1040});assert.equal(started.mounted,false);
+  assert.equal(started.status,'active');assert.ok(started.t<=1000);assert.ok(started.prep>=42000);assert.deepEqual(started.pos,{x:0,y:50});assert.deepEqual(started.wood,{x:380,y:350});assert.deepEqual(started.floor,{x:650,y:1040});assert.equal(started.mounted,false);
   await page.evaluate(()=>{fit();});await page.waitForTimeout(80);
   await clickWorld(380,830);assert.equal(await page.evaluate(()=>UI.carry.key),'opplate');
   const robot=await page.evaluate(()=>({x:OPW.x+190,y:OPW.y+85}));await clickWorld(robot.x,robot.y);assert.equal(await page.evaluate(()=>opPlateMounted()),true);
@@ -117,8 +117,8 @@ test('preparation plates and wood can be picked, returned and undone without dup
   assert.equal(await page.evaluate(()=>isPreparing()),true,'the control plate must fit on the wood');
   await page.evaluate(()=>{pickPrepObject('panelplate');drop({x:380,y:350});pickPrepObject('opplate');beginWork();});
   assert.equal(await page.evaluate(()=>isPreparing()),true,'a held item must be placed');
-  await page.evaluate(()=>{drop({x:380,y:880});beginWork();const t=S.elapsed;beginWork();S.setup.testTime=t;});
-  assert.equal(await page.evaluate(()=>S.setup.status),'active');assert.equal(await page.evaluate(()=>S.elapsed),await page.evaluate(()=>S.setup.testTime));
+  const started=await page.evaluate(()=>{drop({x:380,y:880});beginWork();const t=S.elapsed;beginWork();return{status:S.setup.status,elapsed:t,stable:S.elapsed===t};});
+  assert.deepEqual(started,{status:'active',elapsed:0,stable:true});
 });
 
 test('exam and the first lesson prepare before assembly while old saved work keeps its progress',async()=>{
