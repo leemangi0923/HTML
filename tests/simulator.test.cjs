@@ -46,6 +46,22 @@ async function dragMainPanelTo(x,y){
   await page.mouse.move(p.x,p.y);await page.mouse.down();await page.mouse.move(p.x+p.dx,p.y+p.dy,{steps:6});await page.mouse.up();
 }
 
+test('L-shaped map unfolds a top-down robot tabletop above the flat front and leaves the upper-right outside the workspaces',async()=>{
+  await fullState();
+  const map=await page.evaluate(()=>{
+    const areas=Object.fromEntries(['robot','robotTop','floor','desk'].map(id=>[id,roomArea(id)])),op={x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y,w:OP.w,h:OP.h};
+    return {areas,op,front:$('[data-robot-station]').dataset.robotStation,top:$('[data-robot-tabletop]').dataset.robotTabletop,legs:!!$('[data-station-foot]'),extras:!!$('[data-tabletop-fixture],[data-tabletop-robot],[data-tabletop-tape],[data-station-hmi-stand]'),empty:!Object.values(areas).some(a=>inRect({x:ROOM.floorLeft+100,y:ROOM.top+100},a)),score:scoreSheet().total};
+  });
+  const {robot,robotTop:top,floor,desk}=map.areas;
+  assert.equal(top.x,robot.x);assert.equal(top.w,robot.w);assert.equal(top.y+top.h,robot.y);assert.equal(robot.x+robot.w,floor.x);assert.equal(floor.x+floor.w,desk.x);
+  assert.equal(map.front,'flat-front');assert.equal(map.top,'top-view');assert.equal(map.legs,false);assert.equal(map.extras,false);assert.equal(map.empty,true);assert.equal(map.score,30);
+  assert.ok(map.op.x>=top.x&&map.op.x+map.op.w<=top.x+top.w&&map.op.y>=top.y&&map.op.y+map.op.h<=top.y+top.h);
+  await page.locator('#zRobotTop').click();assert.equal(await page.evaluate(()=>UI.roomFocus),'robotTop');
+  const focus=await page.evaluate(()=>({x:UI.cam.x+ROOM_X+UI.cam.w/2,y:UI.cam.y+ROOM_Y+UI.cam.h/2}));assert.ok(focus.y<robot.y);assert.equal(focus.x,top.x+top.w/2);
+  await page.locator('#zFit').click();const bounds=await page.evaluate(()=>({x:UI.cam.x+ROOM_X,y:UI.cam.y+ROOM_Y,r:UI.cam.x+UI.cam.w+ROOM_X,b:UI.cam.y+UI.cam.h+ROOM_Y}));assert.ok(bounds.x<=top.x&&bounds.y<=top.y&&bounds.r>=desk.x+desk.w&&bounds.b>=floor.y+floor.h);
+  const rejected=await page.evaluate(()=>{setMode('free',newPreparationState());trayTap('hmi');dropOnFloor({x:ROOM.floorLeft+100-ROOM_X,y:ROOM.top+100-ROOM_Y});return S.floor.length===0&&UI.carry?.key==='hmi';});assert.equal(rejected,true);
+});
+
 test('tabletop HMI sits above the controller-left and task-right bays and a wired task docks by hand without losing work',async()=>{
   await fullState();await page.evaluate(()=>{S.finished=true;S.tool='hand';renderAll();});
   const before=await page.evaluate(()=>({wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),ties:nTies(),score:scoreSheet().total,wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y},cv:{x:S.conveyor.x+ROOM_X,y:S.conveyor.y+ROOM_Y},term:{...TERM['PLC.L']},op:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},dock:panelDockPosition(),layout:$('[data-station-controller]').getBoundingClientRect().right<$('[data-station-panel-slot]').getBoundingClientRect().left&&OPW.y+ROOM_Y+OP.h<260}));
@@ -84,7 +100,7 @@ test('each wider workspace fills the board on desktop, ultrawide and mobile and 
   await page.locator('[data-home="free"]').click();
   for(const viewport of [{width:1440,height:960},{width:2560,height:900},{width:390,height:844}]){
     await page.setViewportSize(viewport);
-    for(const[id,zone]of [['zRobot','robot'],['zFloor','floor'],['zDesk','desk']]){
+    for(const[id,zone]of [['zRobot','robot'],['zRobotTop','robotTop'],['zFloor','floor'],['zDesk','desk']]){
       await page.locator('#'+id).click();
       const r=await page.evaluate(zone=>{const rect=svg.getBoundingClientRect(),left=roomLeft(zone)-ROOM_X;return{fills:UI.cam.x>=left-.01&&UI.cam.x+UI.cam.w<=left+ROOM.width+.01,ratio:UI.cam.w/UI.cam.h-rect.width/rect.height,width:ROOM.width,focus:UI.roomFocus};},zone);
       assert.equal(r.fills,true,zone);assert.ok(Math.abs(r.ratio)<1e-6);assert.equal(r.width,2400);assert.equal(r.focus,zone);
@@ -139,9 +155,11 @@ test('fresh work starts on a bare tiled floor and preparation uses real tray ite
   assert.equal(started.status,'active');assert.ok(started.t<=1000);assert.ok(started.prep>=42000);assert.deepEqual(started.pos,{x:0,y:50});assert.deepEqual(started.wood,{x:380,y:350});assert.deepEqual(started.floor,{x:650,y:1040});assert.equal(started.mounted,false);
   await page.evaluate(()=>{fit();});await page.waitForTimeout(80);
   await clickWorld(380,830);assert.equal(await page.evaluate(()=>UI.carry.key),'opplate');
+  await page.locator('#zRobotTop').click();assert.equal(await page.evaluate(()=>UI.carry.key),'opplate');
   const robot=await page.evaluate(()=>({x:OPW.x+190,y:OPW.y+85}));await clickWorld(robot.x,robot.y);assert.equal(await page.evaluate(()=>opPlateMounted()),true);
   assert.equal(await page.locator('#gWorld [data-prep-plate="opplate"]').count(),0);
-  await clickWorld(650,990);assert.equal(await page.evaluate(()=>UI.carry.key),'hmi');
+  await page.evaluate(()=>fit());await page.waitForTimeout(80);
+  await clickWorld(650,990);assert.equal(await page.evaluate(()=>UI.carry.key),'hmi');await page.locator('#zRobotTop').click();
   const hmi=await page.evaluate(()=>({x:OPW.x+OP.cut.x+OP.cut.w/2,y:OPW.y+OP.cut.y+OP.cut.h/2}));
   await clickWorld(hmi.x,hmi.y);assert.equal(await page.evaluate(()=>S.op.hmi),true);assert.equal(await page.evaluate(()=>S.floor.length),0);
   const fixed=await page.evaluate(()=>{positionPanel(ROOM.deskPanelX,50);renderAll();return{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y,left:trayItems().find(i=>i.key==='wood').left};});
