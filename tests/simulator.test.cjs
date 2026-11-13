@@ -1131,14 +1131,15 @@ test('label tool opens the physical white terminal label and cancel leaves data 
 });
 
 test('power cable is placed on the floor and its three colored leads connect individually', async () => {
-  await fullState();await page.evaluate(()=>{S.cables={power:false};S.tbCover=false;LIVE.inp.mcb=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};buildTerms();renderAll();fitTo({x:-960,y:440,w:1760,h:450});});
+  await fullState();await page.evaluate(()=>{S.cables={power:false};S.tbCover=false;LIVE.inp.mcb=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};buildTerms();renderAll();fitTo({x:POWER_POS.x-80,y:POWER_POS.y-150,w:440,h:300});});
   const floorPoint=await page.evaluate(()=>({...POWER_POS}));await clickWorld(floorPoint.x,floorPoint.y);
   assert.deepEqual(await page.evaluate(()=>S.cables.powerLeads),{});
   assert.equal(await page.evaluate(()=>S.cables.power),false);
   assert.equal(await page.evaluate(()=>UI.carry),null);
   for(const [k,n] of [['R',1],['T',2],['E',3]]) {
     const p=await page.evaluate(({k,n})=>({a:powerLeadEnd(k),b:TERM[`TB.${n}.b`]}),{k,n});
-    await clickWorld(p.a.x,p.a.y);await clickWorld(p.b.x,p.b.y);
+    await page.evaluate(p=>fitTo({x:p.a.x-100,y:p.a.y-90,w:220,h:180}),p);await clickWorld(p.a.x,p.a.y);
+    await page.evaluate(()=>fitPanel());await clickWorld(p.b.x,p.b.y);
     assert.equal(await page.evaluate(k=>powerLeadMap(S.cables)[k],k),`TB.${n}.b`);
     assert.equal(await page.evaluate(()=>S.cables.power),k==='E');
   }
