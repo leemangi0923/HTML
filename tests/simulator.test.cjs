@@ -40,6 +40,32 @@ async function fullState() {
   await page.waitForTimeout(60); // Allow the existing camera requestAnimationFrame to finish.
 }
 
+async function dragMainPanelTo(x,y){
+  await page.evaluate(()=>fit());await page.waitForTimeout(70);
+  const p=await page.evaluate(({x,y})=>{const r=svg.getBoundingClientRect(),v=projectWorkPoint({x:4,y:300});return{x:r.left+(v.x-UI.cam.x)/UI.cam.w*r.width,y:r.top+(v.y-UI.cam.y)/UI.cam.h*r.height,dx:(x-S.panelPos.x)/UI.cam.w*r.width,dy:(y-S.panelPos.y)/UI.cam.h*r.height};},{x,y});
+  await page.mouse.move(p.x,p.y);await page.mouse.down();await page.mouse.move(p.x+p.dx,p.y+p.dy,{steps:6});await page.mouse.up();
+}
+
+test('tabletop HMI sits above the controller-left and task-right bays and a wired task docks by hand without losing work',async()=>{
+  await fullState();await page.evaluate(()=>{S.finished=true;S.tool='hand';renderAll();});
+  const before=await page.evaluate(()=>({wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),ties:nTies(),score:scoreSheet().total,wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y},cv:{x:S.conveyor.x+ROOM_X,y:S.conveyor.y+ROOM_Y},term:{...TERM['PLC.L']},op:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},dock:panelDockPosition(),layout:$('[data-station-controller]').getBBox().x+$('[data-station-controller]').getBBox().width<$('[data-station-panel-slot]').getBBox().x&&OPW.y+ROOM_Y+OP.h<260}));
+  assert.equal(before.layout,true);assert.equal(before.score,30);
+  await dragMainPanelTo(before.dock.x,before.dock.y);
+  const mounted=await page.evaluate(()=>({mounted:S.panelDocked,pos:S.panelPos,place:panelWorkplace(),wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),ties:nTies(),score:scoreSheet().total,wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y},cv:{x:S.conveyor.x+ROOM_X,y:S.conveyor.y+ROOM_Y},term:{...TERM['PLC.L']},op:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},front:PROJECTION.models.filter(r=>/^(panel$|frame-|stopper-|device-|servo$)/.test(r.surface.closest('[data-scene-part]')?.dataset.scenePart||'')).every(r=>r.tx===0&&r.ty===0),outside:bandCurve().slice(1).every(([x,y])=>x<=0||x>=PANEL.w||y<=0||y>=PANEL.h)}));
+  assert.equal(mounted.mounted,true);assert.deepEqual(mounted.pos,before.dock);assert.equal(mounted.place,'robot');assert.equal(mounted.front,true);assert.equal(mounted.outside,true);
+  for(const k of ['wires','inst','ties','score','wood','cv','term','op'])assert.deepEqual(mounted[k],before[k],k);
+  await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="free"]').click();
+  assert.equal(await page.evaluate(()=>S.panelDocked),true);assert.deepEqual(await page.evaluate(()=>S.panelPos),before.dock);
+  await dragMainPanelTo(2400,0);assert.equal(await page.evaluate(()=>S.panelDocked),false);assert.equal(await page.evaluate(()=>panelWorkplace()),'desk');
+  await page.evaluate(()=>undo());assert.equal(await page.evaluate(()=>S.panelDocked),true);assert.deepEqual(await page.evaluate(()=>S.panelPos),before.dock);
+});
+
+test('dropping on the controller bay returns the task to its starting position',async()=>{
+  await page.evaluate(()=>{setMode('free',newState(false));S.finished=true;});
+  const invalid=await page.evaluate(()=>({x:STATION.x+150,y:340}));await dragMainPanelTo(invalid.x,invalid.y);
+  assert.deepEqual(await page.evaluate(()=>S.panelPos),{x:0,y:0});assert.equal(await page.evaluate(()=>S.panelDocked),false);assert.match(await page.locator('#toast').textContent(),/오른쪽 철판/);
+});
+
 test('each wider workspace fills the board on desktop, ultrawide and mobile and stays filled after resizing',async()=>{
   await page.locator('[data-home="free"]').click();
   for(const viewport of [{width:1440,height:960},{width:2560,height:900},{width:390,height:844}]){
