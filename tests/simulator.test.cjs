@@ -50,11 +50,11 @@ test('L-shaped map unfolds a top-down robot tabletop above the flat front and le
   await fullState();
   const map=await page.evaluate(()=>{
     const areas=Object.fromEntries(['robot','robotTop','floor','desk'].map(id=>[id,roomArea(id)])),op={x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y,w:OP.w,h:OP.h};
-    return {areas,op,front:$('[data-robot-station]').dataset.robotStation,top:$('[data-robot-tabletop]').dataset.robotTabletop,legs:!!$('[data-station-foot]'),stand:!!$('[data-station-hmi-stand]'),extras:!!$('[data-tabletop-fixture],[data-tabletop-robot],[data-tabletop-tape]'),empty:!Object.values(areas).some(a=>inRect({x:ROOM.floorLeft+100,y:ROOM.top+100},a)),score:scoreSheet().total};
+    return {areas,op,front:$('[data-robot-station]').dataset.robotStation,top:$('[data-robot-tabletop]').dataset.robotTabletop,legs:!!$('[data-station-foot]'),stand:$('[data-station-hmi-stand]')?.dataset.stationHmiStand,extras:!!$('[data-tabletop-fixture],[data-tabletop-robot],[data-tabletop-tape]'),empty:!Object.values(areas).some(a=>inRect({x:ROOM.floorLeft+100,y:ROOM.top+100},a)),score:scoreSheet().total};
   });
   const {robot,robotTop:top,floor,desk}=map.areas;
   assert.equal(top.x,robot.x);assert.equal(top.w,robot.w);assert.equal(top.y+top.h,robot.y);assert.equal(robot.x+robot.w,floor.x);assert.equal(floor.x+floor.w,desk.x);
-  assert.equal(map.front,'flat-front');assert.equal(map.top,'top-view');assert.equal(map.legs,false);assert.equal(map.extras,false);assert.equal(map.stand,true);assert.equal(map.empty,true);assert.equal(map.score,30);
+  assert.equal(map.front,'flat-front');assert.equal(map.top,'top-view');assert.equal(map.legs,false);assert.equal(map.extras,false);assert.equal(map.stand,'top-view');assert.equal(map.empty,true);assert.equal(map.score,30);
   assert.ok(map.op.x>=top.x&&map.op.x+map.op.w<=top.x+top.w&&map.op.y>=top.y&&map.op.y+map.op.h<=top.y+top.h);
   await page.locator('#zRobotTop').click();assert.equal(await page.evaluate(()=>UI.roomFocus),'robotTop');
   const focus=await page.evaluate(()=>({x:UI.cam.x+ROOM_X+UI.cam.w/2,y:UI.cam.y+ROOM_Y+UI.cam.h/2}));assert.ok(focus.y<robot.y);assert.equal(focus.x,top.x+top.w/2);
