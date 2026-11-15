@@ -529,6 +529,8 @@ test('search flips to rear terminals and traces actual wires, not reference answ
   await page.locator('[data-term="OP.BZ.1"][data-trace="1"]').click();
   assert.equal(await page.evaluate(() => S.opBack), true);
   assert.ok(await page.locator('#inspectionMarks .inspect-wire').count() > 0);
+  assert.equal(await page.evaluate(()=>{const t=projectWorkPoint(TERM['OP.BZ.1']),c=UI.cam;return UI.roomFocus==='robotTop'&&t.x>=c.x&&t.x<=c.x+c.w&&t.y>=c.y&&t.y<=c.y+c.h;}),true,'search keeps its terminal visible in its own room');
+  await page.locator('#zFit').click();
   assert.ok(await page.evaluate(() => {
     const ids = tracedTermIds(UI.inspection.id), c = UI.cam;
     return S.wires.filter(w => ids.has(w.a) && ids.has(w.b)).every((w) => (wirePts(w, S.wires.indexOf(w)) || []).every(([x,y]) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h));
@@ -1542,9 +1544,9 @@ test('pointer cancel clears a pending selection rectangle without a stale next-f
     svg.dispatchEvent(new PointerEvent('pointermove',{clientX:b.left+80,clientY:b.top+80,pointerId:1,pointerType:'mouse',bubbles:true}));
     svg.dispatchEvent(new PointerEvent('pointercancel',{pointerId:1,pointerType:'mouse',bubbles:true}));
     // A legitimate ResizeObserver update can change projection transforms after the hint bar changes height.
-    const markup=()=>gOver._parts.map(n=>n._markup).join('');
-    const html=markup();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
-    return{gesture:UI.gesture,pending:overlayFrame,stable:html===markup()};
+    const draft=()=>gOver.querySelectorAll('[data-dress-selection]').length;
+    const before=draft();await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    return{gesture:UI.gesture,pending:overlayFrame,stable:before===0&&draft()===0&&UI.dboxEnd===null};
   });
   assert.deepEqual(r,{gesture:null,pending:0,stable:true});
 });
@@ -1631,7 +1633,7 @@ test('helical covering pins wires while ties move exposed tails in either endpoi
 });
 
 test('middle-button pan batches camera writes, reuses geometry and preserves the final position', async()=>{
-  await fullState();await page.evaluate(()=>hideHome());
+  await fullState();await page.evaluate(()=>{hideHome();const r=svg.getBoundingClientRect();UI.cam={x:-100,y:100,w:1100,h:1100*r.height/r.width};applyCam(r);});
   const b=await page.locator('#board').boundingBox(),x=b.x+100,y=b.y+100;
   await page.mouse.move(x,y);await page.mouse.down({button:'middle'});
   const r=await page.evaluate(async({x,y})=>{
@@ -1665,10 +1667,11 @@ test('camera cancellation and lost capture flush pending movement without leavin
       svg.dispatchEvent(new PointerEvent('pointermove',{clientX:r.left+90,clientY:r.top+70,pointerId:1,pointerType:'mouse',buttons:4,bubbles:true}));
       if(ending==='blur')window.dispatchEvent(new Event('blur'));else svg.dispatchEvent(new PointerEvent(ending,{pointerId:1,pointerType:'mouse',bubbles:true}));
       const view=svg.getAttribute('viewBox');await new Promise(done=>requestAnimationFrame(done));
-      return {pending:cameraFrame,gesture:UI.gesture,panning:document.body.classList.contains('panning'),stable:view===svg.getAttribute('viewBox')};
+      return {pending:cameraFrame,gesture:UI.gesture,panning:document.body.classList.contains('panning')||FRAME_STREAM.gesture||FRAME_STREAM.active,stable:view===svg.getAttribute('viewBox')};
     },ending);
     assert.deepEqual(result,{pending:0,gesture:null,panning:false,stable:true});
   }
+  assert.equal(await page.evaluate(()=>{const r=svg.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,.95);window.dispatchEvent(new Event('blur'));return !FRAME_STREAM.gesture&&!FRAME_STREAM.active&&!cameraFrame&&!wheelEnd&&!document.body.classList.contains('panning');}),true,'blur also cancels wheel-only streaming');
 });
 
 test('touch pinch and left-button camera drag keep their final camera and refresh zoom detail',async()=>{

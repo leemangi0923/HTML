@@ -4943,8 +4943,8 @@ function dressOver(p, px1) {   // 고르는 상자, 고른 전선, 넣을 수 �
     for (const [id, n] of Object.entries(cnt)) s += hr(holeOf(id), n === sel.length ? '#22c55e' : '#f3c11b', .8);
   }
   const hv = p && UI.overBoard && !g ? holeNear(p) : null; if (hv) s += hr(hv, '#ffffff', 1.6);
-  if (g && tuckMode(g, UI.dboxEnd)) return s + tuckOver(g, UI.dboxEnd, px1);
-  if (g) { const r = boxOf(g.p0, UI.dboxEnd), n = endsIn(r).length; s += R(r.x, r.y, r.w, r.h, `fill="#f3c11b" fill-opacity=".08" stroke="#f3c11b" stroke-width="${F(1.6 * px1)}" stroke-dasharray="${F(6 * px1)} ${F(4 * px1)}" pointer-events="none"`) + `<text x="${F(r.x + r.w + 8 * px1)}" y="${F(r.y + r.h + 4 * px1)}" font-size="${F(12 * px1)}" font-weight="800" fill="#f3c11b" stroke="#1a1a1a" stroke-width="${F(3 * px1)}" paint-order="stroke" pointer-events="none">전선 끝 ${n}개</text>`; }
+  if (g && tuckMode(g, UI.dboxEnd)) return s + '<g data-dress-selection>'+tuckOver(g, UI.dboxEnd, px1)+'</g>';
+  if (g) { const r = boxOf(g.p0, UI.dboxEnd), n = endsIn(r).length; s += R(r.x, r.y, r.w, r.h, `data-dress-selection fill="#f3c11b" fill-opacity=".08" stroke="#f3c11b" stroke-width="${F(1.6 * px1)}" stroke-dasharray="${F(6 * px1)} ${F(4 * px1)}" pointer-events="none"`) + `<text x="${F(r.x + r.w + 8 * px1)}" y="${F(r.y + r.h + 4 * px1)}" font-size="${F(12 * px1)}" font-weight="800" fill="#f3c11b" stroke="#1a1a1a" stroke-width="${F(3 * px1)}" paint-order="stroke" pointer-events="none">전선 끝 ${n}개</text>`; }
   return s;
 }
 function segDist(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy; let t = l ? ((p.x - a[0]) * dx + (p.y - a[1]) * dy) / l : 0; t = clamp(t, 0, 1); return Math.hypot(p.x - (a[0] + t * dx), p.y - (a[1] + t * dy)); }
@@ -5524,8 +5524,10 @@ function inspectTerms(id, trace) {
   closeTermSearch(); closeModal(); renderAll();
   const t = TERM[id], visible = trace ? all.filter(t => ids.has(t.id)) : [t], points = [...visible];
   if (trace) S.wires.forEach((w, i) => { if (ids.has(w.a) && ids.has(w.b)) for (const [x, y] of wirePts(w, i) || []) points.push({ x, y }); });
-  const x = Math.min(...points.map(t => t.x)), y = Math.min(...points.map(t => t.y));
-  fitTo({ x: x - 60, y: y - 60, w: Math.max(200, Math.max(...points.map(t => t.x)) - x + 120), h: Math.max(160, Math.max(...points.map(t => t.y)) - y + 120) });
+  const target=projectWorkPoint(t),focus=roomForBounds({x:target.x,y:target.y,w:0,h:0}),area=roomArea(focus),bounds={x:area.x-ROOM_X,y:area.y-ROOM_Y,w:area.w,h:area.h};
+  const local=points.map(p=>projectWorkPoint(p)).filter(p=>inRect(p,bounds));if(!local.length)local.push(target);
+  const x = Math.min(...local.map(t => t.x)), y = Math.min(...local.map(t => t.y));
+  fitTo({ x: x - 60, y: y - 60, w: Math.max(200, Math.max(...local.map(t => t.x)) - x + 120), h: Math.max(160, Math.max(...local.map(t => t.y)) - y + 120) },false,focus);
   say(trace ? `${id}: 연결된 단자 ${visible.length}개와 전선을 강조했어요` : `${id}: ${wireName(id)}`, 'info');
 }
 function inspectionOverlay() {
@@ -6071,8 +6073,8 @@ function endCameraGesture() {
   if(UI.mouse)UI.pointer=toWorkWorld(UI.mouse.x,UI.mouse.y);
   UI.hoverTerm=null;renderOver();if(UI.lens||UI.lensPin)lensUpdate();updateFollower();
 }
-function fitTo(b,all=false) {
-  settleCameraMotion();UI.roomFocus=all?null:roomForBounds(b);
+function fitTo(b,all=false,focus=null) {
+  settleCameraMotion();UI.roomFocus=all?null:focus||roomForBounds(b);
   const r = svg.getBoundingClientRect(), asp = r.height / Math.max(1, r.width); let w = b.w, h = b.w * asp;
   if (h < b.h) { h = b.h; w = h / asp; }
   UI.cam = { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h }; constrainRoomCamera(r);applyCam(r); renderOver();scheduleFrameBake();
@@ -6270,9 +6272,9 @@ svg.addEventListener('pointerup', e => {
   if (!UI.ptrs.size || (g && g.type === 'pinch')) UI.gesture = null;
   if(wasCamera)endCameraGesture();
 });
-svg.addEventListener('pointercancel', e => { flushCamera();flushPointerOverlay(); const g = UI.gesture; if(g?.type==='panelmove'){UI.ptrs.delete(e.pointerId);finishPanelDrag(g);return;} if (g && g.type === 'tiemove' && g.moved) flushTieMove(g); UI.ptrs.delete(e.pointerId); UI.gesture = null; UI.hcovLive = null; document.body.classList.remove('panning'); if (g && g.type === 'tiemove' && g.moved) commit(); renderOver(); });
-svg.addEventListener('lostpointercapture',()=>{if(UI.gesture?.type==='panelmove'){const g=UI.gesture;UI.ptrs.clear();finishPanelDrag(g);}else if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}else if(UI.gesture?.type==='tiemove'){const g=UI.gesture;flushTieMove(g);UI.gesture=null;UI.ptrs.clear();if(g.moved)commit();}});
-window.addEventListener('blur',()=>{if(UI.gesture?.type==='panelmove'){const g=UI.gesture;UI.ptrs.clear();finishPanelDrag(g);}else if(cameraGestureActive()){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}else if(UI.gesture?.type==='tiemove'){const g=UI.gesture;flushTieMove(g);UI.gesture=null;UI.ptrs.clear();if(g.moved)commit();}});
+svg.addEventListener('pointercancel', e => { const camera=cameraGestureActive()||FRAME_STREAM.gesture;flushCamera();flushPointerOverlay(); const g = UI.gesture; if(g?.type==='panelmove'){UI.ptrs.delete(e.pointerId);finishPanelDrag(g);return;} if (g && g.type === 'tiemove' && g.moved) flushTieMove(g); UI.ptrs.delete(e.pointerId); UI.gesture = null; UI.dboxEnd=null;UI.tieEnd=null;UI.hgEnd=null;UI.hcovLive = null; if (g && g.type === 'tiemove' && g.moved) commit(); if(camera)endCameraGesture();else renderOver(); });
+svg.addEventListener('lostpointercapture',()=>{if(UI.gesture?.type==='panelmove'){const g=UI.gesture;UI.ptrs.clear();finishPanelDrag(g);}else if(cameraGestureActive()||FRAME_STREAM.gesture){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}else if(UI.gesture?.type==='tiemove'){const g=UI.gesture;flushTieMove(g);UI.gesture=null;UI.ptrs.clear();if(g.moved)commit();}});
+window.addEventListener('blur',()=>{if(UI.gesture?.type==='panelmove'){const g=UI.gesture;UI.ptrs.clear();finishPanelDrag(g);}else if(cameraGestureActive()||FRAME_STREAM.gesture){UI.gesture=null;UI.ptrs.clear();endCameraGesture();}else if(UI.gesture?.type==='tiemove'){const g=UI.gesture;flushTieMove(g);UI.gesture=null;UI.ptrs.clear();if(g.moved)commit();}});
 svg.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault(); });
 // 우클릭: 브라우저 메뉴 대신, 손에 든 부품은 재료함으로, 도구는 내려놓기
 document.addEventListener('contextmenu', e => {
@@ -7013,7 +7015,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.45.0', date: '2026.11.15', notes: ['선택한 작업 칸 안에서만 확대·이동, 모든 칸 보기로 네 구역 확인', '확대·이동 중 작업자 스레드의 내부 프레임 전달, 정지·편집 시 원본 SVG 복귀', '휠 입력을 프레임마다 합치고 전선 표면 좌표·투영 경로를 재사용해 끊김 감소', '그래픽 효과를 켠 배선 122개 환경에서 변경 전후 프레임 간격 비교 검증'] };
+const APP_VER = { v: '2.45.1', date: '2026.11.15', notes: ['단자 검색은 검색한 단자의 칸을 보여 주고, 연결 전체는 모든 칸 보기로 확인', '선택·확대 취소 시 임시 도형과 작업자 화면을 함께 해제', '선택한 작업 칸 안에서만 확대·이동, 모든 칸 보기로 네 구역 확인', '확대·이동 중 작업자 스레드의 내부 프레임 전달, 정지·편집 시 원본 SVG 복귀', '휠 입력을 프레임마다 합치고 전선 표면 좌표·투영 경로를 재사용해 끊김 감소', '그래픽 효과를 켠 배선 122개 환경에서 변경 전후 프레임 간격 비교 검증'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
