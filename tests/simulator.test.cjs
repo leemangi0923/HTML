@@ -65,6 +65,22 @@ test('four adjacent workspaces put the desk, drill floor, full robot side and ta
   assert.ok(bounds.x<=map.areas[0].x&&bounds.y<=top.y&&bounds.r>=top.x+top.w&&bounds.b>=top.y+top.h);
 });
 
+test('front-to-back profiles share one vanishing point and keep their crossbar joints perpendicular',async()=>{
+  const geometry=await page.evaluate(()=>{
+    const v={x:1200,y:500},errors=[];
+    for(const g of document.querySelectorAll('[data-station-member="depth"]')){
+      const n=g.querySelector('path').getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number),p=Array.from({length:4},(_,i)=>({x:n[i*2],y:n[i*2+1]}));
+      for(const [a,b]of [[p[0],p[3]],[p[1],p[2]]])errors.push(Math.abs((b.x-a.x)*(v.y-a.y)-(b.y-a.y)*(v.x-a.x))/Math.hypot(b.x-a.x,b.y-a.y));
+    }
+    const polygon=g=>{const n=g.querySelector('path').getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number);return Array.from({length:4},(_,i)=>({x:n[2*i],y:n[2*i+1]}));};
+    const inside=(p,P)=>{const c=P.map((a,i)=>{const b=P[(i+1)%P.length];return((b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x))/Math.hypot(b.x-a.x,b.y-a.y);});return c.every(v=>v>=-.06)||c.every(v=>v<=.06);};
+    const rails=[...document.querySelectorAll('[data-station-member="depth"]')],root=$('[data-station-controller]'),m=root.transform.baseVal.consolidate().matrix;
+    const feet=[...root.querySelectorAll('rect')].filter(r=>+r.getAttribute('y')===887).map(r=>({x:m.a*(+r.getAttribute('x')+(+r.getAttribute('width'))/2)+m.e,y:m.d*905+m.f}));
+    return{count:errors.length,max:Math.max(...errors),feet:feet.every((p,i)=>inside(p,polygon(rails[4+i]))),base:$('[data-station-base]').dataset.stationBase};
+  });
+  assert.equal(geometry.feet,true);assert.equal(geometry.count,16);assert.ok(geometry.max<.06,JSON.stringify(geometry));assert.equal(geometry.base,'perpendicular-profiles');
+});
+
 test('tabletop HMI sits beside the controller-left and task-right bays and a wired task docks by hand without losing work',async()=>{
   await fullState();await page.evaluate(()=>{S.finished=true;S.tool='hand';renderAll();});
   const before=await page.evaluate(()=>({wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),ties:nTies(),score:scoreSheet().total,wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y},cv:{x:S.conveyor.x+ROOM_X,y:S.conveyor.y+ROOM_Y},term:{...TERM['PLC.L']},op:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},dock:panelDockPosition(),layout:$('[data-station-controller]').getBoundingClientRect().right<$('[data-station-panel-slot]').getBoundingClientRect().left&&insideSurface({x:OPW.x,y:OPW.y},'robotTop')}));
