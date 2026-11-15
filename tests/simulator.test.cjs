@@ -335,6 +335,17 @@ test('only an inspected task can dock and four hand-placed quick clamps complete
   await dragMainPanelTo(await page.evaluate(()=>ROOM.deskPanelX),0);assert.equal(await page.evaluate(()=>panelWorkplace()),'desk');assert.equal(await page.evaluate(()=>judgeRan()),true);
 });
 
+test('final mounting practice accepts a plate move but still rejects a real power connection change',async()=>{
+  const d=await page.evaluate(()=>{const L=LESSONS.find(l=>l.keys.includes('mount')),st=pracSetup(L);setMode('prac',st);PRAC.L=L;PRAC.state='run';PRAC.cur=null;PRAC.sig=pracSig();PRAC.good=JSON.stringify(S);S.tool='hand';renderAll();window.__cableSig=pracSig().cables;return panelDockPosition();});
+  await dragMainPanelTo(d.x,d.y);
+  assert.equal(await page.evaluate(()=>PRAC.state),'run',await page.evaluate(()=>JSON.stringify(PRAC.fail)));assert.equal(await page.evaluate(()=>S.panelDocked),true);
+  assert.equal(await page.evaluate(()=>pracSig().cables===window.__cableSig),true);
+  await page.evaluate(()=>{fitRoom('robot');UI.trayOpen.add('fin');renderTray();});await page.locator('[data-key="quickClamp"]').click();
+  for(const p of await page.evaluate(()=>MOUNT_SLOTS))await clickWorld(p.x,p.y);
+  assert.equal(await page.evaluate(()=>PRAC.state),'win');assert.equal(await page.evaluate(()=>mountingComplete()),true);
+  const state=await page.evaluate(()=>{PRAC.state='run';PRAC.sig=pracSig();S.cables.plugged=false;pracAfter();return PRAC.state;});assert.equal(state,'fail');
+});
+
 test('clamp stock, legacy mounted work and partial installation save without duplicating clamps',async()=>{
   await fullState();
   const result=await page.evaluate(()=>{
