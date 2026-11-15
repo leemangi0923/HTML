@@ -1,0 +1,252 @@
+{
+  "baselineVersion": "2.44.1",
+  "candidateVersion": "2.45.0",
+  "camera": {
+    "before": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "samplesPerRound": 90,
+      "eventsPerFrame": 4,
+      "rows": [
+        {
+          "wires": 122,
+          "frames": {
+            "p50Ms": 249.9,
+            "p95Ms": 350,
+            "over25": 90,
+            "over50": 90
+          },
+          "inputBursts": {
+            "p50Ms": 148,
+            "p95Ms": 240,
+            "over25": 90,
+            "over50": 90
+          },
+          "cameraApplications": 372,
+          "workerFrames": 0,
+          "streamReason": "legacy",
+          "unchanged": true,
+          "allEffectsOn": true
+        },
+        {
+          "wires": 122,
+          "frames": {
+            "p50Ms": 233.3,
+            "p95Ms": 333.5,
+            "over25": 90,
+            "over50": 90
+          },
+          "inputBursts": {
+            "p50Ms": 90.2,
+            "p95Ms": 176.3,
+            "over25": 90,
+            "over50": 90
+          },
+          "cameraApplications": 372,
+          "workerFrames": 0,
+          "streamReason": "legacy",
+          "unchanged": true,
+          "allEffectsOn": true
+        },
+        {
+          "wires": 122,
+          "frames": {
+            "p50Ms": 250,
+            "p95Ms": 333.3,
+            "over25": 90,
+            "over50": 90
+          },
+          "inputBursts": {
+            "p50Ms": 84.3,
+            "p95Ms": 212.9,
+            "over25": 90,
+            "over50": 90
+          },
+          "cameraApplications": 372,
+          "workerFrames": 0,
+          "streamReason": "legacy",
+          "unchanged": true,
+          "allEffectsOn": true
+        }
+      ]
+    },
+    "after": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "samplesPerRound": 90,
+      "eventsPerFrame": 4,
+      "rows": [
+        {
+          "wires": 122,
+          "frames": {
+            "p50Ms": 16.7,
+            "p95Ms": 33.4,
+            "over25": 32,
+            "over50": 1
+          },
+          "inputBursts": {
+            "p50Ms": 0.2,
+            "p95Ms": 0.3,
+            "over25": 0,
+            "over50": 0
+          },
+          "cameraApplications": 102,
+          "workerFrames": 99,
+          "streamReason": "",
+          "unchanged": true,
+          "allEffectsOn": true
+        },
+        {
+          "wires": 122,
+          "frames": {
+            "p50Ms": 16.7,
+            "p95Ms": 33.3,
+            "over25": 14,
+            "over50": 2
+          },
+          "inputBursts": {
+            "p50Ms": 0.1,
+            "p95Ms": 0.4,
+            "over25": 0,
+            "over50": 0
+          },
+          "cameraApplications": 102,
+          "workerFrames": 101,
+          "streamReason": "",
+          "unchanged": true,
+          "allEffectsOn": true
+        },
+        {
+          "wires": 122,
+          "frames": {
+            "p50Ms": 16.7,
+            "p95Ms": 16.8,
+            "over25": 1,
+            "over50": 0
+          },
+          "inputBursts": {
+            "p50Ms": 0.1,
+            "p95Ms": 0.2,
+            "over25": 0,
+            "over50": 0
+          },
+          "cameraApplications": 102,
+          "workerFrames": 101,
+          "streamReason": "",
+          "unchanged": true,
+          "allEffectsOn": true
+        }
+      ]
+    }
+  },
+  "editing": {
+    "before": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hoverSamples": 50,
+      "editSamples": 40,
+      "rows": [
+        {
+          "wires": 40,
+          "worldNodes": 9791,
+          "hoverFrames": {
+            "p50Ms": 16.7,
+            "p95Ms": 33.4,
+            "over50": 0
+          },
+          "editFrames": {
+            "p50Ms": 150.1,
+            "p95Ms": 300.1,
+            "over50": 40
+          },
+          "editHandlers": {
+            "p50Ms": 129.3,
+            "p95Ms": 254,
+            "over50": 40
+          },
+          "coordinateMatrixReads": 3060,
+          "allEffectsOn": true
+        },
+        {
+          "wires": 122,
+          "worldNodes": 12738,
+          "hoverFrames": {
+            "p50Ms": 33.3,
+            "p95Ms": 50.1,
+            "over50": 3
+          },
+          "editFrames": {
+            "p50Ms": 516.6,
+            "p95Ms": 716.7,
+            "over50": 40
+          },
+          "editHandlers": {
+            "p50Ms": 477.2,
+            "p95Ms": 678.9,
+            "over50": 40
+          },
+          "coordinateMatrixReads": 700,
+          "allEffectsOn": true
+        }
+      ]
+    },
+    "after": {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "hoverSamples": 50,
+      "editSamples": 40,
+      "rows": [
+        {
+          "wires": 40,
+          "worldNodes": 9791,
+          "hoverFrames": {
+            "p50Ms": 16.7,
+            "p95Ms": 33.4,
+            "over50": 0
+          },
+          "editFrames": {
+            "p50Ms": 133.3,
+            "p95Ms": 216.7,
+            "over50": 40
+          },
+          "editHandlers": {
+            "p50Ms": 95.9,
+            "p95Ms": 180.2,
+            "over50": 40
+          },
+          "coordinateMatrixReads": 3060,
+          "allEffectsOn": true
+        },
+        {
+          "wires": 122,
+          "worldNodes": 12738,
+          "hoverFrames": {
+            "p50Ms": 33.3,
+            "p95Ms": 50,
+            "over50": 1
+          },
+          "editFrames": {
+            "p50Ms": 366.6,
+            "p95Ms": 516.7,
+            "over50": 40
+          },
+          "editHandlers": {
+            "p50Ms": 313.6,
+            "p95Ms": 429.4,
+            "over50": 40
+          },
+          "coordinateMatrixReads": 700,
+          "allEffectsOn": true
+        }
+      ]
+    }
+  }
+}

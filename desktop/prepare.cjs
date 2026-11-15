@@ -12,7 +12,7 @@ const {origin:rankingOrigin}=require('./ranking-policy.cjs');
   const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
   if(scripts.length!==1)throw new Error('Expected one inline game script');
   const hash=createHash('sha256').update(scripts[0][1]).digest('base64');
-  const csp=`default-src 'none'; script-src 'sha256-${hash}'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ${rankingOrigin}; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
+  const csp=`default-src 'none'; script-src 'sha256-${hash}'; style-src 'unsafe-inline'; img-src 'self' data: blob:; worker-src blob:; font-src 'self'; connect-src ${rankingOrigin}; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'`;
   html=html.replace('<meta charset="utf-8">',`<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${csp}">`);
   await mkdir(path.join(__dirname,'generated'),{recursive:true});
   await writeFile(path.join(__dirname,'generated','index.html'),html);

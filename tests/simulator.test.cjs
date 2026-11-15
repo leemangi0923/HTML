@@ -137,6 +137,73 @@ test('each full workspace remains visible on desktop, ultrawide and mobile after
   await page.locator('#zOut').click();assert.ok(await page.evaluate(()=>UI.cam.w>=ROOM.width*4),'zooming out of the whole room must not zoom in');
 });
 
+test('room focus clips neighbours and constrains wheel, pan and pinch without changing work',async()=>{
+  await fullState();await page.locator('#zRobotTop').click();
+  const before=await page.evaluate(()=>JSON.stringify({...S,elapsed:0}));
+  const result=await page.evaluate(async()=>{
+    const r=svg.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    for(let i=0;i<60;i++)svg.dispatchEvent(new WheelEvent('wheel',{clientX:cx,clientY:cy,deltaY:120,cancelable:true}));
+    await new Promise(requestAnimationFrame);endCameraGesture();
+    const max=UI.cam.w,limit=roomFitCamera('robotTop',r).w;
+    zoomAt(cx,cy,.2);await new Promise(requestAnimationFrame);endCameraGesture();
+    UI.gesture={type:'pan',sx:cx,sy:cy,cam0:{...UI.cam},rect:r};beginCameraGesture();
+    svg.dispatchEvent(new PointerEvent('pointermove',{clientX:cx-10000,clientY:cy-10000,pointerId:1,pointerType:'mouse'}));
+    await new Promise(requestAnimationFrame);endCameraGesture();
+    const a=roomArea('robotTop'),pan=UI.cam.x+ROOM_X>=a.x-.01&&UI.cam.y+ROOM_Y>=a.y-.01&&UI.cam.x+UI.cam.w+ROOM_X<=a.x+a.w+.01&&UI.cam.y+UI.cam.h+ROOM_Y<=a.y+a.h+.01;
+    UI.ptrs=new Map([[1,{x:cx-100,y:cy}],[2,{x:cx+100,y:cy}]]);UI.gesture={type:'pinch',d0:200,cam0:{...UI.cam},m0:{x:cx,y:cy},rect:r};beginCameraGesture();
+    svg.dispatchEvent(new PointerEvent('pointermove',{clientX:cx-1,clientY:cy,pointerId:1,pointerType:'touch'}));
+    svg.dispatchEvent(new PointerEvent('pointermove',{clientX:cx+1,clientY:cy,pointerId:2,pointerType:'touch'}));
+    await new Promise(requestAnimationFrame);endCameraGesture();UI.ptrs.clear();UI.gesture=null;
+    return{max,limit,pan,pinch:UI.cam.w<=limit+.01,focus:UI.roomFocus,clip:$('#workspaceScene').getAttribute('clip-path'),rect:$('#roomClipRect').getAttribute('x'),left:a.x-ROOM_X};
+  });
+  assert.ok(Math.abs(result.max-result.limit)<.01);assert.equal(result.pan,true);assert.equal(result.pinch,true);assert.equal(result.focus,'robotTop');assert.equal(result.clip,'url(#roomClip)');assert.equal(+result.rect,result.left);
+  assert.equal(await page.evaluate(()=>JSON.stringify({...S,elapsed:0})),before);
+  await page.getByRole('button',{name:'모든 칸 보기',exact:true}).click();
+  assert.equal(await page.evaluate(()=>!UI.roomFocus&&!$('#workspaceScene').hasAttribute('clip-path')&&UI.cam.w>=ROOM.width*4),true);
+});
+
+test('worker frames show during camera motion, discard edited snapshots and restore exact SVG input',async()=>{
+  await fullState();await page.locator('#zPanel').click();
+  await page.waitForFunction(()=>frameAtlasCovers(UI.cam)||FRAME_STREAM.disabled,{},{timeout:30000});
+  assert.equal(await page.evaluate(()=>FRAME_STREAM.disabled),false);
+  const before=await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS),score:scoreSheet().total,frames:FRAME_STREAM.frames}));
+  await page.evaluate(()=>{beginCameraGesture();UI.cam.w*=.95;UI.cam.h*=.95;requestCamera(svg.getBoundingClientRect());});
+  await page.waitForFunction(()=>FRAME_STREAM.active);
+  assert.equal(await page.evaluate(()=>$('#boardWrap').classList.contains('frame-streaming')&&getComputedStyle(gWorld).visibility==='hidden'&&FRAME_STREAM.frames>0),true);
+  await page.evaluate(()=>{clearTimeout(wheelEnd);endCameraGesture();});
+  assert.equal(await page.evaluate(()=>!FRAME_STREAM.active&&getComputedStyle(gWorld).visibility==='visible'),true);
+  const after=await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0}),terms:JSON.stringify(TERMS),score:scoreSheet().total,frames:FRAME_STREAM.frames}));
+  for(const k of ['state','terms','score'])assert.deepEqual(after[k],before[k],k);assert.ok(after.frames>before.frames);
+  await page.evaluate(()=>{beginCameraGesture();requestCamera(svg.getBoundingClientRect());fitRoom('floor');});
+  await page.waitForTimeout(80);
+  assert.equal(await page.evaluate(()=>!FRAME_STREAM.active&&!FRAME_STREAM.gesture&&UI.roomFocus==='floor'),true,'late worker frames cannot reopen a previous room');
+  await page.locator('#zPanel').click();
+  const changed=await page.evaluate(()=>{
+    beginCameraGesture();requestCamera(svg.getBoundingClientRect());const revision=FRAME_STREAM.revision;
+    S.wires.pop();buildTerms();renderAll();const discarded=!FRAME_STREAM.active&&FRAME_STREAM.revision>revision&&!frameAtlasCovers(UI.cam);endCameraGesture();
+    const t=TERM['PLC.L'],q=unprojectWorkPoint(projectWorkPoint(t));return{discarded,aligned:Math.hypot(q.x-t.x,q.y-t.y)<.01};
+  });assert.equal(changed.discarded,true);assert.equal(changed.aligned,true);
+  await page.evaluate(()=>{disableFrameStream('test fallback');beginCameraGesture();zoomAt(500,400,.9);clearTimeout(wheelEnd);endCameraGesture();});
+  assert.equal(await page.evaluate(()=>!FRAME_STREAM.active&&getComputedStyle(gWorld).visibility==='visible'),true);
+});
+
+test('cached surface lookup and attribute matrices agree with geometric references',async()=>{
+  await fullState();
+  const result=await page.evaluate(()=>{
+    endCameraGesture();const rootInverse=svg.getCTM().inverse();let matrices=true,bindings=true;
+    const nodes=[...gWorld.querySelectorAll('[transform]')];
+    for(let i=0;i<nodes.length;i+=Math.max(1,Math.floor(nodes.length/200))){const a=svgLocalMatrix(nodes[i]),b=rootInverse.multiply(nodes[i].getCTM());for(const k of ['a','b','c','d','e','f'])matrices&&=Math.abs(a[k]-b[k])<.0001;}
+    // Exhaustive surface scan is the reference, independent of the tile index.
+    for(const model of PROJECTION.models){const b=model.world;if(!b)continue;
+      for(const p of [{x:b.x,y:b.y},{x:b.x+b.w/2,y:b.y+b.h/2},{x:b.x-14.9,y:b.y+b.h/2},{x:b.x+b.w+15.1,y:b.y+b.h}])for(const soft of [false,true]){
+        let ref=null,value=-1,weight=0;
+        for(const r of PROJECTION.models){if(!r.world||r.termCover)continue;const a=r.world,dx=Math.max(a.x-p.x,0,p.x-a.x-a.w),dy=Math.max(a.y-p.y,0,p.y-a.y-a.h),distance=Math.hypot(dx,dy),w=distance===0?1:soft?Math.max(0,1-distance/15):0,v=r.z*w;if(w&&(v>value||(v===value&&(!ref||r.projectionKey>ref.projectionKey)))){ref=r;value=v;weight=w;}}
+        const got=projectionBinding(p.x,p.y,soft);bindings&&=got?.r.projectionKey===ref?.projectionKey&&(!got||Math.abs(got.w-weight)<1e-9);
+      }
+    }return{matrices,bindings};
+  });assert.deepEqual(result,{matrices:true,bindings:true});
+});
+
 test('floor accepts wood and drill plates while HMI preparation and other materials use their own desks',async()=>{
   const result=await page.evaluate(()=>{
     setMode('free',newPreparationState());trayTap('panelplate');drop({x:1200,y:850});const right=S.setup.panelPlate?.x===1200;

@@ -26,7 +26,12 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     await page.context().setOffline(true);await page.reload();await page.waitForFunction(()=>window.SIM);await page.evaluate(()=>clearInterval(LIVE.timer));
     await page.evaluate(()=>{setMode('free',pClone(pracRef()));S.selfChk={'1-4':true};S.usedFill=false;S.elapsed=1000;S.tbLabels[0]='앱 저장 확인';buildTerms();renderAll();save();});
     assert.equal(await page.evaluate(()=>scoreSheet().total),30);
-    assert.equal(await page.locator('iframe,canvas').count(),0);
+    assert.equal(await page.locator('iframe').count(),0);
+    await page.waitForFunction(()=>frameAtlasCovers(UI.cam)||FRAME_STREAM.disabled);
+    assert.equal(await page.evaluate(()=>FRAME_STREAM.disabled),false);
+    await page.evaluate(()=>{beginCameraGesture();requestCamera(svg.getBoundingClientRect());});
+    await page.waitForFunction(()=>FRAME_STREAM.active);
+    await page.evaluate(()=>endCameraGesture());
     assert.equal(await page.evaluate(()=>gWorld.querySelectorAll('[data-stopper-model="UA-52"]').length===S.stoppers.length),true);
     await page.locator('#btnSet').click();await page.locator('[data-act="graphics-low"]').click();
     assert.equal(await page.evaluate(()=>GRAPHICS_KEYS.every(k=>SET[k]===false)&&PROJECTION.paths.length===0&&scoreSheet().total===30),true);

@@ -16,7 +16,10 @@ const {createServer}=require('node:http');
       clearInterval(LIVE.timer);const source=pClone(pracRef()),rows=[],frame=()=>new Promise(r=>requestAnimationFrame(r));
       const stats=xs=>{xs.sort((a,b)=>a-b);return{p50Ms:+xs[Math.ceil(xs.length*.5)-1].toFixed(2),p95Ms:+xs[Math.ceil(xs.length*.95)-1].toFixed(2),over50:xs.filter(x=>x>50).length};};
       for(const count of [40,source.wires.length]){
-        const st=pClone(source);st.wires=st.wires.slice(0,count);st.finished=true;setMode('free',st);UI.cam={x:-200,y:-150,w:1300,h:976};applyCam(svg.getBoundingClientRect());setTool('wire');UI.pending='PLC.N';
+        const st=pClone(source);st.wires=st.wires.slice(0,count);st.finished=true;setMode('free',st);
+        // Let mode entry finish its scheduled fit before installing the same
+        // comparison camera. The benchmark must not measure two different views.
+        await frame();await frame();UI.roomFocus=null;UI.cam={x:-200,y:-150,w:1300,h:976};applyCam(svg.getBoundingClientRect());setTool('wire');UI.pending='PLC.N';
         const rect=svg.getBoundingClientRect(),move=i=>svg.dispatchEvent(new PointerEvent('pointermove',{clientX:rect.left+200+i%25*2,clientY:rect.top+200,pointerType:'mouse',pointerId:1,bubbles:true}));
         for(let i=0;i<15;i++){move(i);await frame();}
         const hover=[];let last=await frame();for(let i=0;i<50;i++){move(i);const t=await frame();hover.push(t-last);last=t;}

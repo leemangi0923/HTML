@@ -1,6 +1,6 @@
 {
   "name": "robot-assembly-simulator",
-  "version": "2.44.1",
+  "version": "2.45.0",
   "private": true,
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.cjs",
@@ -18,7 +18,8 @@
     "test:updater": "node --test tests/updater.test.cjs",
     "benchmark:graphics": "node scripts/benchmark-graphics.cjs",
     "benchmark:full-graphics": "node scripts/benchmark-full-graphics.cjs",
-    "benchmark:wire-load": "node scripts/benchmark-wire-load.cjs"
+    "benchmark:wire-load": "node scripts/benchmark-wire-load.cjs",
+    "benchmark:frame-stream": "node scripts/benchmark-frame-stream.cjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16",
