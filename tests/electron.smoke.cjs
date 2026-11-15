@@ -32,6 +32,9 @@ test('desktop game runs offline, isolates Node, exports files, and restores inde
     await page.evaluate(()=>{beginCameraGesture();requestCamera(svg.getBoundingClientRect());});
     await page.waitForFunction(()=>FRAME_STREAM.active);
     await page.evaluate(()=>endCameraGesture());
+    const nextRoom=await page.evaluate(()=>ROOM_ORDER[ROOM_ORDER.indexOf(UI.roomFocus)+1]);
+    await page.locator('#roomNext').hover();await page.waitForFunction(room=>UI.roomFocus===room,nextRoom);
+    assert.equal(await page.evaluate(()=>scoreSheet().total),30);
     assert.equal(await page.evaluate(()=>gWorld.querySelectorAll('[data-stopper-model="UA-52"]').length===S.stoppers.length),true);
     await page.locator('#btnSet').click();await page.locator('[data-act="graphics-low"]').click();
     assert.equal(await page.evaluate(()=>GRAPHICS_KEYS.every(k=>SET[k]===false)&&PROJECTION.paths.length===0&&scoreSheet().total===30),true);

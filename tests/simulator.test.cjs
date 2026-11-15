@@ -121,20 +121,57 @@ test('dropping on the controller bay returns the task to its starting position',
   assert.deepEqual(await page.evaluate(()=>S.panelPos),{x:0,y:0});assert.equal(await page.evaluate(()=>S.panelDocked),false);assert.match(await page.locator('#toast').textContent(),/오른쪽 철판/);
 });
 
-test('each full workspace remains visible on desktop, ultrawide and mobile after resizing',async()=>{
+test('each workspace fills the viewport without outside margins on desktop, ultrawide and mobile',async()=>{
   await page.locator('[data-home="free"]').click();
   for(const viewport of [{width:1440,height:960},{width:2560,height:900},{width:390,height:844}]){
     await page.setViewportSize(viewport);
     for(const[id,zone]of [['zRobot','robot'],['zRobotTop','robotTop'],['zFloor','floor'],['zDesk','desk']]){
       await page.locator('#'+id).click();
-      const r=await page.evaluate(zone=>{const rect=svg.getBoundingClientRect(),a=roomArea(zone),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return{fills:x<=a.x+.01&&x+UI.cam.w>=a.x+a.w-.01&&y<=a.y+.01&&y+UI.cam.h>=a.y+a.h-.01,ratio:UI.cam.w/UI.cam.h-rect.width/rect.height,width:ROOM.width,focus:UI.roomFocus};},zone);
+      const r=await page.evaluate(zone=>{const rect=svg.getBoundingClientRect(),a=roomArea(zone),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return{fills:x>=a.x-.01&&x+UI.cam.w<=a.x+a.w+.01&&y>=a.y-.01&&y+UI.cam.h<=a.y+a.h+.01&&(Math.abs(UI.cam.w-a.w)<.01||Math.abs(UI.cam.h-a.h)<.01),ratio:UI.cam.w/UI.cam.h-rect.width/rect.height,width:ROOM.width,focus:UI.roomFocus};},zone);
       assert.equal(r.fills,true,zone);assert.ok(Math.abs(r.ratio)<1e-6);assert.equal(r.width,2400);assert.equal(r.focus,zone);
     }
   }
   await page.locator('#zFloor').click();await page.setViewportSize({width:1920,height:1080});await page.waitForTimeout(80);
-  assert.equal(await page.evaluate(()=>UI.roomFocus==='floor'&&UI.cam.x+ROOM_X<=ROOM.floorLeft+.01&&UI.cam.x+UI.cam.w+ROOM_X>=ROOM.robotLeft-.01),true);
+  assert.equal(await page.evaluate(()=>{const a=roomArea('floor'),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return UI.roomFocus==='floor'&&x>=a.x-.01&&x+UI.cam.w<=a.x+a.w+.01&&y>=a.y-.01&&y+UI.cam.h<=a.y+a.h+.01;}),true);
   await page.locator('#zFit').click();assert.equal(await page.evaluate(()=>UI.roomFocus),null);assert.ok(await page.evaluate(()=>UI.cam.w>=ROOM.width*4));
   await page.locator('#zOut').click();assert.ok(await page.evaluate(()=>UI.cam.w>=ROOM.width*4),'zooming out of the whole room must not zoom in');
+});
+
+test('round room arrows dwell for one second, move once per entry and retain carried materials',async()=>{
+  await page.locator('[data-home="free"]').click();await page.locator('#zDesk').click();
+  assert.equal(await page.locator('#roomPrev').isDisabled(),true);
+  const before=await page.evaluate(()=>{const it=trayItems().find(i=>i.kind==='dev'&&i.left);trayTap(it.key);const state=()=>JSON.stringify({...S,elapsed:0,setup:{...S.setup,elapsed:0}});return{state:state(),carry:JSON.stringify(UI.carry)};});
+  const next=page.locator('#roomNext');await next.hover();await page.waitForTimeout(600);
+  assert.equal(await page.evaluate(()=>UI.roomFocus),'desk');
+  await page.mouse.move(20,20);await page.waitForTimeout(500);assert.equal(await page.evaluate(()=>UI.roomFocus),'desk','leaving cancels the dwell');
+  await next.hover();await page.waitForTimeout(650);assert.equal(await page.evaluate(()=>UI.roomFocus),'desk','a new entry starts a fresh full second');
+  await page.waitForFunction(()=>UI.roomFocus==='floor');await page.waitForTimeout(1200);assert.equal(await page.evaluate(()=>UI.roomFocus),'floor','holding the pointer does not skip several rooms');
+  const after=await page.evaluate(()=>({state:JSON.stringify({...S,elapsed:0,setup:{...S.setup,elapsed:0}}),carry:JSON.stringify(UI.carry)}));assert.deepEqual(after,before);
+  await page.mouse.move(20,20);await next.hover();await page.waitForFunction(()=>UI.roomFocus==='robot');
+  await page.mouse.move(20,20);await next.click();assert.equal(await page.evaluate(()=>UI.roomFocus),'robotTop');assert.equal(await next.isDisabled(),true);
+  await page.locator('#roomPrev').focus();await page.keyboard.press('Enter');assert.equal(await page.evaluate(()=>UI.roomFocus),'robot');
+  const circle=await page.locator('#roomPrev').boundingBox();assert.ok(Math.abs(circle.width-circle.height)<.01);
+  await page.locator('#zFit').click();assert.equal(await next.isHidden(),true);assert.equal(await page.locator('#roomPrev').isHidden(),true);
+});
+
+test('pending arrow navigation cancels on explicit selection, blur and overview',async()=>{
+  await page.locator('[data-home="free"]').click();await page.locator('#zDesk').click();
+  await page.locator('#roomNext').hover();await page.waitForTimeout(600);await page.evaluate(()=>fitRoom('robot'));
+  await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>UI.roomFocus),'robot');
+  await page.mouse.move(20,20);await page.locator('#roomPrev').hover();await page.waitForTimeout(600);await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+  await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>UI.roomFocus),'robot');assert.equal(await page.evaluate(()=>ROOM_NAV.timer),0);
+  await page.mouse.move(20,20);await page.locator('#roomPrev').hover();await page.waitForTimeout(600);await page.evaluate(()=>fit());
+  await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>UI.roomFocus),null);assert.equal(await page.evaluate(()=>ROOM_NAV.timer),0);
+});
+
+test('animated camera changes keep the selected room filling every frame',async()=>{
+  await page.locator('[data-home="free"]').click();await page.locator('#zDesk').click();
+  const result=await page.evaluate(async()=>{
+    const original=applyCam;let frames=0,inside=true;DEMO.speed=20;
+    applyCam=(...args)=>{const a=roomArea(UI.roomFocus),c=UI.cam,x=c.x+ROOM_X,y=c.y+ROOM_Y;frames++;inside&&=x>=a.x-.01&&y>=a.y-.01&&x+c.w<=a.x+a.w+.01&&y+c.h<=a.y+a.h+.01;return original(...args);};
+    try{demoCam({x:OPW.x-100,y:OPW.y-100,w:OP.w+200,h:OP.h+200});await new Promise(r=>setTimeout(r,400));return{frames,inside,room:UI.roomFocus};}
+    finally{cancelAnimationFrame(DEMO.raf);applyCam=original;}
+  });assert.ok(result.frames>0);assert.equal(result.inside,true);assert.equal(result.room,'robotTop');
 });
 
 test('room focus clips neighbours and constrains wheel, pan and pinch without changing work',async()=>{
