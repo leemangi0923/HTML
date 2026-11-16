@@ -1,0 +1,149 @@
+{
+  "version": "2.48.0",
+  "scene": "robot room, 4 mounted clamps, 122 wires, all effects enabled",
+  "timing": "headless Chromium actual requestAnimationFrame intervals; cache ready; live circuit timer stopped",
+  "svg": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "mounted": true,
+    "svgOnly": true,
+    "samplesPerRound": 90,
+    "eventsPerFrame": 4,
+    "rows": [
+      {
+        "wires": 122,
+        "frames": {
+          "p50Ms": 133.3,
+          "p95Ms": 250,
+          "over25": 89,
+          "over50": 89
+        },
+        "inputBursts": {
+          "p50Ms": 0.2,
+          "p95Ms": 0.7,
+          "over25": 0,
+          "over50": 0
+        },
+        "cameraApplications": 102,
+        "workerFrames": 0,
+        "streamReason": "",
+        "unchanged": true,
+        "allEffectsOn": true
+      },
+      {
+        "wires": 122,
+        "frames": {
+          "p50Ms": 149.9,
+          "p95Ms": 250,
+          "over25": 89,
+          "over50": 89
+        },
+        "inputBursts": {
+          "p50Ms": 0.2,
+          "p95Ms": 1.2,
+          "over25": 0,
+          "over50": 0
+        },
+        "cameraApplications": 102,
+        "workerFrames": 0,
+        "streamReason": "",
+        "unchanged": true,
+        "allEffectsOn": true
+      },
+      {
+        "wires": 122,
+        "frames": {
+          "p50Ms": 116.7,
+          "p95Ms": 166.7,
+          "over25": 90,
+          "over50": 90
+        },
+        "inputBursts": {
+          "p50Ms": 0.2,
+          "p95Ms": 0.3,
+          "over25": 0,
+          "over50": 0
+        },
+        "cameraApplications": 102,
+        "workerFrames": 0,
+        "streamReason": "",
+        "unchanged": true,
+        "allEffectsOn": true
+      }
+    ]
+  },
+  "stream": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "samplesPerRound": 90,
+    "eventsPerFrame": 4,
+    "rows": [
+      {
+        "wires": 122,
+        "frames": {
+          "p50Ms": 33.3,
+          "p95Ms": 50,
+          "over25": 58,
+          "over50": 4
+        },
+        "inputBursts": {
+          "p50Ms": 0.2,
+          "p95Ms": 0.5,
+          "over25": 0,
+          "over50": 0
+        },
+        "cameraApplications": 102,
+        "workerFrames": 99,
+        "streamReason": "",
+        "unchanged": true,
+        "allEffectsOn": true
+      },
+      {
+        "wires": 122,
+        "frames": {
+          "p50Ms": 16.7,
+          "p95Ms": 16.8,
+          "over25": 3,
+          "over50": 0
+        },
+        "inputBursts": {
+          "p50Ms": 0.1,
+          "p95Ms": 0.3,
+          "over25": 0,
+          "over50": 0
+        },
+        "cameraApplications": 102,
+        "workerFrames": 101,
+        "streamReason": "",
+        "unchanged": true,
+        "allEffectsOn": true
+      },
+      {
+        "wires": 122,
+        "frames": {
+          "p50Ms": 16.7,
+          "p95Ms": 33.4,
+          "over25": 41,
+          "over50": 2
+        },
+        "inputBursts": {
+          "p50Ms": 0.2,
+          "p95Ms": 0.4,
+          "over25": 0,
+          "over50": 0
+        },
+        "cameraApplications": 102,
+        "workerFrames": 101,
+        "streamReason": "",
+        "unchanged": true,
+        "allEffectsOn": true
+      }
+    ],
+    "mounted": true,
+    "svgOnly": false
+  }
+}

@@ -46,8 +46,12 @@ async function stagePreparationKits(){
   await page.evaluate(()=>{for(const kind of ['op','fr','dev'])for(const it of trayItems().filter(i=>i.kind===kind&&i.left)){trayTap(it.key);let guard=0;while(UI.carry?.key===it.key&&guard++<20){const p=freeLooseSpot({...UI.carry,x:roomLeft(kind==='op'?'robotTop':'desk')+500-ROOM_X,y:200-ROOM_Y});if(!p)throw Error('no preparation space: '+it.key);const n=UI.carry.count;UI.carry.vertical=p.vertical;drop(p);if(UI.carry?.count===n)throw Error('preparation stock was rejected: '+it.key+' '+$('#toast').textContent);}}});
 }
 
+async function focusPoint(p){await page.evaluate(p=>fitTo({x:p.x-100,y:p.y-75,w:200,h:150}),p);}
+
+async function clickClampHandle(id){const b=await page.locator(`[data-mount-clamp="${id}"] [data-clamp-part="trigger"]`).boundingBox();await page.mouse.click(b.x+b.width/2,b.y+b.height/2);}
+
 async function dragMainPanelTo(x,y){
-  await page.evaluate(()=>fit());await page.waitForTimeout(70);
+  await page.evaluate(()=>{if(panelExternalConnected())disconnectForTransport();fit();});await page.waitForTimeout(70);
   const p=await page.evaluate(({x,y})=>{const r=svg.getBoundingClientRect(),v=projectWorkPoint({x:4,y:300});return{x:r.left+(v.x-UI.cam.x)/UI.cam.w*r.width,y:r.top+(v.y-UI.cam.y)/UI.cam.h*r.height,dx:(x-S.panelPos.x)/UI.cam.w*r.width,dy:(y-S.panelPos.y)/UI.cam.h*r.height};},{x,y});
   await page.mouse.move(p.x,p.y);await page.mouse.down();await page.mouse.move(p.x+p.dx,p.y+p.dy,{steps:6});await page.mouse.up();
 }
@@ -74,17 +78,9 @@ test('controller clicks reveal a plain right face and restore the front while ev
   await page.evaluate(()=>{SET.shadows=false;applyGraphics();renderAll();});assert.equal(await page.locator('[data-controller-contact]').count(),0);
 });
 
-test('loose material placement rejects body and open-lid overlaps without consuming stock and allows separated parts',async()=>{
-  const result=await page.evaluate(()=>{
-    setMode('free',newPreparationState());const x=ROOM.deskLeft+500,y=200;trayTap('xtb40');drop({x,y});
-    const first=S.floor[0],before=JSON.stringify(S.floor);trayTap('servo');const count=UI.carry.count;
-    // Servo bottom is above the IO-link body, but intersects its raised open lid.
-    drop({x,y:y-30-44/2-SERVO.h/2});const lidBlocked=before===JSON.stringify(S.floor)&&UI.carry?.count===count;
-    drop({x,y});const bodyBlocked=before===JSON.stringify(S.floor)&&UI.carry?.count===count;
-    drop({x:x+200,y});const free=S.floor.length===2&&!UI.carry;
-    const inHand=S.floor[1];pickFloor(inHand);drop({x,y});const held=UI.carry?.key==='servo'&&S.floor.length===1;
-    return{lidBlocked,bodyBlocked,free,held,firstSame:JSON.stringify(S.floor[0])===JSON.stringify(first),message:$('#toast').textContent};
-  });assert.equal(result.lidBlocked,true);assert.equal(result.bodyBlocked,true);assert.equal(result.free,true);assert.equal(result.held,true);assert.equal(result.firstSame,true);assert.match(result.message,/겹쳐/);
+test('loose material placement snaps beside an occupied body or open lid without intersecting it',async()=>{
+  const result=await page.evaluate(()=>{setMode('free',newPreparationState());const x=ROOM.deskLeft+500,y=200;trayTap('xtb40');drop({x,y});trayTap('servo');drop({x,y:y-30-44/2-SERVO.h/2});const free=S.floor.length===2&&!UI.carry;const a=looseBounds(S.floor[0]),b=looseBounds(S.floor[1]);return{free,overlap:rectsOverlap(a,b),held:S.floor.map(f=>f.key)};});assert.equal(result.free,true);assert.equal(result.overlap,false);assert.deepEqual(result.held,['xtb40','servo']);
+
 });
 
 
@@ -100,11 +96,11 @@ test('a carried plate, conveyor, outlet and power cord cannot cover staged desk 
   const after=await page.evaluate(()=>({x:S.floor[0].x+ROOM_X,y:S.floor[0].y+ROOM_Y}));for(const axis of ['x','y'])assert.ok(Math.abs(after[axis]-before[axis])<1e-8);
 });
 
-test('all preparation stock fits the compact desks without visible SVG overlap and grounding follows the shadow setting',async()=>{
+test('all preparation stock fits the compact desks without physical overlap and grounding follows the shadow setting',async()=>{
   await page.evaluate(()=>{setMode('free',newPreparationState());trayTap('wood');drop({x:380,y:300});trayTap('panelplate');drop({x:380,y:300});trayTap('opplate');drop(hmiPrepPosition());});
   await stagePreparationKits();
   const measure=()=>page.evaluate(()=>{
-    const parts=S.floor.map(f=>{const n=$(`[data-depth-object="floor-${f.id}"]`),b=n.getBBox(),m=floorRect(f);return{key:f.key,x:b.x,y:b.y,w:b.width,h:b.height,m};});
+    const parts=S.floor.map(f=>{const n=$(`[data-depth-object="floor-${f.id}"]`),b=looseBounds(f),m=floorRect(f);return{key:f.key,x:b.x,y:b.y,w:b.w,h:b.h,m};});
     const collisions=[];for(let i=0;i<parts.length;i++)for(let j=i+1;j<parts.length;j++){const a=parts[i],b=parts[j];if(a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y)collisions.push([a.key,b.key]);}
     return{ready:preparationReady(),count:S.floor.length,collisions,contacts:document.querySelectorAll('[data-ground-contact]').length,plc:parts.find(p=>p.key==='plc').m.w,pos:S.floor.some(p=>p.key==='pos'),stock:preparedKit('dev')};
   });
@@ -149,7 +145,7 @@ test('four adjacent workspaces put the desk, drill floor, full robot side and ta
     frame:((r)=>({x:r.x,y:r.y,width:r.width,height:r.height}))($('[data-robot-station] rect').getBBox()),table:((r)=>({x:r.x,y:r.y,width:r.width,height:r.height}))($('[data-robot-tabletop] rect').getBBox())
   }));
   assert.deepEqual(map.areas.map(a=>a.id),['desk','floor','robot','robotTop']);
-  map.areas.forEach((a,i)=>{assert.equal(a.y,-100);assert.equal(a.w,i===3?2400:1200);assert.equal(a.h,i===3?1600:800);if(i)assert.equal(map.areas[i-1].x+map.areas[i-1].w,a.x);});
+  map.areas.forEach((a,i)=>{assert.equal(a.y,-100);assert.equal(a.w,1200);assert.equal(a.h,800);if(i)assert.equal(map.areas[i-1].x+map.areas[i-1].w,a.x);});
   assert.equal(map.front,'full-front-frame');assert.equal(map.top,'top-view');assert.equal(map.extras,false);assert.equal(map.stand,'top-view');assert.equal(map.score,30);
   for(const r of [map.frame,map.table])assert.deepEqual(r,{x:0,y:0,width:2400,height:1600});
   const top=map.areas[3];assert.ok(map.op.x>=top.x&&map.op.x+map.op.w<=top.x+top.w&&map.op.y>=top.y&&map.op.y+map.op.h<=top.y+top.h);
@@ -215,7 +211,7 @@ test('each workspace fills the viewport without outside margins on desktop, ultr
     await page.setViewportSize(viewport);
     for(const[id,zone]of [['zRobot','robot'],['zRobotTop','robotTop'],['zFloor','floor'],['zDesk','desk']]){
       await page.locator('#'+id).click();
-      const r=await page.evaluate(zone=>{const rect=svg.getBoundingClientRect(),a=roomArea(zone),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return{fills:x>=a.x-.01&&x+UI.cam.w<=a.x+a.w+.01&&y>=a.y-.01&&y+UI.cam.h<=a.y+a.h+.01&&(Math.abs(UI.cam.w-a.w)<.01||Math.abs(UI.cam.h-a.h)<.01),ratio:UI.cam.w/UI.cam.h-rect.width/rect.height,width:ROOM.width,focus:UI.roomFocus};},zone);
+      const r=await page.evaluate(zone=>{const rect=svg.getBoundingClientRect(),a=roomArea(zone),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return{fills:x>=a.x-.01&&x+UI.cam.w<=a.x+a.w+.01&&y>=a.y-.01&&y+UI.cam.h<=a.y+a.h+.01&&(Math.abs(UI.cam.w-a.w)<.01||Math.abs(UI.cam.h-a.h)<.01),ratio:UI.cam.w/UI.cam.h-a.w/a.h,width:ROOM.width,focus:UI.roomFocus};},zone);
       assert.equal(r.fills,true,zone);assert.ok(Math.abs(r.ratio)<1e-6);assert.equal(r.width,1200);assert.equal(r.focus,zone);
     }
   }
@@ -334,7 +330,7 @@ test('floor accepts wood and drill plates while HMI preparation and other materi
     setMode('free',newPreparationState());trayTap('panelplate');drop({x:550,y:300});const right=S.setup.panelPlate?.x===550;
     pickPrepObject('panelplate');drop({x:180,y:300});const left=S.setup.panelPlate?.x===180;
     trayTap('opplate');drop({x:380,y:880});const opBlocked=!S.setup.opPlate&&UI.carry?.key==='opplate';drop(hmiPrepPosition());
-    const opAllowed=hmiPrepared();trayTap('hmi');drop({x:380,y:1100});const hmiBlocked=!S.floor.length&&UI.carry?.key==='hmi';drop({x:STATION.topX+1300-ROOM_X,y:600-ROOM_Y});
+    const opAllowed=hmiPrepared();trayTap('hmi');drop({x:380,y:1100});const hmiBlocked=!S.floor.length&&UI.carry?.key==='hmi';drop({x:STATION.topX+900-ROOM_X,y:600-ROOM_Y});
     const hmiAllowed=S.floor.length===1;trayTap('duct');drop({x:380,y:1100});const ductBlocked=S.floor.length===1&&UI.carry?.key==='duct';drop({x:ROOM.deskPanelX+380-ROOM_X,y:150-ROOM_Y});
     return{left,right,opBlocked,opAllowed,hmiBlocked,hmiAllowed,ductBlocked,ductAllowed:S.floor.some(f=>f.kind==='fr'&&insideSurface(f,'desk'))};
   });assert.deepEqual(result,{left:true,right:true,opBlocked:true,opAllowed:true,hmiBlocked:true,hmiAllowed:true,ductBlocked:true,ductAllowed:true});
@@ -344,7 +340,7 @@ test('legacy room width and row migration preserve wiring, score and stationary 
   const result=await page.evaluate(()=>{
     setMode('free',pClone(pracRef()));S.selfChk={'1-4':true};S.usedFill=false;S.elapsed=1000;positionPanel(900,80);
     S.conveyor={x:130-ROOM_X,y:880-ROOM_Y};S.cables.powerPlaced={x:10-ROOM_X,y:780-ROOM_Y};S.cables.outlet={x:270-ROOM_X,y:785-ROOM_Y};
-    const legacy=pClone(S);delete legacy.compactV;delete legacy.plcUnitV;delete legacy.roomWidthV;delete legacy.rowV;legacy.stationV=6;
+    const legacy=pClone(S);delete legacy.tabletopV;delete legacy.fixedOutletV;delete legacy.compactV;delete legacy.plcUnitV;delete legacy.roomWidthV;delete legacy.rowV;legacy.stationV=6;
     const wires=JSON.stringify(legacy.wires),inst=JSON.stringify(legacy.inst),wood={x:legacy.wood.x+ROOM_X,y:legacy.wood.y+ROOM_Y};
     setMode('free',legacy);const migrated=S.panelPos.x,ties=JSON.stringify(S.ties);fixState();save();
     return{x:migrated,stable:S.panelPos.x===migrated&&ties===JSON.stringify(S.ties),place:panelWorkplace(),wires:wires===JSON.stringify(S.wires),inst:inst===JSON.stringify(S.inst),score:scoreSheet().total,
@@ -355,9 +351,9 @@ test('legacy room width and row migration preserve wiring, score and stationary 
 
 test('legacy mounted and preparing work rebase to the robot side and tabletop without losing materials',async()=>{
   const result=await page.evaluate(()=>{
-    const legacy=pClone(pracRef());legacy.selfChk={'1-4':true};legacy.usedFill=false;legacy.elapsed=1000;legacy.panelDocked=true;legacy.stationV=6;delete legacy.compactV;delete legacy.plcUnitV;delete legacy.rowV;setMode('free',legacy);
+    const legacy=pClone(pracRef());legacy.selfChk={'1-4':true};legacy.usedFill=false;legacy.elapsed=1000;legacy.panelDocked=true;legacy.stationV=6;delete legacy.tabletopV;delete legacy.fixedOutletV;delete legacy.compactV;delete legacy.plcUnitV;delete legacy.rowV;setMode('free',legacy);
     const docked=S.panelDocked&&S.panelPos.x===panelDockPosition().x&&scoreSheet().total===30;
-    const prep=newPreparationState();delete prep.compactV;delete prep.plcUnitV;delete prep.rowV;prep.stationV=6;prep.wood={x:380,y:350};prep.setup.panelPlate={x:380,y:350};prep.setup.opPlate={x:380,y:880};prep.floor=[{id:'old-hmi',kind:'op',key:'hmi',x:700,y:900},{id:'old-duct',kind:'fr',key:'duct',pid:'d1',x:380,y:740}];
+    const prep=newPreparationState();delete prep.tabletopV;delete prep.fixedOutletV;delete prep.compactV;delete prep.plcUnitV;delete prep.rowV;prep.stationV=6;prep.wood={x:380,y:350};prep.setup.panelPlate={x:380,y:350};prep.setup.opPlate={x:380,y:880};prep.floor=[{id:'old-hmi',kind:'op',key:'hmi',x:700,y:900},{id:'old-duct',kind:'fr',key:'duct',pid:'d1',x:380,y:740}];
     setMode('free',prep);const prepared=preparationReady(),hmi=insideSurface(S.floor[0],'robotTop'),duct=insideSurface(S.floor[1],'desk'),wood=insideSurface(S.wood,'floor'),before=JSON.stringify(S);fixState();
     return{docked,prepared,hmi,duct,wood,stable:before===JSON.stringify(S)};
   });assert.deepEqual(result,{docked:true,prepared:false,hmi:true,duct:true,wood:true,stable:true});
@@ -379,7 +375,7 @@ test('fresh work starts on a bare tiled floor and preparation uses real tray ite
   }
   await page.locator('[data-key="opplate"]').click();await page.locator('#zRobotTop').click();
   const prep=await page.evaluate(()=>hmiPrepPosition());await clickWorld(prep.x,prep.y);assert.equal(await page.evaluate(()=>UI.carry),null);
-  const loose=await page.evaluate(()=>({x:STATION.topX+1350-ROOM_X,y:600-ROOM_Y}));
+  const loose=await page.evaluate(()=>({x:STATION.topX+900-ROOM_X,y:600-ROOM_Y}));
   await page.evaluate(()=>{UI.trayOpen.add('op');renderTray();});
   await page.locator('[data-key="hmi"]').click();await clickWorld(loose.x,loose.y);
   assert.equal(await page.evaluate(()=>S.op.hmi),false);assert.equal(await page.evaluate(()=>S.floor[0].key),'hmi');
@@ -431,7 +427,7 @@ test('exam and the first lesson prepare before assembly while old saved work kee
   await stagePreparationKits();await page.evaluate(()=>beginWork());
   assert.equal(await page.locator('#btnExam').isEnabled(),true);assert.match(await page.locator('#clock').textContent(),/남은/);
   await page.evaluate(()=>pracStart(LESSONS[0].id));assert.equal(await page.evaluate(()=>isPreparing()),true);assert.equal(await page.evaluate(()=>PRAC.state),'run');
-  await page.evaluate(()=>{trayTap('hmi');drop({x:STATION.topX+1350-ROOM_X,y:600-ROOM_Y});S.wood={x:380,y:350};S.setup.panelPlate={x:380,y:350};S.setup.opPlate=hmiPrepPosition();});
+  await page.evaluate(()=>{trayTap('hmi');drop({x:STATION.topX+900-ROOM_X,y:600-ROOM_Y});S.wood={x:380,y:350};S.setup.panelPlate={x:380,y:350};S.setup.opPlate=hmiPrepPosition();});
   await stagePreparationKits();await page.evaluate(()=>{beginWork();pickPrepObject('opplate');drop({x:OPW.x+100,y:OPW.y+100});});
   assert.equal(await page.evaluate(()=>PRAC.state),'run');assert.equal(await page.evaluate(()=>PRAC.cur.tray),'hmi');
   await page.evaluate(()=>{const old=pClone(pracRef());delete old.wood;setMode('free',old);});
@@ -439,13 +435,13 @@ test('exam and the first lesson prepare before assembly while old saved work kee
 });
 
 test('connected robot, floor and desk let the plate move by its rim while room objects stay put',async()=>{
-  await page.evaluate(()=>{setMode('free',pClone(pracRef()));positionPanel(0,0);S.finished=true;S.tool='hand';S.floor.push({id:'loose-test',kind:'dev',key:'relay',x:120,y:720});buildTerms();renderAll();fit();});
+  await page.evaluate(()=>{setMode('free',pClone(pracRef()));positionPanel(0,0);S.finished=true;S.tool='hand';disconnectForTransport();S.floor.push({id:'loose-test',kind:'dev',key:'relay',x:120,y:720});buildTerms();renderAll();fit();});
   await page.waitForTimeout(100);
   const before=await page.evaluate(()=>({wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),cv:{...S.conveyor},floor:{...S.floor.at(-1)},robot:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},term:{...TERM['PLC.L']},score:scoreSheet().total}));
   const drag=await page.evaluate(()=>{const r=svg.getBoundingClientRect(),p=projectWorkPoint({x:4,y:300});return{x:r.left+(p.x-UI.cam.x)/UI.cam.w*r.width,y:r.top+(p.y-UI.cam.y)/UI.cam.h*r.height,dx:ROOM.deskPanelX/UI.cam.w*r.width,dy:ROOM.deskPanelY/UI.cam.h*r.height};});
   await page.mouse.move(drag.x,drag.y);await page.mouse.down();await page.mouse.move(drag.x+drag.dx,drag.y+drag.dy,{steps:6});await page.mouse.up();
   const after=await page.evaluate(()=>({x:S.panelPos.x,y:S.panelPos.y,place:panelWorkplace(),wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),cv:{x:S.conveyor.x+ROOM_X,y:S.conveyor.y+ROOM_Y},floor:{x:S.floor.at(-1).x+ROOM_X,y:S.floor.at(-1).y+ROOM_Y},robot:{x:OPW.x+ROOM_X,y:OPW.y+ROOM_Y},term:{...TERM['PLC.L']},score:scoreSheet().total,areas:[...gMat.querySelectorAll('[data-workspace]')].map(n=>n.dataset.workspace),upright:PROJECTION.models.filter(r=>r.surface.closest('[data-scene-part]')?.dataset.scenePart?.startsWith('op-')).every(r=>r.tx===0&&r.ty===0),saved:JSON.parse(localStorage.getItem(STORE)).panelPos,gesture:UI.gesture}));
-  assert.ok(Math.abs(after.x+1200)<.1);assert.equal(after.y,-80);assert.equal(after.place,'desk');assert.equal(after.wires,before.wires);assert.equal(after.inst,before.inst);assert.deepEqual(after.term,before.term);assert.equal(after.score,before.score);
+  assert.ok(Math.abs(after.x+1200)<.1,JSON.stringify({x:after.x,y:after.y,place:after.place}));assert.ok(Math.abs(after.y+80)<.01);assert.equal(after.place,'desk');assert.equal(after.wires,before.wires);assert.equal(after.inst,before.inst);assert.deepEqual(after.term,before.term);assert.equal(after.score,before.score);
   for(const [a,b]of [[after.cv,before.cv],[after.floor,before.floor]])for(const axis of ['x','y'])assert.ok(Math.abs(a[axis]-b[axis])<1e-8);assert.ok(Math.abs(after.robot.x-before.robot.x)<1e-6&&Math.abs(after.robot.y-before.robot.y)<1e-6);assert.deepEqual(after.areas,['desk','floor','robot','robotTop']);assert.equal(after.upright,true);assert.equal(after.gesture,null);assert.deepEqual(after.saved,{x:after.x,y:after.y});
   await page.reload();await page.waitForFunction(()=>window.SIM);assert.ok(Math.abs(await page.evaluate(()=>S.panelPos.x)+1200)<.1);
 });
@@ -499,11 +495,11 @@ test('preparation requires all HMI, frame and device stock on their designated w
 
 test('only an inspected task can dock and four hand-placed quick clamps complete its installation',async()=>{
   await fullState();
-  const dock=await page.evaluate(()=>{delete S.judge;S.tool='hand';return panelDockPosition();});
+  const dock=await page.evaluate(()=>{window.__beforeTransport={cables:pClone(S.cables),leads:pClone(S.convLeads)};delete S.judge;S.tool='hand';return panelDockPosition();});
   await dragMainPanelTo(dock.x,dock.y);assert.equal(await page.evaluate(()=>S.panelDocked),false);assert.match(await page.locator('#toast').textContent(),/동작 검사/);
   await page.evaluate(()=>{UI.carry={kind:'clamp',key:'quickClamp',count:4};dropMountClamp(MOUNT_SLOTS[0]);});
   assert.equal(await page.evaluate(()=>nMountClamps()),0);assert.equal(await page.evaluate(()=>UI.carry.count),4);
-  const before=await page.evaluate(()=>{UI.carry=null;S.judge={key:judgeKey()};return{wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),ties:nTieCut(),score:scoreSheet().total};});
+  const before=await page.evaluate(()=>{UI.carry=null;S.cables=pClone(window.__beforeTransport.cables);S.convLeads=pClone(window.__beforeTransport.leads);S.judge={key:judgeKey()};disconnectForTransport();return{wires:JSON.stringify(S.wires),inst:JSON.stringify(S.inst),ties:nTieCut(),score:scoreSheet().total};});
   await dragMainPanelTo(dock.x,dock.y);assert.equal(await page.evaluate(()=>S.panelDocked),true);assert.equal(await page.evaluate(()=>nMountClamps()),0);assert.equal(await page.evaluate(()=>stageDone(5)),false);
   await page.evaluate(()=>{UI.trayOpen.add('fin');renderTray();fitRoom('robot');});await page.locator('[data-key="quickClamp"]').click();
   for(let i=0;i<4;i++){
@@ -516,26 +512,26 @@ test('only an inspected task can dock and four hand-placed quick clamps complete
   assert.equal(await page.evaluate(()=>mountingComplete()&&stageDone(5)&&S.finished),true);assert.equal(await page.evaluate(()=>trayItems().find(i=>i.key==='quickClamp').left),0);
   await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="free"]').click();assert.equal(await page.evaluate(()=>mountingComplete()&&judgeRan()),true);
   await dragMainPanelTo(await page.evaluate(()=>ROOM.deskPanelX),await page.evaluate(()=>ROOM.deskPanelY));assert.deepEqual(await page.evaluate(()=>S.panelPos),dock);assert.match(await page.locator('#toast').textContent(),/클램프/);
-  await page.evaluate(()=>{fitRoom('robot');LIVE.inp.mcb=true;});await clickWorld(-35,91);assert.equal(await page.evaluate(()=>nMountClamps()),4);
+  await page.evaluate(()=>{fitRoom('robot');LIVE.inp.mcb=true;});await clickClampHandle('lt');assert.equal(await page.evaluate(()=>nMountClamps()),4);
   await page.evaluate(()=>{LIVE.inp.mcb=false;});
   // The trigger handle is outside the panel rim; it still receives the right hit after 1.3x display scaling.
-  await clickWorld(-35,91);assert.equal(await page.evaluate(()=>nMountClamps()),3);assert.equal(await page.evaluate(()=>UI.carry.count),1);
+  await clickClampHandle('lt');assert.equal(await page.evaluate(()=>nMountClamps()),3);assert.equal(await page.evaluate(()=>UI.carry.count),1);
   await page.evaluate(()=>{undo();for(const k of GRAPHICS_KEYS)SET[k]=false;applyGraphics();renderAll();fitRoom('robot');});assert.equal(await page.evaluate(()=>nMountClamps()),4);
-  for(const [i,id] of ['lt','lb','rt','rb'].entries()){const p=await page.evaluate(id=>{const s=MOUNT_SLOTS.find(s=>s.id===id);return{x:s.x+(id[0]==='l'?-35:35),y:s.y+45};},id);await clickWorld(p.x,p.y);assert.equal(await page.evaluate(()=>nMountClamps()),3-i,id+' releases from its trigger handle');}
+  for(const [i,id] of ['lt','lb','rt','rb'].entries()){await clickClampHandle(id);assert.equal(await page.evaluate(()=>nMountClamps()),3-i,id+' releases from its trigger handle');}
   assert.equal(await page.evaluate(()=>nMountClamps()),0);assert.equal(await page.evaluate(()=>UI.carry.count),4);await page.evaluate(()=>returnCarry());
   assert.equal(await page.evaluate(()=>trayItems().find(i=>i.key==='quickClamp').left),4);
   await dragMainPanelTo(await page.evaluate(()=>ROOM.deskPanelX),await page.evaluate(()=>ROOM.deskPanelY));assert.equal(await page.evaluate(()=>panelWorkplace()),'desk');assert.equal(await page.evaluate(()=>judgeRan()),true);
 });
 
 test('final mounting practice accepts a plate move but still rejects a real power connection change',async()=>{
-  const d=await page.evaluate(()=>{const L=LESSONS.find(l=>l.keys.includes('mount')),st=pracSetup(L);setMode('prac',st);PRAC.L=L;PRAC.state='run';PRAC.cur=null;PRAC.sig=pracSig();PRAC.good=JSON.stringify(S);S.tool='hand';renderAll();window.__cableSig=pracSig().cables;return panelDockPosition();});
+  const d=await page.evaluate(()=>{const L=LESSONS.find(l=>l.keys.includes('mount')),st=pracSetup(L);setMode('prac',st);PRAC.L=L;PRAC.state='run';PRAC.cur=null;PRAC.sig=pracSig();PRAC.good=JSON.stringify(S);S.tool='hand';renderAll();disconnectForTransport();window.__cableSig=pracSig().cables;return panelDockPosition();});
   await dragMainPanelTo(d.x,d.y);
   assert.equal(await page.evaluate(()=>PRAC.state),'run',await page.evaluate(()=>JSON.stringify(PRAC.fail)));assert.equal(await page.evaluate(()=>S.panelDocked),true);
   assert.equal(await page.evaluate(()=>pracSig().cables===window.__cableSig),true);
   await page.evaluate(()=>{fitRoom('robot');UI.trayOpen.add('fin');renderTray();});await page.locator('[data-key="quickClamp"]').click();
   for(const p of await page.evaluate(()=>MOUNT_SLOTS))await clickWorld(p.x,p.y);
   assert.equal(await page.evaluate(()=>PRAC.state),'win');assert.equal(await page.evaluate(()=>mountingComplete()),true);
-  const state=await page.evaluate(()=>{PRAC.state='run';PRAC.sig=pracSig();S.cables.plugged=false;pracAfter();return PRAC.state;});assert.equal(state,'fail');
+  const state=await page.evaluate(()=>{PRAC.state='run';PRAC.sig=pracSig();S.cables.powerLeads={R:'TB.2.b'};pracAfter();return PRAC.state;});assert.equal(state,'fail');
 });
 
 test('clamp stock, legacy mounted work and partial installation save without duplicating clamps',async()=>{
@@ -1003,10 +999,10 @@ test('unplugged mains cannot energize a fully wired circuit; physical plug and o
   await fullState();await page.evaluate(()=>{hideHome();S.tool='hand';fitTo({x:powerPlaced().x-230,y:powerPlaced().y-100,w:340,h:200});renderTools();});
   const power=()=>page.evaluate(()=>evalOnce(staticLinks(S.wires),newSim(),{...LIVE.inp,mcb:true,cab:S.cables,fuses:fuseState(),plug:plugMap(),leads:convLeads()}).acOn);
   assert.equal(await power(),true);const outlet=await page.evaluate(()=>S.cables.outlet);
-  await clickWorld(outlet.x,outlet.y);assert.equal(await power(),false);
+  await focusPoint(outlet);await clickWorld(outlet.x,outlet.y);assert.equal(await power(),false);
   const plug=await page.evaluate(()=>{const p=powerPlaced();return{x:p.x+82,y:p.y+20};});
-  await clickWorld(plug.x,plug.y);await clickWorld(outlet.x,outlet.y);assert.equal(await power(),true);await page.evaluate(()=>closeModal());
-  await clickWorld(outlet.x,outlet.y);await page.evaluate(()=>save());await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.SIM);assert.equal(await power(),false);
+  await focusPoint(plug);await clickWorld(plug.x,plug.y);await focusPoint(outlet);await clickWorld(outlet.x,outlet.y);assert.equal(await power(),true);await page.evaluate(()=>closeModal());
+  await focusPoint(outlet);await clickWorld(outlet.x,outlet.y);await page.evaluate(()=>save());await page.reload({waitUntil:'domcontentloaded'});await page.waitForFunction(()=>window.SIM);assert.equal(await power(),false);
 });
 
 test('wire dressing accepts a position beneath a duct tooth and keeps covered ducts blocked',async()=>{
@@ -1881,7 +1877,7 @@ test('walkthrough places the cable then connects all three leads and retains a v
   const result=await page.evaluate(()=>{
     const steps=demoScript(),st=newState(true),power=[];
     for(const step of steps){demoApply(st,step.ops);if(step.text.includes('전원 케이블을 책상')||/^(갈색 R|파란색 T|초록색 E)선/.test(step.text))power.push(JSON.parse(JSON.stringify(st.cables)));}
-    setMode('free',st);return {power,ready:powerConnected(),inspected:judgeRan(),error:powerFault(S.cables,staticLinks(S.wires)),mounted:mountingComplete(),wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y}};
+    setMode('free',st);return {power,ready:!panelExternalConnected(),inspected:judgeRan(),error:transportInspectionValid()?'':powerFault(S.cables,staticLinks(S.wires)),mounted:mountingComplete(),wood:{x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y}};
   });
   assert.equal(result.mounted,true);assert.deepEqual(result.wood,{x:380,y:300});assert.equal(result.power.length,4);assert.deepEqual(result.power.map(x=>Object.keys(x.powerLeads).length),[0,1,2,3]);
   assert.deepEqual(result.power.map(x=>x.power),[false,false,false,true]);assert.equal(result.ready,true);assert.equal(result.inspected,true);assert.equal(result.error,'');

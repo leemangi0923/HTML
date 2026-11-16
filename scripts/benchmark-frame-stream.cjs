@@ -4,16 +4,17 @@ const {chromium}=require('playwright');
 const {readFile}=require('node:fs/promises');
 const {resolve}=require('node:path');
 const {createServer}=require('node:http');
+const mounted=process.env.BENCHMARK_MOUNTED==='1',svgOnly=process.env.BENCHMARK_SVG_ONLY==='1';
 (async()=>{
   const html=await readFile(resolve(process.argv[2]||resolve(__dirname,'..','index.html'))),server=createServer((_,r)=>r.end(html));let browser;
   try{
     await new Promise(r=>server.listen(0,'127.0.0.1',r));browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||undefined});
     const page=await browser.newPage({viewport:{width:1440,height:900}});await page.route('https://fonts.googleapis.com/**',r=>r.abort());await page.route('https://fonts.gstatic.com/**',r=>r.abort());
     await page.goto(`http://127.0.0.1:${server.address().port}`);await page.waitForFunction(()=>window.SIM);
-    await page.evaluate(()=>{clearInterval(LIVE.timer);setMode('free',pClone(pracRef()));S.finished=true;hideHome();});await page.waitForTimeout(100);
+    await page.evaluate(({mounted,svgOnly})=>{clearInterval(LIVE.timer);setMode('free',pClone(pracRef()));S.finished=true;if(mounted){S.panelDocked=true;const d=panelDockPosition();positionPanel(d.x,d.y);S.mountClamps=Object.fromEntries(MOUNT_SLOTS.map(q=>[q.id,true]));renderAll();}if(svgOnly&&typeof FRAME_STREAM!=='undefined'){FRAME_STREAM.disabled=true;stopFrameStream();}hideHome();},{mounted,svgOnly});await page.waitForTimeout(100);
     const rows=[];
     for(let round=0;round<3;round++){
-      await page.evaluate(()=>{UI.roomFocus='desk';const r=svg.getBoundingClientRect();UI.cam={x:-100,y:0,w:1100,h:1100*r.height/r.width};applyCam(r);renderOver();});
+      await page.evaluate(mounted=>{if(mounted)return fitRoom('robot');UI.roomFocus='desk';const r=svg.getBoundingClientRect();UI.cam={x:-100,y:0,w:1100,h:1100*r.height/r.width};applyCam(r);renderOver();},mounted);
       await page.waitForFunction(()=>typeof FRAME_STREAM==='undefined'||FRAME_STREAM.disabled||frameAtlasCovers(UI.cam),{},{timeout:30000});
       await page.waitForTimeout(200);
       rows.push(await page.evaluate(async()=>{
@@ -33,6 +34,6 @@ const {createServer}=require('node:http');
         }finally{applyCam=original;}
       }));
     }
-    console.log(JSON.stringify({viewport:{width:1440,height:900},samplesPerRound:90,eventsPerFrame:4,rows},null,2));
+    console.log(JSON.stringify({viewport:{width:1440,height:900},mounted,svgOnly,samplesPerRound:90,eventsPerFrame:4,rows},null,2));
   }finally{await browser?.close();if(server.listening)await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1;});
