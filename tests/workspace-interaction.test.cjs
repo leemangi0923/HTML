@@ -6,12 +6,20 @@ afterEach(async()=>{await context.close();assert.deepEqual(errors,[]);});
 async function workPoint(x,y){return page.evaluate(({x,y})=>{const p=projectWorkPoint({x,y}),r=svg.getBoundingClientRect();return{x:r.left+(p.x-UI.cam.x)/UI.cam.w*r.width,y:r.top+(p.y-UI.cam.y)/UI.cam.h*r.height};},{x,y});}
 async function reference(){await page.evaluate(()=>{setMode('free',pClone(pracRef()));S.usedFill=false;S.elapsed=1000;S.selfChk={'1-4':true};renderAll();});await page.waitForTimeout(80);}
 
-test('all four cells fill all viewport edges, lock at maximum zoom-out, and refit after sidebars change',async()=>{
+test('all cells fit without distortion and lock at maximum zoom-out on desktop, ultrawide and mobile',async()=>{
  for(const size of [{width:1600,height:1000},{width:2560,height:900},{width:390,height:844}]){await page.setViewportSize(size);for(const id of ['desk','floor','robot','robotTop']){
-  const state=await page.evaluate(id=>{fitRoom(id);const a=roomArea(id),read=()=>({x:UI.cam.x+ROOM_X,y:UI.cam.y+ROOM_Y,w:UI.cam.w,h:UI.cam.h}),before=read();UI.cam.x+=500;UI.cam.y-=500;UI.cam.w*=2;constrainRoomCamera();applyCam();return{a,before,after:read(),aspect:svg.getAttribute('preserveAspectRatio')};},id);assert.deepEqual(state.a,state.before);assert.deepEqual(state.after,state.before);assert.equal(state.aspect,'none');assert.equal(state.a.w,1200);assert.equal(state.a.h,800);
+  const state=await page.evaluate(id=>{fitRoom(id);const a=roomArea(id),r=svg.getBoundingClientRect(),read=()=>({...UI.cam}),before=read(),matrix=svg.getScreenCTM();UI.cam.x+=500;UI.cam.y-=500;UI.cam.w*=2;constrainRoomCamera();applyCam();return{a,before,after:read(),aspect:UI.cam.w/UI.cam.h-r.width/r.height,scale:matrix.a/matrix.d,origin:{x:ROOM_X,y:ROOM_Y},backdrop:$('#roomBackdrop').style.display};},id);
+  assert.deepEqual(state.after,state.before);assert.ok(Math.abs(state.scale-1)<.0001);assert.ok(Math.abs(state.aspect)<.0001);const c=state.before,a=state.a;assert.ok(c.x+state.origin.x<=a.x+.01&&c.y+state.origin.y<=a.y+.01&&c.x+c.w+state.origin.x>=a.x+a.w-.01&&c.y+c.h+state.origin.y>=a.y+a.h-.01);assert.notEqual(state.backdrop,'none');
  }}
- await page.setViewportSize({width:1600,height:1000});await page.evaluate(()=>fitRoom('robot'));const before=await page.locator('#board').boundingBox();await page.locator('#togTray').click();await page.locator('#togSide').click();await page.waitForTimeout(450);const after=await page.locator('#board').boundingBox();assert.ok(after.width>before.width);
- assert.equal(await page.evaluate(()=>{const a=roomArea('robot'),b=document.querySelector('[data-workspace="robot"] rect').getBoundingClientRect(),r=svg.getBoundingClientRect();return Math.abs(b.left-r.left)<.1&&Math.abs(b.right-r.right)<.1&&Math.abs(b.top-r.top)<.1&&Math.abs(b.bottom-r.bottom)<.1&&UI.cam.w===a.w&&UI.cam.h===a.h;}),true);
+});
+
+test('opening menus overlays the full canvas without stretching, moving or resizing its scene',async()=>{
+ await reference();await page.evaluate(()=>{S.controllerRight=true;renderWorld(false);fitRoom('robot');});
+ const read=()=>page.evaluate(()=>{const r=svg.getBoundingClientRect(),c=$('[data-station-controller]').getBoundingClientRect(),m=svg.getScreenCTM();return{canvas:{x:r.x,y:r.y,w:r.width,h:r.height},body:{x:c.x,y:c.y,w:c.width,h:c.height},cam:{...UI.cam},scale:m.a/m.d,state:JSON.stringify({...S,elapsed:0}),score:scoreSheet().total};});
+ const initial=await read();for(const id of ['togTray','togSide','togTray','togSide']){await page.locator('#'+id).click();await page.waitForTimeout(390);const next=await read();assert.deepEqual(next.canvas,initial.canvas);assert.deepEqual(next.body,initial.body);assert.deepEqual(next.cam,initial.cam);assert.equal(next.state,initial.state);assert.equal(next.score,30);assert.ok(Math.abs(next.scale-1)<.0001);}
+ const controls=await page.evaluate(()=>{const l=$('.tray').getBoundingClientRect(),r=$('.side').getBoundingClientRect(),a=$('#roomPrev').getBoundingClientRect(),b=$('#roomNext').getBoundingClientRect(),z=$('.zoom').getBoundingClientRect();return a.left>=l.right&&b.right<=r.left&&z.right<=r.left;});assert.equal(controls,true);
+ await page.evaluate(()=>{zoomAt(svg.getBoundingClientRect().width/2,400,.6);flushCamera();endCameraGesture();});const zoomed=await read();await page.locator('#togTray').click();await page.waitForTimeout(390);assert.deepEqual((await read()).body,zoomed.body);
+ await page.waitForFunction(()=>frameAtlasCovers(UI.cam)||FRAME_STREAM.disabled);assert.equal(await page.evaluate(()=>FRAME_STREAM.disabled),false);await page.evaluate(()=>{beginCameraGesture();requestCamera(svg.getBoundingClientRect());});await page.waitForFunction(()=>FRAME_STREAM.active);const ratio=await page.evaluate(()=>(FRAME_STREAM.canvas.width/UI.cam.w)/(FRAME_STREAM.canvas.height/UI.cam.h));assert.ok(Math.abs(ratio-1)<.002);await page.evaluate(()=>endCameraGesture());
 });
 
 test('an explicit overview selection is not replaced by a pending initial room fit',async()=>{
@@ -67,4 +75,11 @@ test('four clamps close through the profile depth and their visible horizontal h
  const geometry=await page.evaluate(()=>MOUNT_SLOTS.map(s=>{const m=mountClampModel(s),a=stationPoint(...m.barAxis[0]),b=stationPoint(...m.barAxis[1]),cross=Math.abs((b.x-a.x)*(500-a.y)-(b.y-a.y)*(1200-a.x))/Math.hypot(b.x-a.x,b.y-a.y);return{cross,front:m.steelContact.every(p=>Math.abs(p[2]-.4975)<1e-8),back:m.profileContact.every(p=>Math.abs(p[2]-.565)<1e-8),x:m.steelContact.map(p=>p[0]),rearX:m.profileContact.map(p=>p[0])};}));for(const g of geometry){assert.ok(g.cross<.01);assert.equal(g.front,true);assert.equal(g.back,true);assert.deepEqual(g.x,g.rearX);}
  const handles=await page.locator('[data-mount-clamp] [data-clamp-part="grip"]').evaluateAll(ns=>ns.map(n=>{const r=n.getBoundingClientRect();return r.width/r.height;}));assert.ok(handles.every(r=>r>3));
  for(const flat of [false,true]){if(flat)await page.evaluate(()=>{undo();closeModal();for(const k of GRAPHICS_KEYS)SET[k]=false;applyGraphics();renderAll();fitRoom('robot');});const box=await page.locator('[data-mount-clamp="lt"] [data-clamp-part="trigger"]').boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);assert.equal(await page.evaluate(()=>nMountClamps()),3);assert.equal(await page.evaluate(()=>UI.carry?.key),'quickClamp');}
+});
+
+
+test('photo-based controller terminals select their displayed connection point after zooming without changing the tested circuit',async()=>{
+ await reference();await page.evaluate(()=>{S.controllerRight=true;S.tool='wire';renderWorld(false);fitRoom('robot');});const before=await page.evaluate(()=>JSON.stringify(S.wires));
+ const click=async()=>{const r=await page.locator('[data-controller-terminal="4.2"] circle').boundingBox();await page.mouse.click(r.x+r.width/2,r.y+r.height/2);assert.deepEqual(await page.evaluate(()=>UI.controllerPin&&{bank:UI.controllerPin.bank,pin:UI.controllerPin.pin}),{bank:4,pin:2});assert.equal(await page.evaluate(()=>S.controllerRight),true);};await click();
+ await page.evaluate(()=>{const p=controllerTerminalPoint(4,2);fitTo({x:p.x-130,y:p.y-140,w:260,h:280});});await click();assert.equal(await page.locator('[data-controller-selected-pin]').count(),1);assert.equal(await page.evaluate(()=>JSON.stringify(S.wires)),before);assert.equal(await page.evaluate(()=>scoreSheet().total),30);
 });

@@ -51,13 +51,15 @@ async function focusPoint(p){await page.evaluate(p=>fitTo({x:p.x-100,y:p.y-75,w:
 async function clickClampHandle(id){const b=await page.locator(`[data-mount-clamp="${id}"] [data-clamp-part="trigger"]`).boundingBox();await page.mouse.click(b.x+b.width/2,b.y+b.height/2);}
 
 async function dragMainPanelTo(x,y){
+  const openPanes=[];for(const id of ['togTray','togSide'])if(await page.locator('#'+id).getAttribute('aria-expanded')==='true'){openPanes.push(id);await page.locator('#'+id).click();}await page.waitForTimeout(380);
   await page.evaluate(()=>{if(panelExternalConnected())disconnectForTransport();fit();});await page.waitForTimeout(70);
   const p=await page.evaluate(({x,y})=>{const r=svg.getBoundingClientRect(),v=projectWorkPoint({x:4,y:300});return{x:r.left+(v.x-UI.cam.x)/UI.cam.w*r.width,y:r.top+(v.y-UI.cam.y)/UI.cam.h*r.height,dx:(x-S.panelPos.x)/UI.cam.w*r.width,dy:(y-S.panelPos.y)/UI.cam.h*r.height};},{x,y});
   await page.mouse.move(p.x,p.y);await page.mouse.down();await page.mouse.move(p.x+p.dx,p.y+p.dy,{steps:6});await page.mouse.up();
+  for(const id of openPanes)await page.locator('#'+id).click();await page.waitForTimeout(380);
 }
 
 
-test('controller clicks reveal a plain right face and restore the front while every support contact stays on its rail',async()=>{
+test('controller clicks reveal the photo-based service side and restore the perforated cover while contacts stay on rails',async()=>{
   await fullState();await page.evaluate(()=>{S.tool='hand';fitRoom('robot');});
   const before=await page.evaluate(()=>({work:JSON.stringify([S.wires,S.inst,S.ties,S.panelPos]),score:scoreSheet().total,g:controllerGeometry()}));
   const clickController=async()=>{const p=await page.evaluate(()=>{const r=controllerGeometry().rect,k=ROOM.width/2400;return{x:STATION.x-ROOM_X+(r.x+r.w/2)*k,y:ROOM.top-ROOM_Y+(r.y+r.h/2)*k};});await clickWorld(p.x,p.y);};
@@ -67,14 +69,14 @@ test('controller clicks reveal a plain right face and restore the front while ev
     const poly=n=>(n.matches('path')?n:n.querySelector('path')).getAttribute('d').match(/-?\d+(?:\.\d+)?/g).map(Number).reduce((a,v,i,ns)=>(i%2||a.push({x:v,y:ns[i+1]}),a),[]);
     const inside=(p,P)=>{const c=P.map((a,i)=>{const b=P[(i+1)%P.length];return((b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x))/Math.hypot(b.x-a.x,b.y-a.y);});return c.every(v=>v>=-.08)||c.every(v=>v<=.08);};
     const contacts=[...document.querySelectorAll('[data-controller-contact]')];
-    return{on:S.controllerRight,side:root.dataset.controllerSide,rects:root.querySelectorAll('rect').length,extra:root.querySelectorAll('text,path,image,use').length,g,
+    return{on:S.controllerRight,side:root.dataset.controllerSide,terminals:root.querySelectorAll('[data-controller-terminal]').length,network:root.querySelectorAll('[data-controller-network-port]').length,shield:!!root.querySelector('[data-controller-shield]'),g,
       shadows:contacts.length,allOnRail:contacts.every(n=>poly(n).every(p=>rails.some(r=>inside(p,poly(r))))),work:JSON.stringify([S.wires,S.inst,S.ties,S.panelPos]),score:scoreSheet().total};
   });
-  assert.equal(right.on,true);assert.equal(right.side,'plain');assert.equal(right.rects,1);assert.equal(right.extra,0);assert.equal(right.shadows,4);assert.equal(right.allOnRail,true);
+  assert.equal(right.on,true);assert.equal(right.side,'open-service');assert.equal(right.terminals,50);assert.equal(right.network,5);assert.equal(right.shield,true);assert.equal(right.shadows,4);assert.equal(right.allOnRail,true);
   assert.ok(Math.abs(right.g.bw-(before.g.back-before.g.cz)*1000)<.001);assert.ok(Math.abs((right.g.back-right.g.cz)*1000-before.g.bw)<.001);
   assert.equal(right.work,before.work);assert.equal(right.score,before.score);
   await page.reload();await page.waitForFunction(()=>window.SIM);await page.locator('[data-home="free"]').click();await page.evaluate(()=>fitRoom('robot'));assert.equal(await page.evaluate(()=>S.controllerRight),true);
-  await clickController();assert.equal(await page.evaluate(()=>S.controllerRight),false);assert.match(await page.locator('[data-station-controller]').textContent(),/ROBOT/);
+  await clickController();assert.equal(await page.evaluate(()=>S.controllerRight),false);assert.equal(await page.locator('[data-station-controller] [data-controller-face="perforated-cover"]').count(),1);
   await page.evaluate(()=>{SET.shadows=false;applyGraphics();renderAll();});assert.equal(await page.locator('[data-controller-contact]').count(),0);
 });
 
@@ -205,18 +207,18 @@ test('dropping on the controller bay returns the task to its starting position',
   assert.deepEqual(await page.evaluate(()=>S.panelPos),{x:0,y:0});assert.equal(await page.evaluate(()=>S.panelDocked),false);assert.match(await page.locator('#toast').textContent(),/오른쪽 철판/);
 });
 
-test('each workspace fills the viewport without outside margins on desktop, ultrawide and mobile',async()=>{
+test('each workspace keeps its aspect ratio and remains fully visible on desktop, ultrawide and mobile',async()=>{
   await page.locator('[data-home="free"]').click();
   for(const viewport of [{width:1440,height:960},{width:2560,height:900},{width:390,height:844}]){
     await page.setViewportSize(viewport);
     for(const[id,zone]of [['zRobot','robot'],['zRobotTop','robotTop'],['zFloor','floor'],['zDesk','desk']]){
       await page.locator('#'+id).click();
-      const r=await page.evaluate(zone=>{const rect=svg.getBoundingClientRect(),a=roomArea(zone),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return{fills:x>=a.x-.01&&x+UI.cam.w<=a.x+a.w+.01&&y>=a.y-.01&&y+UI.cam.h<=a.y+a.h+.01&&(Math.abs(UI.cam.w-a.w)<.01||Math.abs(UI.cam.h-a.h)<.01),ratio:UI.cam.w/UI.cam.h-a.w/a.h,width:ROOM.width,focus:UI.roomFocus};},zone);
+      const r=await page.evaluate(zone=>{const rect=svg.getBoundingClientRect(),a=roomArea(zone),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return{fills:x<=a.x+.01&&x+UI.cam.w>=a.x+a.w-.01&&y<=a.y+.01&&y+UI.cam.h>=a.y+a.h-.01&&(Math.abs(UI.cam.w-a.w)<.01||Math.abs(UI.cam.h-a.h)<.01),ratio:UI.cam.w/UI.cam.h-rect.width/rect.height,width:ROOM.width,focus:UI.roomFocus};},zone);
       assert.equal(r.fills,true,zone);assert.ok(Math.abs(r.ratio)<1e-6);assert.equal(r.width,1200);assert.equal(r.focus,zone);
     }
   }
   await page.locator('#zFloor').click();await page.setViewportSize({width:1920,height:1080});await page.waitForTimeout(80);
-  assert.equal(await page.evaluate(()=>{const a=roomArea('floor'),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return UI.roomFocus==='floor'&&x>=a.x-.01&&x+UI.cam.w<=a.x+a.w+.01&&y>=a.y-.01&&y+UI.cam.h<=a.y+a.h+.01;}),true);
+  assert.equal(await page.evaluate(()=>{const a=roomArea('floor'),x=UI.cam.x+ROOM_X,y=UI.cam.y+ROOM_Y;return UI.roomFocus==='floor'&&x<=a.x+.01&&x+UI.cam.w>=a.x+a.w-.01&&y<=a.y+.01&&y+UI.cam.h>=a.y+a.h-.01;}),true);
   await page.locator('#zFit').click();assert.equal(await page.evaluate(()=>UI.roomFocus),null);assert.ok(await page.evaluate(()=>UI.cam.w>=FIT_V.w));
   await page.locator('#zOut').click();assert.ok(await page.evaluate(()=>UI.cam.w>=FIT_V.w),'zooming out of the whole room must not zoom in');
 });
