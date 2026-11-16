@@ -932,7 +932,7 @@ const DEV = {
   mcb:   { name: '차단기 MCB', spec: 'LS BK63H 2P 6A (폭 35.2)', w: 35.2, h: 82, qty: 1 },
   fuse:  { name: '퓨즈 홀더', spec: '250V 15A 2P, 30mm 퓨즈', w: 36, h: 80, qty: 2 },
   smps:  { name: 'SMPS', spec: 'DC24V 찬넬용 (지참)', w: 50, h: 95, qty: 1 },
-  plc:   { name: 'PLC', spec: '입력16 / 출력16 (지참)', w: 120, h: 95, qty: 1 },
+  plc:   { name: 'PLC', spec: '입력16 / 출력16 · 위치결정 카드 결합 (지참)', w: 120, h: 95, qty: 1 },
   pos:   { name: '위치결정 카드 POS', spec: '모터 제어용 (지참)', w: 22, h: 95, qty: 1 },
   tr:    { name: '위치결정 카드 TR', spec: '모터 제어용 (지참)', w: 22, h: 95, qty: 1 },
   servo: { name: '서보 드라이버', spec: '겐트리 제어용 (지참)', w: 50, h: 160, qty: 1 },
@@ -942,14 +942,15 @@ const DEV = {
   tb:    { name: '단자대 TB', spec: '조립식 8.6×42, 40P', w: 2 + TB_N * 8.6 + 2, h: 42, qty: 1 },
   xtb50: { name: '아이오 링크 2', spec: 'IOLINK XTB-50H (폭 184)', w: 184, h: 44, qty: 1 }
 };
-const DEV_ORDER = ['mcb', 'fuse', 'smps', 'plc', 'pos', 'servo', 'relay', 'timer', 'xtb40', 'tb', 'xtb50'];
+const DEV_ORDER = ['mcb', 'fuse', 'smps', 'plc', 'servo', 'relay', 'timer', 'xtb40', 'tb', 'xtb50'];
+const deviceUnitWidth=type=>DEV[type].w+(type==='plc'?DEV.pos.w:0);
 const RAIL_EXPECT = {
   c1: ['mcb', 'fuse', 'fuse', 'smps', 'plc', 'pos'],
   c2: ['relay','relay','relay','relay','relay','relay','timer','timer','timer','xtb40'],
   c3: ['tb', 'xtb50']
 };
 const RAIL_OF = { mcb: 'c1', fuse: 'c1', smps: 'c1', plc: 'c1', pos: 'c1', relay: 'c2', timer: 'c2', xtb40: 'c2', tb: 'c3', xtb50: 'c3' };
-const RAIL_TEXT = { c1: 'MCB → FS1 → FS2 → SMPS → PLC → POS', c2: 'R1~R6 → T1~T3 → 아이오 링크 1', c3: 'TB → 아이오 링크 2' };
+const RAIL_TEXT = { c1: 'MCB → FS1 → FS2 → SMPS → PLC', c2: 'R1~R6 → T1~T3 → 아이오 링크 1', c3: 'TB → 아이오 링크 2' };
 const GROUP_OF = { mcb: 'mcb', fuse: 'fuse', smps: 'smps', plc: 'plc', pos: 'plc', relay: 'relay', timer: 'timer', xtb40: 'xtb40', tb: 'tb', xtb50: 'xtb50' };
 const SOLO = new Set(['mcb', 'fuse', 'smps', 'xtb40', 'tb', 'xtb50']);
 const GROUPS = { c1: [['mcb'], ['fuse'], ['fuse'], ['smps'], ['plc', 'pos']], c2: [Array(6).fill('relay'), Array(3).fill('timer'), ['xtb40']], c3: [['tb'], ['xtb50']] };
@@ -1057,6 +1058,10 @@ const TS = (x, y, str, sz, fill, extra = '') => `<text x="${F(x)}" y="${F(y)}" f
 const LN = (x1, y1, x2, y2, a = '') => `<line x1="${F(x1)}" y1="${F(y1)}" x2="${F(x2)}" y2="${F(y2)}" ${a}/>`;
 const TX = (sz, fill, extra = '') => `font-size="${sz}" fill="${fill}" text-anchor="middle" ${extra}`;
 const shadow = (x, y, w, h, rx = 1.5) => SET.shadows ? R(x + 1.3, y + 1.8, w, h, `class="effect-shadow" rx="${rx}" fill="#142127" fill-opacity=".09"`) + R(x + .65, y + .9, w, h, `class="effect-shadow" rx="${rx}" fill="#101a20" fill-opacity=".13"`) : '';
+function contactShadow(r){
+  if(!SET.shadows)return '';
+  return `<g data-ground-contact="true" pointer-events="none">`+R(r.x+1,r.y+2,r.w+3,r.h+3,'rx="3" fill="#18201b" fill-opacity=".10" stroke="#18201b" stroke-opacity=".025" stroke-width="7"')+R(r.x-.5,r.y-.4,r.w+1,r.h+1,'rx="2" fill="#17201b" fill-opacity=".20"')+'</g>';
+}
 // A single fixed upper-left light is shared by raised edges, recessed lips and side faces.
 const WORK_LIGHT={x:-.64,y:-.77},BEVEL_CACHE=new Map();
 function lightingContour(x,y,w,h,r=0){
@@ -1558,13 +1563,14 @@ const tl = (x, y, s, sz = 2, fill = '#e8ecef', anchor = 'middle') => `<text clas
 
 /* --- 로봇 정면 / 실제 바닥 / 책상 --- */
 // Four adjacent work surfaces follow the physical workstation from left to right.
-const ROOM={width:2400,deskLeft:-3190,floorLeft:-790,robotLeft:1610,robotTopLeft:4010,deskPanelX:-2400,top:-100,seam:-100,bottom:1500};
+const LEGACY_ROOM={width:2400,deskLeft:-3190,floorLeft:-790,robotLeft:1610,robotTopLeft:4010,deskPanelX:-2400,deskPanelY:0,top:-100,seam:-100,bottom:1500};
+const ROOM={width:1200,deskLeft:-1420,floorLeft:-220,robotLeft:980,robotTopLeft:2180,deskPanelX:-1200,deskPanelY:-80,top:-100,seam:-100,bottom:700};
 const ROOM_ORDER=['desk','floor','robot','robotTop'];
-const STATION={get x(){return ROOM.robotLeft;},get topX(){return ROOM.robotTopLeft;},dockX:1000,get dockY(){return ROOM.top+400;},panelScale:1.3,opX:1815,get opY(){return ROOM.top+1230;},postX:2260,postY:1450};
+const STATION={get x(){return ROOM.robotLeft;},get topX(){return ROOM.robotTopLeft;},get dockX(){return ROOM.width*5/12;},get dockY(){return ROOM.top+ROOM.width/6;},get panelScale(){return ROOM.width/2400*1.3;},opX:1815,get opY(){return ROOM.top+1230;},postX:2260,postY:1450};
 const panelDockPosition=()=>({x:STATION.x+STATION.dockX,y:STATION.dockY});
 const roomLeft=id=>id==='robot'?ROOM.robotLeft:id==='robotTop'?ROOM.robotTopLeft:id==='desk'?ROOM.deskLeft:ROOM.floorLeft;
-const roomRight=id=>roomLeft(id)+ROOM.width;
-const roomArea=id=>({x:roomLeft(id),y:ROOM.top,w:ROOM.width,h:ROOM.bottom-ROOM.top});
+const roomRight=id=>roomLeft(id)+(id==='robotTop'?2400:ROOM.width);
+const roomArea=id=>({x:roomLeft(id),y:ROOM.top,w:id==='robotTop'?2400:ROOM.width,h:id==='robotTop'?1600:ROOM.bottom-ROOM.top});
 const insideSurface=(p,id)=>inRect({x:p.x+ROOM_X,y:p.y+ROOM_Y},roomArea(id));
 const rectOnSurface=(r,id)=>{const a=roomArea(id);return r.x+ROOM_X>=a.x&&r.x+r.w+ROOM_X<=a.x+a.w&&r.y+ROOM_Y>=a.y&&r.y+r.h+ROOM_Y<=a.y+a.h;};
 const hmiPrepPosition=()=>({x:STATION.topX+1170-ROOM_X,y:ROOM.top+980-ROOM_Y});
@@ -1593,9 +1599,39 @@ function stationBeam(x,y,z,w,h,d,depth=false){
   else{for(const f of [.3,.7])s+=line([x,y+h*f,z],[x+w,y+h*f,z]);}
   return s+'</g>';
 }
+function controllerGeometry(){
+  const z=.35,foot=stationPoint(340,1480,z),tx=foot.x-205*.7,ty=foot.y-905*1.4;
+  let x=stationWorld(tx+142*.7,'x',z),y=stationWorld(ty+444*1.4,'y',z),w=512*.7*(1+STATION_VIEW.k*z),h=448*1.4*(1+STATION_VIEW.k*z),front=z,back=.86;
+  if(S?.controllerRight){const cx=x+w/2,cz=(front+back)/2,depth=(back-front)*1000;front=cz-w/2000;back=cz+w/2000;x=cx-depth/2;w=depth;}
+  const p=stationPoint(x,y,front),q=stationPoint(x+w,y+h,front),sx=(q.x-p.x)/512,sy=(q.y-p.y)/448;
+  return{bx:x,by:y,bw:w,bh:h,cz:front,back,tx:p.x-142*sx,ty:p.y-444*sy,sx,sy,rect:{x:p.x,y:p.y,w:q.x-p.x,h:q.y-p.y}};
+}
+function robotController(){
+  const {bx,by,bw,bh,cz,back,tx,ty,sx,sy}=controllerGeometry();
+  let s=`<g data-controller-view="${S?.controllerRight?'right':'front'}">`;
+  if(SET.shadows)for(const x of [312,638])for(const z of [cz,back])s+=stationFace([[x,1480,z-.025],[x+56,1480,z-.025],[x+56,1480,z+.025],[x,1480,z+.025]],'#14231b','data-controller-contact="rail" fill-opacity=".28" style="stroke:none"');
+  for(const x of [320,646])s+=stationFace([[x,1450,back],[x+40,1450,back],[x+40,1480,back],[x,1480,back]],'#18231f','data-controller-foot="rail"');
+  s+=stationFace([[bx,by,cz],[bx+bw,by,cz],[bx+bw,by,back],[bx,by,back]],'#475552')
+    +stationFace([[bx+bw,by,cz],[bx+bw,by+bh,cz],[bx+bw,by+bh,back],[bx+bw,by,back]],'#8b9c93');
+  if(S?.controllerRight){
+    s+=`<g data-station-controller="true" data-controller-side="plain" transform="matrix(${F(sx)} 0 0 ${F(sy)} ${F(tx)} ${F(ty)})">`+R(142,444,512,448,'fill="#aeb5b2" stroke="#53635b" stroke-width="2"')+'</g>';
+    for(const x of [320,646])s+=stationFace([[x,1450,cz],[x+40,1450,cz],[x+40,1480,cz],[x,1480,cz]],'#18231f','data-controller-foot="rail"');
+    return s+'</g>';
+  }
+  s+=`<g data-station-controller="true" transform="matrix(${F(sx)} 0 0 ${F(sy)} ${F(tx)} ${F(ty)})">`
+    +R(142,444,512,448,'rx="32" fill="#162023"')
+    +R(152,454,492,413,`rx="29" fill="${SET.materials?'url(#stationController)':'#bec7c5'}" stroke="#677674" stroke-width="2"`)
+    +'<path d="M153 486Q153 454 183 454H611Q643 454 643 486V548Q418 572 153 548Z" fill="#333d40" stroke="#283235" stroke-width="1.5"/>'
+    +R(268,491,260,36,'rx="17" fill="#111a1d" stroke="#65706f" stroke-width="1.5"')+R(160,828,476,63,'rx="17" fill="#253033"')
+    +T(390,633,'ROBOT','font-size="25" fill="#64736f" font-weight="600" text-anchor="middle"');
+  for(let yy=686;yy<804;yy+=13)s+=R(525,yy,78,4,'rx="2" fill="#778782"');
+  for(const xx of [188,608])s+=R(xx,887,34,18,'rx="3" fill="#121c1e"');
+  return s+'</g></g>';
+}
+function controllerAt(p){const scale=ROOM.width/2400,q={x:(p.x+ROOM_X-STATION.x)/scale,y:(p.y+ROOM_Y-ROOM.top)/scale};return inRect(q,controllerGeometry().rect,10);}
 function robotStation(){
   const metal=SET.materials?'url(#stationBackPanel)':'#8fa4a8',mz=.5,mq=1/(1+STATION_VIEW.k*mz),left=stationWorld(960,'x',mz),right=stationWorld(1960,'x',mz),postW=80;
-  let s=`<g data-robot-station="full-front-frame" pointer-events="none" transform="translate(${F(STATION.x-ROOM_X)} ${F(ROOM.top-ROOM_Y)})">`
+  let s=`<g data-robot-station="full-front-frame" pointer-events="none" transform="translate(${F(STATION.x-ROOM_X)} ${F(ROOM.top-ROOM_Y)}) scale(${ROOM.width/2400})">`
     +R(0,0,2400,1600,`fill="${metal}"`)
     +stationFace([[0,1600,0],[2400,1600,0],[2400,1600,1],[0,1600,1]],SET.materials?'url(#roomTerrazzo)':'#bfc0bf','data-station-floor="true"')
     +stationFace([[0,120,0],[2400,120,0],[2400,120,1],[0,120,1]],'#4e5d57');
@@ -1613,20 +1649,9 @@ function robotStation(){
   s+='</g><g data-station-panel-slot="true">'+R(988,388,1012,804,`rx="2" fill="${S?.panelDocked?'#b9c6bf':'none'}" stroke="#667e71" stroke-width="2"${S?.panelDocked?'':' stroke-dasharray="14 10"'}`);
   if(!S?.panelDocked)s+=T(1494,790,'1과제 · 프로파일 고정 자리','font-size="24" text-anchor="middle" fill="#4e665a"');
   s+='</g>';
-  // The controller's feet and the two support rails use identical world X/Y/Z.
-  const cz=.35,foot=stationPoint(340,1480,cz),tx=foot.x-205*.7,ty=foot.y-905*1.4;
-  const bx=stationWorld(tx+142*.7,'x',cz),by=stationWorld(ty+444*1.4,'y',cz),bw=512*.7*(1+STATION_VIEW.k*cz),bh=448*1.4*(1+STATION_VIEW.k*cz);
-  s+=stationFace([[bx,by,cz],[bx+bw,by,cz],[bx+bw,by,.86],[bx,by,.86]],'#475552')
-    +stationFace([[bx+bw,by,cz],[bx+bw,by+bh,cz],[bx+bw,by+bh,.86],[bx+bw,by,.86]],'#8b9c93');
-  s+=`<g data-station-controller="true" transform="matrix(.7 0 0 1.4 ${F(tx)} ${F(ty)})">`
-    +R(142,444,512,448,'rx="32" fill="#162023"')
-    +R(152,454,492,413,`rx="29" fill="${SET.materials?'url(#stationController)':'#bec7c5'}" stroke="#677674" stroke-width="2"`)
-    +'<path d="M153 486Q153 454 183 454H611Q643 454 643 486V548Q418 572 153 548Z" fill="#333d40" stroke="#283235" stroke-width="1.5"/>'
-    +R(268,491,260,36,'rx="17" fill="#111a1d" stroke="#65706f" stroke-width="1.5"')+R(160,828,476,63,'rx="17" fill="#253033"')
-    +T(390,633,'ROBOT','font-size="25" fill="#64736f" font-weight="600" text-anchor="middle"');
-  for(let yy=686;yy<804;yy+=13)s+=R(525,yy,78,4,'rx="2" fill="#778782"');
-  for(const xx of [188,608])s+=R(xx,887,34,18,'rx="3" fill="#121c1e"');
-  s+='</g><g data-station-frame="full-cell">'
+  s+=robotController();
+  s+='<g data-station-frame="full-cell">'
+
     +stationBeam(0,0,0,2400,120,.06)+stationBeam(0,1480,0,2400,120,.06)
     +stationBeam(0,120,0,96,1360,.06)+stationBeam(2304,120,0,96,1360,.06);
   for(const xx of [48,2352])for(const yy of [60,1540])s+=screw(xx,yy,9);
@@ -1665,8 +1690,8 @@ function drawMat() {
     +R(-12000,-12000,24000,24000,'fill="#e4e7e4"')
     +ROOM_ORDER.map(id=>{const a=roomArea(id),fill={robot:'url(#roomRobot)',robotTop:'url(#roomRobot)',floor:'url(#roomTerrazzo)',desk:'url(#roomDesk)'}[id];return `<g data-workspace="${id}" data-view="${id==='robot'?'front':'top'}">`+R(a.x-x,a.y-y,a.w,a.h,`fill="${SET.materials?fill:{robot:'#cbd1cd',robotTop:'#d2d8d3',floor:'#bfc0bf',desk:'#cb955f'}[id]}"`)+(SET.materials&&['floor','desk'].includes(id)?R(a.x-x,a.y-y,a.w,a.h,`fill="url(#${id==='floor'?'roomTileSeams':'roomGrain'})"`):'')+'</g>';}).join('')
     +robotStation()+robotTabletop()+woodMarkup(S?.wood)
-    +[[ROOM.deskLeft,'나무 책상 · 재료 준비 / 기구·배선·검사'],[ROOM.floorLeft,'바닥 · 나무판 / 표시·덕트·드릴·나사'],[ROOM.robotLeft,'로봇 책상 옆면 · 검사 후 철판 / 클램프 4개'],[ROOM.robotTopLeft,'로봇 책상 윗면 · HMI 준비·조립']].map(([left,label])=>T(left+ROOM.width/2-x,ROOM.top+35-y,label,'font-size="20" fill="#3d4c43" font-weight="700" text-anchor="middle"')).join('')
-    +[ROOM.floorLeft,ROOM.robotLeft,ROOM.robotTopLeft].map(left=>LN(left-x,ROOM.top-y,left-x,ROOM.bottom-y,'stroke="#829087" stroke-opacity=".55" stroke-width="1.2"')).join('');
+    +[[ROOM.deskLeft,'나무 책상 · 재료 준비 / 기구·배선·검사'],[ROOM.floorLeft,'바닥 · 나무판 / 표시·덕트·드릴·나사'],[ROOM.robotLeft,'로봇 책상 옆면 · 검사 후 철판 / 클램프 4개'],[ROOM.robotTopLeft,'로봇 책상 윗면 · HMI 준비·조립']].map(([left,label])=>T(left+roomArea(ROOM_ORDER.find(id=>roomLeft(id)===left)).w/2-x,ROOM.top+35-y,label,'font-size="20" fill="#3d4c43" font-weight="700" text-anchor="middle"')).join('')
+    +[ROOM.floorLeft,ROOM.robotLeft,ROOM.robotTopLeft].map(left=>LN(left-x,ROOM.top-y,left-x,ROOM.top+roomArea(ROOM_ORDER.find(id=>roomLeft(id)===left)).h-y,'stroke="#829087" stroke-opacity=".55" stroke-width="1.2"')).join('');
 }
 function syncRoom(){ROOM_X=Number(S?.panelPos?.x)||0;ROOM_Y=Number(S?.panelPos?.y)||0;}
 function panelWorkplace(){if(S.panelDocked)return 'robot';const x=(Number(S.panelPos?.x)||0)+PANEL.w/2;return x<ROOM.floorLeft?'desk':x<ROOM.robotLeft?'floor':'robot';}
@@ -1689,7 +1714,7 @@ function panelEdge(p){return inRect(p,{x:-12,y:-12,w:PANEL.w+24,h:PANEL.h+24})&&
 function panelOnFloorWood(){if(panelWorkplace()!=='floor'||!S.wood)return false;const r=prepRect('wood',S.wood);return r.x<=0&&r.y<=0&&r.x+r.w>=PANEL.w&&r.y+r.h>=PANEL.h;}
 function roomWorkAllowed(place){if(place==='floor'?panelOnFloorWood():panelWorkplace()===place)return true;say(place==='floor'?'철판을 바닥의 나무판 위에 놓고 표시·덕트·찬넬·드릴·나사 작업을 해요':'철판을 나무 책상으로 옮겨 기구·스토퍼 설치와 배선·동작 검사를 해요','info');return false;}
 function applyPanelDrag(g){
-  if(!g.last)return;const x=clamp(g.pos.x+(g.last.x-g.sx)/g.rect.width*g.cam0.w,ROOM.deskLeft+20,roomRight('robot')-PANEL.w-20),y=clamp(g.pos.y+(g.last.y-g.sy)/g.rect.height*g.cam0.h,0,460);
+  if(!g.last)return;const x=clamp(g.pos.x+(g.last.x-g.sx)/g.rect.width*g.cam0.w,ROOM.deskLeft+20,roomRight('robot')-PANEL.w-20),y=clamp(g.pos.y+(g.last.y-g.sy)/g.rect.height*g.cam0.h,ROOM.top+20,ROOM.bottom-PANEL.h-20);
   positionPanel(x,y,true);setMarkup(gMat,drawMat());renderWorld();applyCam(g.rect);renderOver();
 }
 function finishPanelDrag(g){
@@ -1698,6 +1723,7 @@ function finishPanelDrag(g){
   if(near&&inspectionPassed()){S.panelDocked=true;positionPanel(d.x,d.y,true);message='철판을 로봇 책상 옆면에 놓았어요. 디월트 클램프 4개로 프로파일에 고정해요';}
   else if(near){S.panelDocked=!!g.docked;positionPanel(g.pos.x,g.pos.y,true);message='나무 책상에서 배선과 동작 검사를 마친 뒤 로봇 옆면에 설치해요';kind='info';}
   else if(panelWorkplace()==='robot'){S.panelDocked=!!g.docked;positionPanel(g.pos.x,g.pos.y,true);message='로봇 아래 오른쪽 철판 자리에 제어판 중앙을 맞춰 놓아요';kind='info';}
+  else if(!rectOnSurface({x:0,y:0,w:PANEL.w,h:PANEL.h},panelWorkplace())||looseCollision({x:0,y:0,w:PANEL.w,h:PANEL.h},null,'panel')){S.panelDocked=!!g.docked;positionPanel(g.pos.x,g.pos.y,true);message='다른 재료와 겹치거나 책상 밖이에요. 재료를 비운 자리에 놓아요';kind='info';}
   else{S.panelDocked=false;message=`${panelWorkplace()==='desk'?'책상':'바닥'}에 제어판을 내려놓았어요`;}
   if(MODE==='prac')pracAfter();renderAll();applyCam(g.rect);save();say(message,kind);
 }
@@ -2483,9 +2509,9 @@ function staticLinks(wires) {
   return L;
 }
 function newSim() { const st = { rel: {}, tim: {}, force: null }; for (const r of RELAYS) st.rel[r] = false; for (const t of TIMERS) st.tim[t] = { on: false, el: 0, out: false }; return st; }
-const POWER_POS = {get x(){return ROOM.deskPanelX+10-ROOM_X;},get y(){return 785-ROOM_Y;}};
+const POWER_POS = {get x(){return ROOM.deskLeft+(ROOM.width===2400?800:1080)-ROOM_X;},get y(){return (ROOM.width===2400?785:600)-ROOM_Y;}};
 const POWER_LEADS = [['R','갈색','#925523','TB.1.b'],['T','파란색','#287be0','TB.2.b'],['E','초록색','#21a65a','TB.3.b']];
-const OUTLET_POS={get x(){return ROOM.deskPanelX+270-ROOM_X;},get y(){return 775-ROOM_Y;}};
+const OUTLET_POS={get x(){return ROOM.deskLeft+(ROOM.width===2400?1060:920)-ROOM_X;},get y(){return (ROOM.width===2400?775:600)-ROOM_Y;}};
 const CAB_ALL = {outlet:{...OUTLET_POS},plugged:true,power:true,powerPlaced:{...POWER_POS},powerLeads:Object.fromEntries(POWER_LEADS.map(([k,,,t])=>[k,t]))};
 const validPowerTerm = t => typeof t==='string' && /^TB\.(?:[1-9]|[1-3][0-9]|40)\.b$/.test(t);
 function powerLeadMap(cab) {
@@ -2729,7 +2755,7 @@ function getJudge() { const fz = fuseState(), key = judgeKey(); if (_jdg.key !==
 function judgeSteps() {
   const nLead = S.conveyor ? CV_LEADS.filter(l => S.convLeads[l[0]]).length : 0;
   const cs = [{ no: '케이블', title: '전원 케이블: 갈색 R · 파란색 T · 초록색 E', n: POWER_LEADS.filter(([k])=>powerLeadMap(S.cables)[k]).length, m: 3, done: powerConnected() && !powerFault(S.cables,staticLinks(S.wires)), tip: '케이블을 작업 책상에 놓고 각 선 끝을 누른 뒤 단자대 아래쪽에 연결해요. R·T는 해당 전원 회로, E는 전원·신호와 분리된 접지 전용 단자에 연결해요.' },
-    { no: '컨베이어', title: '컨베이어를 작업 책상에 내려놓기', n: S.conveyor ? 1 : 0, m: 1, done: !!S.conveyor, tip: '재료함 동작 검사 재료의 컨베이어를 들고 제어판 아래 책상을 눌러요' },
+    { no: '컨베이어', title: '컨베이어를 작업 책상에 내려놓기', n: S.conveyor ? 1 : 0, m: 1, done: !!S.conveyor, tip: '재료함 동작 검사 재료의 컨베이어를 들고 빈 작업 책상을 눌러요' },
     { no: '컨베이어', title: '컨베이어 선 결선 (S+, S1, S2, S−, FR, BR)', n: nLead, m: 6, done: nLead === 6, tip: '컨베이어 선 끝을 누르고 단자대(TB) 아래쪽 단자를 눌러요. 번호는 자유예요. 센서 전원·출력·모터 신호가 실제 회로에 맞게 연결되어야 해요' }];
   cs.push({ no: '채점 2-1', title: '퓨즈 끼우기 (FS1 5A, FS2 3A)', n: nFuses(), m: 4, done: fusesIn(), tip: '과제지 동작 조건 (1). 재료함 동작 검사 재료의 퓨즈를 퓨즈 홀더에 놓아요. FS1은 5A, FS2는 3A' });
   cs.push(...Object.values(PLUGS).map(g => ({ no: '소켓', title: `${g.name} 꽂기 (${g.sock === 'relay' ? 'R1~R6, 14P' : 'T1~T3, 8P'})`, n: nPlugged(g.sock), m: DEV[g.sock].qty, done: nPlugged(g.sock) === DEV[g.sock].qty, tip: `재료함 동작 검사 재료의 ${g.name}를 들고 찬넬의 ${DEV[g.sock].name}을 눌러요. 꽂힌 걸 손으로 누르면 빠져요` })));
@@ -2916,9 +2942,9 @@ function liveDown(k) {
 }
 function pickPack() { LIVE.pack = null; LIVE.inp.grab = false; UI.carry = { kind: 'pack', key: 'pack', from: 'floor', count: 1 }; say('팩을 집었어요', 'info'); renderTray(); renderOver(); liveStep(0); if (MODE === 'prac') pracLive(); }   // 연습 안내도 바로 다음으로
 const convBodyAt = p => inRect(p, { x: CVW.x - 12, y: CVW.y - 9 - CVW.mh, w: CONV.L + 24, h: CVW.mh + CVW.bw + 18 }) && !(LIVE.pack !== null && inRect(p, packRect(), 9));
-const convDropOK = p => p.y+ROOM_Y>=750&&p.y+ROOM_Y<=ROOM.bottom-90&&p.x+ROOM_X>=ROOM.deskPanelX+210&&p.x+ROOM_X<=ROOM.deskPanelX+610;   // 제어판 아래 바닥
+const convDropOK=p=>{const bounds=conveyorBounds({x:Math.round(p.x-CONV.L/2),y:Math.round(p.y-CVW.bw/2)});return bounds.every(r=>rectOnSurface(r,'desk')&&!looseCollision(r,null,'conveyor'));};
 function dropConveyor(p) {   // 제어판 아래 바닥에 내려놓는다
-  if (!convDropOK(p)) return say(S.guide ? '작업 책상 아래쪽에 내려놓아요 (아래 컨베이어 보기 버튼)' : '작업 책상에 내려놓아요', 'info');
+  if(!convDropOK(p))return say('다른 재료와 겹치지 않는 작업 책상의 빈 자리에 내려놓아요','info');
   snap(); S.conveyor = { x: Math.round(p.x - CONV.L / 2), y: Math.round(p.y - CVW.bw / 2) }; S.convLeads = {}; consumeCarry();
   say('컨베이어를 내려놓았어요. 선 끝을 누르고 단자대 아래쪽 단자를 눌러 결선해요', 'ok'); commit();
 }
@@ -3251,7 +3277,7 @@ function prepObjectAt(p){if(!S.setup)return null;for(const[key,o]of [['opplate',
 function pickPrepObject(key){snap();if(key==='wood')S.wood=null;else S.setup[key==='opplate'?'opPlate':'panelPlate']=null;UI.carry={kind:'prep',key,count:1};commit();}
 function dropPrepObject(p){p={x:Math.round(p.x),y:Math.round(p.y)};const key=UI.carry.key;
   if(key==='opplate'&&!isPreparing()&&inRect(p,{x:OPW.x-25,y:OPW.y-25,w:OP.w+50,h:OP.h+50})){snap();S.setup.opMounted=true;S.setup.opPlate=null;consumeCarry();commit();if(MODE==='prac'){PRAC.sig=pracSig();PRAC.good=JSON.stringify(S);}return say('HMI 철판을 상판 위 지지대에 부착했어요. 이제 HMI와 기구를 끼워요','ok');}
-  const r=prepRect(key,p),surface=key==='opplate'?'robotTop':'floor';if(!rectOnSurface(r,surface))return say(surface==='robotTop'?'HMI 철판은 로봇 책상 윗면에 준비해요':'나무판과 제어판 철판은 바닥에 놓아요','info');
+  const r=prepRect(key,p),surface=key==='opplate'?'robotTop':'floor';if(S.floor.some(f=>rectsOverlap(r,looseBounds(f))))return say('다른 재료와 겹쳐요. 빈 자리에 놓아요','info');if(!rectOnSurface(r,surface))return say(surface==='robotTop'?'HMI 철판은 로봇 책상 윗면에 준비해요':'나무판과 제어판 철판은 바닥에 놓아요','info');
   snap();const at={x:Math.round(p.x),y:Math.round(p.y)};if(key==='wood')S.wood=at;else S.setup[key==='opplate'?'opPlate':'panelPlate']=at;consumeCarry();commit();say(key==='wood'?'나무판을 바닥에 깔았어요':key==='opplate'?'HMI 철판을 로봇 책상 윗면에 준비했어요':'제어판 철판을 나무판 위에 준비해요','ok');
 }
 function panelOnWood(){if(!S.wood||!S.setup?.panelPlate)return false;const w=prepRect('wood',S.wood),p=prepRect('panelplate',S.setup.panelPlate);return p.x>=w.x&&p.y>=w.y&&p.x+p.w<=w.x+w.w&&p.y+p.h<=w.y+w.h;}
@@ -3288,7 +3314,7 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-prep="start"]')
 function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
-    wood:{x:380,y:300}, stationV:7,rowV:1,panelDocked:false,mountClamps:{},roomWidthV:1, roomV:1, bundleV:1, panelPos:{x:0,y:0}, op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
+    wood:{x:380,y:300}, stationV:7,rowV:1,panelDocked:false,mountClamps:{},compactV:1,plcUnitV:1,controllerRight:false,roomWidthV:1, roomV:1, bundleV:1, panelPos:{x:0,y:0}, op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
     inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, smpsLid: {t:false,b:false}, plug: {}, tset: {}, dressV: 2, dbreak: {}, extV: 2, hgath: [], hcov: 0 };
 }
 function save() { if (DEMO.on || MODE === 'prac') return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : MODE === 'fault' ? STORE_FAULT : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
@@ -3737,8 +3763,8 @@ function railAtP(p) { const r = rowAt(p) || nearestRow(p, 30); if (!r) return nu
 function instAt(p) { for (const i of S.inst) { const y = devY(i), d = DEV[i.type]; if (p.x >= i.x && p.x <= i.x + d.w && p.y >= y && p.y <= y + d.h) return i; } return null; }
 const stopperAt = p => S.stoppers.find(s => p.x >= s.x - 1 && p.x <= s.x + STOPPER_W + 1 && Math.abs(p.y - ROW[RAIL_ROW[s.rail]].cy) < 24);
 function obstacles(rail) { return [...S.inst.filter(i => i.rail === rail).map(i => [i.x, i.x + DEV[i.type].w]), ...S.stoppers.filter(s => s.rail === rail).map(s => [s.x, s.x + STOPPER_W])]; }
-function resolvePos(rail, type, px) {
-  const w = DEV[type].w, [r0, r1] = railRange(rail), lo = r0 + STOPPER_W + 1, hi = r1 - STOPPER_W - 1 - w; if (hi < lo) return null;
+function resolvePos(rail, type, px, w=DEV[type].w) {
+  const [r0, r1] = railRange(rail), lo = r0 + STOPPER_W + 1, hi = r1 - STOPPER_W - 1 - w; if (hi < lo) return null;
   const GAP = 2 * STOPPER_W + 2;
   const devs = S.inst.filter(i => i.rail === rail).map(i => ({ a: i.x, b: i.x + DEV[i.type].w, g: GROUP_OF[i.type] === GROUP_OF[type] && !SOLO.has(type) ? 0 : GAP }));
   const stops = S.stoppers.filter(s => s.rail === rail).map(s => ({ a: s.x, b: s.x + STOPPER_W }));
@@ -3825,7 +3851,7 @@ function buildTerms() {
   };
   { for (const i of S.inst) add(UI.nm[i.id], i.type, i.x, devY(i), RAIL_ROW[i.rail]); if (S.servo.placed) add('SV', 'servo', SERVO.x, SERVO.y, 'r1'); }
   if(powerPlaced())for(const [k,col] of POWER_LEADS){const e=powerLeadEnd(k),id='PWR.'+k,o={id,dev:'PWR',k,lab:k,x:e.x,y:e.y,pw:true,nm:`전원 ${col} ${k}선${powerLeadMap(S.cables)[k]?' → '+powerLeadMap(S.cables)[k]:''}`};TERMS.push(o);TERM[id]=o;}
-  if(!S.conveyor){CVW.x=130-ROOM_X;CVW.y=880-ROOM_Y;}
+  if(!S.conveyor){CVW.x=(ROOM.width===2400?130:ROOM.deskLeft+40)-ROOM_X;CVW.y=(ROOM.width===2400?880:600)-ROOM_Y;}
   if (S.conveyor) { CVW.x = S.conveyor.x; CVW.y = S.conveyor.y; for (const [k, nm] of CV_LEADS) { const e = leadEnd(k), id = 'CV.' + k, o = { id, dev: 'CV', k, lab: k, x: e.x, y: e.y, cv: true, nm: `컨베이어 선 ${k === 'S-' ? 'S−' : k}: ${nm}${S.convLeads[k] ? ' → ' + S.convLeads[k] : ''}` }; TERMS.push(o); TERM[id] = o; } }
   if (S.opBack && S.op.hmi) for (const [k, lx, ly, lab] of HMI_PW(hmiGeom())) { const id = 'OP.HMI.' + k, o = { id, dev: 'HMI', k, lab, x: OPW.x + lx, y: OPW.y + ly, r: 2.05, sy: 'scrS', op: true, nm: '조작판 뒷면 HMI 전원 ' + (k === '+' ? '+ (초록 1번)' : k === '-' ? '− (초록 2번)' : 'FG 접지 (초록 3번)') }; TERMS.push(o); TERM[id] = o; }
   if (S.opBack) for (const [hid, type] of Object.entries(S.op.dev)) {
@@ -3958,7 +3984,7 @@ function fillStage(k) {
     S.servo = { placed: true, bolted: true }; S.plug = {};
   }
   if (k === 3) { S.wires = REF_WIRES.map(([a, b]) => ({ a, b })); buildTerms(); autoDress(); }
-  if (k === 4) { const fz = S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x); S.fuses = { [fz[0].id]: ['f5', 'f5'], [fz[1].id]: ['f3', 'f3'] }; S.cables=JSON.parse(JSON.stringify(CAB_ALL));for(const key of ['outlet','powerPlaced']){S.cables[key].x-=ROOM_X;S.cables[key].y-=ROOM_Y;} S.conveyor = { x: ROOM.deskPanelX+130-ROOM_X, y: 880-ROOM_Y }; S.convLeads = { ...CV_REF }; for (const i of S.inst) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true; const nm = names(); for (const i of S.inst) if (i.type === 'timer') S.tset[i.id] = TSET[nm[i.id]]; S.judge = { key: judgeKey() }; }   // 케이블을 꽂고 동작 검사까지 받은 상태
+  if (k === 4) { const fz = S.inst.filter(i => i.type === 'fuse').sort((a, b) => a.x - b.x); S.fuses = { [fz[0].id]: ['f5', 'f5'], [fz[1].id]: ['f3', 'f3'] }; S.cables=JSON.parse(JSON.stringify(CAB_ALL));for(const key of ['outlet','powerPlaced']){S.cables[key].x-=ROOM_X;S.cables[key].y-=ROOM_Y;} S.conveyor = { x: ROOM.deskLeft+40-ROOM_X, y: 600-ROOM_Y }; S.convLeads = { ...CV_REF }; for (const i of S.inst) if (i.type === 'relay' || i.type === 'timer') S.plug[i.id] = true; const nm = names(); for (const i of S.inst) if (i.type === 'timer') S.tset[i.id] = TSET[nm[i.id]]; S.judge = { key: judgeKey() }; }   // 케이블을 꽂고 동작 검사까지 받은 상태
   if (k === 5) {
     S.opBack = true; S.helical = S.wires.some(isExtWire) ? 2 : 0; buildTerms();
     for (const [, q] of frList()) if (q.type === 'duct' && q.stuck) q.covered = true;
@@ -3997,7 +4023,7 @@ function jumpTo(n) {
 
   closeDevicePanel(); clearInspection(); closeTermSearch();
   liveReset();
-  const g = S.guide; S = n?newState(g):newPreparationState(g);syncRoom();if(n>=2)positionPanel(ROOM.deskPanelX,0);
+  const g = S.guide; S = n?newState(g):newPreparationState(g);syncRoom();if(n>=2)positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);
   for (let k = 0; k < n; k++) fillStage(k);
   if (n >= 3) S.opBack = true;
   if (n) S.usedFill = true;
@@ -4082,24 +4108,47 @@ function trayTap(key) {
 function availPart(type) { const c = frList().filter(([id, q]) => q.type === type && !q.slot && !onFloor(id)); return c.length ? c[0][0] : null; }
 function dropOnFloor(p) {
   const surface=UI.carry?.kind==='op'?'robotTop':'desk';if(!rectOnSurface(floorRect({...UI.carry,...p}),surface))return say(surface==='robotTop'?'HMI 기구는 로봇 책상 윗면에 준비해요':'재료는 왼쪽 작업 책상에 내려놓아요','info');
+  if(looseCollision(looseBounds({...UI.carry,...p})))return say('다른 재료와 겹쳐요. 빈 자리에 내려놓아요','info');
   const c = UI.carry; let pid;
   if (c.kind === 'fr') { pid = (c.ids && c.ids[0]) || availPart(c.key); if (!pid) { UI.carry = null; return renderAll(); } }
-  snap(); S.floor.push({ id: 'f' + S.nid++, kind: c.kind, key: c.key, pid, x: Math.round(p.x), y: Math.round(p.y) });
+  snap(); S.floor.push({ id: 'f' + S.nid++, kind: c.kind, key: c.key, pid,vertical:c.vertical, x: Math.round(p.x), y: Math.round(p.y) });
   consumeCarry(); say(UI.carry ? `책상에 준비했어요. 손에 ${UI.carry.count}개 남았어요` : '책상에 준비했어요', 'info'); commit();
 }
-function pickFloor(f) { snap(); S.floor = S.floor.filter(x => x !== f); UI.carry = { kind: f.kind, key: f.key, ids: f.pid ? [f.pid] : undefined, from: 'floor', count: 1 }; say('다시 들었어요', 'info'); commit(); }
+function pickFloor(f) { snap(); S.floor = S.floor.filter(x => x !== f); UI.carry = { kind: f.kind, key: f.key, ids: f.pid ? [f.pid] : undefined, from: 'floor', count: 1,vertical:f.vertical }; say('다시 들었어요', 'info'); commit(); }
 function floorRect(f) {
   if(f.kind==='clamp')return{x:f.x-115,y:f.y-54,w:158,h:143};
   if(f.kind==='plug')return{x:f.x-20,y:f.y-30,w:40,h:60};
   if(f.kind==='pack')return{x:f.x-20,y:f.y-20,w:40,h:40};
-  if (f.kind === 'fr') { const len = FRAME_TYPES[f.key].len, h = f.key === 'duct' ? 40 : 35; return { x: f.x - len / 2, y: f.y - h / 2, w: len, h }; }
+  if (f.kind === 'fr') { const len = FRAME_TYPES[f.key].len, thick = f.key === 'duct' ? 40 : 35,w=f.vertical?thick:len,h=f.vertical?len:thick; return {x:f.x-w/2,y:f.y-h/2,w,h}; }
   if (f.kind === 'op') return f.key === 'hmi' ? { x: f.x - 122, y: f.y - 87, w: 244, h: 174 } : { x: f.x - 16, y: f.y - 16, w: 32, h: 32 };
   if (f.kind === 'fuse') return { x: f.x - 6, y: f.y - 17, w: 12, h: 34 };
   if (f.kind === 'cover') return { x: f.x - 300, y: f.y - 20, w: 600, h: 40 };
   if (f.kind === 'tbcover') return { x: f.x - DEV.tb.w / 2, y: f.y - DEV.tb.h / 2, w: DEV.tb.w, h: DEV.tb.h };
   if (f.kind === 'tie') return { x: f.x - 8, y: f.y - 4, w: 16, h: 8 };
   if (f.kind === 'helical') return { x: f.x - 37, y: f.y - 14, w: 74, h: 28 };
-  const d = f.key === 'servo' ? SERVO : DEV[f.key]; return { x: f.x - d.w / 2, y: f.y - d.h / 2, w: d.w, h: d.h };
+  const d = f.key === 'servo' ? SERVO : DEV[f.key],w=f.key==='plc'?deviceUnitWidth('plc'):d.w; return { x: f.x - w / 2, y: f.y - d.h / 2, w, h: d.h };
+}
+function looseBounds(f){
+  const r=floorRect(f),pad=12,top=f.kind==='dev'&&f.key.startsWith('xtb')?45:pad;
+  return{x:r.x-pad,y:r.y-top,w:r.w+pad*2,h:r.h+top+pad};
+}
+const rectsOverlap=(a,b,gap=2)=>a.x<b.x+b.w+gap&&a.x+a.w+gap>b.x&&a.y<b.y+b.h+gap&&a.y+a.h+gap>b.y;
+function conveyorBounds(c){return[{x:c.x-10,y:c.y-9,w:CONV.L+20,h:CVW.bw+18},{x:c.x+CVW.mx,y:c.y-9-CVW.mh,w:CVW.mw,h:CVW.mh},...[CONV.s1,CONV.s2].map(mm=>({x:c.x+mm-15,y:c.y-45,w:30,h:36}))];}
+function fixedLooseObstacles(exclude=null){
+  const out=[];
+  if(!isPreparing()&&exclude!=='panel')out.push({x:-20,y:-25,w:PANEL.w+40,h:PANEL.h+45});
+  if(S.setup?.opPlate)out.push(prepRect('opplate',S.setup.opPlate));
+  if(isPreparing()&&S.setup?.panelPlate)out.push(prepRect('panelplate',S.setup.panelPlate));
+  if(S.conveyor&&exclude!=='conveyor')out.push(...conveyorBounds(S.conveyor));
+  if(S.cables?.outlet&&exclude!=='outlet')out.push({x:S.cables.outlet.x-30,y:S.cables.outlet.y-30,w:60,h:60});
+  const power=powerPlaced();if(power&&exclude!=='power')out.push({x:power.x-46,y:power.y-65,w:146,h:109});
+  return out;
+}
+function looseCollision(r,ignore=null,exclude=null){return [...fixedLooseObstacles(exclude),...S.floor.filter(f=>f!==ignore).map(looseBounds)].some(b=>rectsOverlap(r,b));}
+function plcAssembly(ins){
+  if(!['plc','pos'].includes(ins.type))return[ins];
+  const plc=ins.type==='plc'?ins:S.inst.find(i=>i.type==='plc'&&i.rail===ins.rail&&Math.abs(i.x+DEV.plc.w-ins.x)<.6);
+  return plc?[plc,...S.inst.filter(i=>i.type==='pos'&&i.rail===plc.rail&&Math.abs(plc.x+DEV.plc.w-i.x)<.6)]:[ins];
 }
 function floorAt(p) { for (let i = S.floor.length - 1; i >= 0; i--) if (inRect(p, floorRect(S.floor[i]), 2)) return S.floor[i]; return null; }
 function drawFloorItem(f) {
@@ -4108,7 +4157,7 @@ function drawFloorItem(f) {
   if(f.kind==='plug')return f.key==='relayU'?relayBody(f.x-15.5,f.y-38,''):timerBody(f.x-20,f.y-35,'');
   if(f.kind==='pack')return packSVG(f.x-20,f.y-20,false);
   if (f.kind === 'fr') {
-    return drawFrameBack({...r,o:'h'},f.key,!!S.fr[f.pid]?.taped);
+    const len=FRAME_TYPES[f.key].len,h=f.key==='duct'?40:35,body=drawFrameBack({x:f.x-len/2,y:f.y-h/2,w:len,h,o:'h'},f.key,!!S.fr[f.pid]?.taped);return f.vertical?`<g transform="rotate(90 ${f.x} ${f.y})">${body}</g>`:body;
   }
   if (f.kind === 'op') return f.key === 'hmi' ? `<g transform="translate(${F(f.x - 146.75)} ${F(f.y - 100)})">${drawHMI()}</g>` : drawOpDev(f.key, f.x, f.y);
   if (f.kind === 'fuse') return `<g transform="translate(${F(r.x)} ${F(r.y)})">${fuseIcon(f.key)}</g>`;
@@ -4116,12 +4165,13 @@ function drawFloorItem(f) {
   if (f.kind === 'tbcover') return drawTBCover(r);
   if (f.kind === 'tie') return drawTieIcon(f.x, f.y);
   if (f.kind === 'helical') return drawHelical(r);
-  return f.key === 'servo' ? dServo(r.x, r.y, false) : drawDevice(f.key, r.x, r.y, '', null);
+  return f.key === 'servo' ? dServo(r.x, r.y, false) : drawDevice(f.key, r.x, r.y, '', null)+(f.key==='plc'?dCard(r.x+DEV.plc.w,r.y,'pos'):'');
 }
+function drawDeviceUnit(type,x,y){return drawDevice(type,x,y,'',null)+(type==='plc'?dCard(x+DEV.plc.w,y,'pos'):'');}
 function floorSVG() {
   let s = '<g data-depth-layer="floor">';
   for (const f of S.floor) {
-    s+=`<g data-depth-object="floor-${f.id}">`+drawFloorItem(f)+'</g>';
+    s+=`<g data-depth-object="floor-${f.id}">`+contactShadow(floorRect(f))+drawFloorItem(f)+'</g>';
     if (S.guide && S.tool === 'tape' && f.kind === 'fr' && !S.fr[f.pid].taped) { const r = floorRect(f); s += R(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 'rx="2" class="guide-slot"'); }
   }
   return s+'</g>';
@@ -4146,7 +4196,7 @@ function drop(p) {
   if (c.kind === 'tbcover') return dropTBCover(p);
   if (c.kind === 'tie') return dropTie(p);
   if (c.kind === 'helical') return dropHelical(p);
-  if(c.kind==='outlet'){if(p.y+ROOM_Y<690||p.y+ROOM_Y>ROOM.bottom-30||p.x+ROOM_X<ROOM.deskLeft||p.x+ROOM_X>roomRight('desk'))return say('콘센트는 작업 책상에 놓아요','info');snap();S.cables.outlet={x:p.x,y:p.y};S.cables.plugged=false;consumeCarry();commit();return;}
+  if(c.kind==='outlet'){const r={x:p.x-30,y:p.y-30,w:60,h:60};if(!rectOnSurface(r,'desk')||looseCollision(r,null,'outlet'))return say('다른 재료와 겹치지 않는 작업 책상의 빈 자리에 놓아요','info');snap();S.cables.outlet={x:p.x,y:p.y};S.cables.plugged=false;consumeCarry();commit();return;}
   if (c.kind === 'cable') return dropCable(p);
   if (c.kind === 'plug') return dropPlug(p);
   if (c.kind === 'pack') return dropPack(p);
@@ -4208,8 +4258,7 @@ function mainsTap(p) {
 }
 function dropCable(p) {
   if(powerPlaced())return say('전원 케이블이 이미 책상에 있어요','info');
-  if(p.y+ROOM_Y<690||p.y+ROOM_Y>1400||p.x+ROOM_X<ROOM.deskLeft||p.x+ROOM_X>roomRight('desk'))return say('전원 케이블을 작업 책상 아래쪽에 내려놓아요','info');
-  if(S.conveyor&&convBodyAt(p))return say('컨베이어 옆의 빈 책상에 내려놓아요','info');
+  const r={x:p.x-46,y:p.y-65,w:146,h:109};if(!rectOnSurface(r,'desk')||looseCollision(r,null,'power'))return say('다른 재료와 겹치지 않는 작업 책상의 빈 자리에 전원 케이블을 놓아요','info');
   snap();S.cables={...S.cables,power:false,plugged:false,powerPlaced:{x:Math.round(p.x),y:Math.round(p.y)},powerLeads:{}};
   delete S.cables.powerTerms;consumeCarry();commit();say('전원 케이블을 놓았어요. 갈색 R · 파란색 T · 초록색 E 선 끝을 하나씩 눌러 연결해요','ok');
 }
@@ -4356,12 +4405,12 @@ function dropDev(p) {
   if(!roomWorkAllowed('desk'))return;
   if(nBolted()!==9||nHoles()!==29)return say('바닥에서 구멍과 나사 작업을 마친 뒤 기구를 설치해요','info');
   if (RAIL_OF[type] !== rail) return mistake(S.guide ? `${DEV[type].name}은(는) ${ROW[RAIL_ROW[RAIL_OF[type]]].name} 찬넬이에요` : '자리가 틀렸어요');
-  const x = resolvePos(rail, type, p.x); if (x === null) return say('찬넬에 남은 자리가 없어요', 'info');
+  const x = resolvePos(rail, type, p.x,deviceUnitWidth(type)); if (x === null) return say('찬넬에 남은 자리가 없어요', 'info');
   const mates = SOLO.has(type) ? [] : S.inst.filter(i => i.rail === rail && GROUP_OF[i.type] === GROUP_OF[type]);
   if (mates.length && !mates.some(o => Math.abs(x - (o.x + DEV[o.type].w)) < .6 || Math.abs(x + DEV[type].w - o.x) < .6)) return mistake(S.guide ? `${DEV[type].name}: 같은 묶음끼리 붙여서 끼워요` : '자리가 틀렸어요');
-  const trial = [...S.inst.filter(i => i.rail === rail), { type, x }].sort((a, b) => a.x - b.x), exp = RAIL_EXPECT[rail];
+  const trial = [...S.inst.filter(i => i.rail === rail), { type, x },...(type==='plc'?[{type:'pos',x:x+DEV.plc.w}]:[])].sort((a, b) => a.x - b.x), exp = RAIL_EXPECT[rail];
   for (let i = 1; i < trial.length; i++) if (exp.indexOf(trial[i - 1].type) > exp.indexOf(trial[i].type)) return mistake(S.guide ? `순서가 틀렸어요: ${RAIL_TEXT[rail]}` : '순서가 틀렸어요');
-  snap(); S.inst.push({ id: 'i' + S.nid++, type, rail, x }); say(`${DEV[type].name}을(를) 끼웠어요`, 'ok');
+  snap(); S.inst.push({ id: 'i' + S.nid++, type, rail, x });if(type==='plc')S.inst.push({id:'i'+S.nid++,type:'pos',rail,x:x+DEV.plc.w}); say(`${DEV[type].name}을(를) 끼웠어요`, 'ok');
   consumeCarry(); commit();
 }
 function dropFuse(p, type) {
@@ -4390,6 +4439,7 @@ function placeStopper(p) {
 function handleTap(p, e) {
   closeChooser();
   const t = S.tool;
+  if(!UI.carry&&controllerAt(p)){S.controllerRight=!S.controllerRight;save();renderWorld(false);renderOver();return;}
   if(isPreparing()){if(UI.carry)return drop(p);const f=floorAt(p);if(f)return pickFloor(f);const key=prepObjectAt(p);if(key)return pickPrepObject(key);return say('나무판·제어판 철판은 바닥, HMI 재료는 로봇 책상 윗면, 다른 기구는 작업 책상에 준비해요','info');}
   if(t==='hand'&&(!UI.carry||UI.carry.kind==='clamp')){const clamp=mountedClampAt(p);if(clamp)return releaseMountClamp(clamp);}
   if(t==='hand'&&!UI.carry&&!floorAt(p)&&!instAt(p)&&!frPartAt(p)){const key=prepObjectAt(p);if(key)return pickPrepObject(key);}
@@ -4549,7 +4599,7 @@ function tap2(p) {
     const ins = instAt(p);
     if (ins && LIVE.inp.mcb) return say('전원이 켜져 있어요. 빼려면 MCB를 내려요', 'info');
     if (ins && S.plug[ins.id]) { const k = ins.type === 'relay' ? 'relayU' : 'timerU'; snap(); delete S.plug[ins.id]; UI.carry = { kind: 'plug', key: k, from: 'floor', count: 1 }; say(`${PLUGS[k].name}를 소켓에서 뺐어요`, 'info'); return commit(); }   // 꽂힌 본체부터 뺀다
-    if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; if (ins.type === 'plc') S.plcLid = { t: false, b: false };if(ins.type==='smps')S.smpsLid={t:false,b:false}; UI.carry = { kind: 'dev', key: ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
+    if (ins) { snap(); const members=plcAssembly(ins);S.inst = S.inst.filter(i => !members.includes(i)); delete S.fuses[ins.id]; delete S.xtbClosed[ins.id]; if (members.some(i=>i.type==='plc')) S.plcLid = { t: false, b: false };if(ins.type==='smps')S.smpsLid={t:false,b:false}; UI.carry = { kind: 'dev', key: ins.type==='pos'?'plc':ins.type }; say('기구를 다시 들었어요', 'info'); return commit(); }
     if (S.servo.placed && !S.servo.bolted && inRect(p, SERVO, 2)) { snap(); S.servo.placed = false; UI.carry = { kind: 'dev', key: 'servo' }; return commit(); }
     return say('재료함에서 기구를 골라요', 'info');
   }
@@ -4561,7 +4611,7 @@ function tap2(p) {
   if (t === 'cut') {
     const s = stopperAt(p); if (s) { snap(); S.stoppers = S.stoppers.filter(x => x !== s); say('스톱퍼를 뺐어요', 'info'); return commit(); }
     const fp = fusePoleAt(p); if (fp && S.fuses[fp.inst.id] && S.fuses[fp.inst.id][fp.pole]) { snap(); S.fuses[fp.inst.id][fp.pole] = null; say('퓨즈를 뺐어요', 'info'); return commit(); }
-    const ins = instAt(p); if (ins) { snap(); S.inst = S.inst.filter(i => i !== ins); delete S.fuses[ins.id]; say('기구를 뺐어요', 'info'); return commit(); }
+    const ins = instAt(p); if (ins) { snap(); const members=plcAssembly(ins);S.inst = S.inst.filter(i => !members.includes(i)); delete S.fuses[ins.id]; say('기구를 뺐어요', 'info'); return commit(); }
     return say('뺄 것이 없어요', 'info');
   }
   return say(`${toolName(t)}은(는) 이 단계에서 쓰지 않아요`, 'info');
@@ -5039,7 +5089,7 @@ function trayThumb(it,state=thumbnailState()) {
   if(it.kind==='prep'){vb=it.key==='opplate'?'0 0 375 300':'-40 -40 840 700';inner=it.key==='wood'?woodMarkup({x:380,y:300}):prepPlateMarkup(it.key,{x:it.key==='opplate'?OP.w/2:PANEL.w/2,y:it.key==='opplate'?OP.h/2:PANEL.h/2});}
   else if (it.kind === 'op') { if (k === 'hmi') { vb = '0 0 60 44'; inner = R(1, 1, 58, 42, 'rx="3" fill="#30353a"') + R(5, 5, 50, 34, 'fill="#173246"'); } else { vb = '-17 -17 34 34'; inner = drawOpDev(k, 0, 0); } }
   else if (it.kind === 'fr') { vb = k === 'duct' ? '0 0 90 40' : '0 -2 90 39'; inner = drawFrameBack({x:0,y:0,w:90,h:k==='duct'?40:35,o:'h'},k,false); }
-  else if (it.kind === 'dev') { const d = k === 'servo' ? SERVO : DEV[k]; vb = `-2 -2 ${d.w + 4} ${d.h + 4}`; inner = k === 'servo' ? dServo(0, 0, false) : drawDevice(k, 0, 0, '', null); }
+  else if (it.kind === 'dev') { const d = k === 'servo' ? SERVO : DEV[k]; vb = `-2 -2 ${(k==='plc'?deviceUnitWidth(k):d.w) + 4} ${d.h + 4}`; inner = k === 'servo' ? dServo(0, 0, false) : drawDeviceUnit(k, 0, 0); }
   else if (it.kind === 'fuse') { vb = '0 0 12 34'; inner = fuseIcon(k); }
   else if (it.kind === 'cover') { vb = '-2 -2 94 46'; inner = drawDuctCover({ x: 0, y: 0, w: 90, h: 40, o: 'h' }); }
   else if (it.kind === 'tbcover') { vb = '-1 -1 92 24'; inner = R(0, 0, 90, 22, 'rx="2" fill="#d4dde3"') + drawTBCover({ x: 0, y: 0, w: 90, h: 22 }); }
@@ -5324,6 +5374,10 @@ function ghost(p) {
   const c = UI.carry; let s = '';
   if(c.kind==='clamp'){const slot=mountSlotAt(p),a=slot||p;return `<g opacity=".8" transform="translate(${F(a.x)} ${F(a.y)})">${drawQuickClamp(!!slot&&slot.id[0]==='r')}</g>`;}
   if(c.kind==='prep')return '<g opacity=".7">'+(c.key==='wood'?woodMarkup(p):prepPlateMarkup(c.key,p))+'</g>';
+  if(isPreparing()&&['dev','fr','op','fuse','cover','tbcover','tie','helical','plug','pack'].includes(c.kind)){
+    const f={...c,...p,pid:c.ids?.[0]},r=looseBounds(f),blocked=looseCollision(r)||!rectOnSurface(r,c.kind==='op'?'robotTop':'desk');
+    return `<g opacity="${blocked ? .45 : .75}">${drawFloorItem(f)}</g>`+(blocked?R(r.x,r.y,r.w,r.h,'data-placement-blocked="true" fill="none" stroke="#d63030" stroke-width="2" stroke-dasharray="6 4"'):'');
+  }
   if (c.kind === 'conveyor') { const x = p.x - CONV.L / 2, y = p.y - CVW.bw / 2, ok = convDropOK(p);   // 실제 모양 그대로 미리 보기
     return `<g opacity="${ok ? .8 : .45}">${convBody(x, y, false)}</g>` + (ok ? '' : R(x - 20, y - 105, CONV.L + 40, CVW.bw + 125, 'rx="6" fill="none" stroke="#e3232f" stroke-width="3" stroke-dasharray="10 6"')); }
   if (c.kind === 'pack') { if (!S.conveyor) return `<g opacity=".8">${packSVG(p.x - 20, p.y - 20, false)}</g>`; const on = inRect(p, beltRect(), 8); return `<g opacity=".8">${packSVG(on ? CVW.x + clamp(p.x - CVW.x, 20, CONV.L - 20) - 20 : p.x - 20, on ? CVW.y + 5 : p.y - 20, false)}</g>`; }
@@ -5358,9 +5412,9 @@ function ghost(p) {
   if (c.kind === 'fuse') { const fp = fusePoleAt(p), r = fp && !(S.fuses[fp.inst.id] || [])[fp.pole] && fuseRect(fp.inst, fp.pole);   // 빈 홀더 위면 꽂힐 자리에
     return r ? `<g opacity=".8" transform="translate(${F(r.x - 0.6)} ${F(r.y - 0.3)}) scale(.9)">${fuseIcon(c.key)}</g>` : `<g opacity=".85" transform="translate(${F(p.x - 6)} ${F(p.y - 17)})">${fuseIcon(c.key)}</g>`; }
   if (c.key === 'servo') { const near = inRect(p, SERVO, 30); return `<g opacity=".65">${dServo(near ? SERVO.x : p.x - SERVO.w / 2, near ? SERVO.y : p.y - SERVO.h / 2, false)}</g>`; }
-  const d = DEV[c.key], rail = railAtP(p);
-  if (rail && RAIL_OF[c.key] === rail) { const x = resolvePos(rail, c.key, p.x); if (x !== null) s = `<g opacity=".65">${drawDevice(c.key, x, ROW[RAIL_ROW[rail]].cy - d.h / 2, '', null)}</g>`; }
-  return s || `<g opacity=".7">${drawDevice(c.key, p.x - d.w / 2, p.y - d.h / 2, '', null)}</g>`;
+  const d = {...DEV[c.key],w:deviceUnitWidth(c.key)}, rail = railAtP(p);
+  if (rail && RAIL_OF[c.key] === rail) { const x = resolvePos(rail, c.key, p.x,d.w); if (x !== null) s = `<g opacity=".65">${drawDeviceUnit(c.key, x, ROW[RAIL_ROW[rail]].cy - d.h / 2)}</g>`; }
+  return s || `<g opacity=".7">${drawDeviceUnit(c.key, p.x - d.w / 2, p.y - d.h / 2)}</g>`;
 }
 function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리로
   if (!p || !UI.overBoard || UI.gesture && UI.gesture.type !== 'press') return '';
@@ -5404,9 +5458,10 @@ function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리
   }
   if (t === 'hand' || t === 'cut') {
     const sp = stopperAt(p); if (sp) return box({ x: sp.x, y: ROW[RAIL_ROW[sp.rail]].cy - 23, w: STOPPER_W, h: 46 });
-    const ins = instAt(p); if (ins) return box({ x: ins.x, y: devY(ins), w: DEV[ins.type].w, h: DEV[ins.type].h });
+    const ins = instAt(p); if (ins) {const unit=plcAssembly(ins)[0];return box({x:unit.x,y:devY(unit),w:deviceUnitWidth(unit.type),h:DEV[unit.type].h});}
     if (t === 'hand' && S.servo.placed && !S.servo.bolted && inRect(p, SERVO, 2)) return box(SERVO);
   }
+  if(t==='hand'&&!UI.carry&&controllerAt(p)){const scale=ROOM.width/2400,r=controllerGeometry().rect;return box({x:STATION.x-ROOM_X+r.x*scale,y:ROOM.top-ROOM_Y+r.y*scale,w:r.w*scale,h:r.h*scale});}
   const part = frPartAt(p);
   if (t === 'hand') { if (S.gauge && inRect(p, gaugeRect(S.gauge), 4)) return box(gaugeRect(S.gauge)); if (part && part[1].covered) return box(frRect(part[1])); }
   if ((t === 'drill' || t === 'driver' || t === 'tape') && part && part[1].slot) return box(frRect(part[1]));
@@ -5605,7 +5660,7 @@ $('#termResults').addEventListener('click', e => { const b = e.target.closest('[
 /* ---------- 기구 해설: 실제 시뮬레이션 상태와 같은 접점 정의를 사용 ---------- */
 function closeDevicePanel() { UI.device = null; UI.deviceKey = ''; $('#devicePanel').hidden = true; }
 function deviceCatalog() {
-  const nm = names(), list = S.inst.map(i => ({ key: 'inst:' + i.id, id: i.id, name: nm[i.id], type: i.type, title: DEV[i.type].name,
+  const nm = names(), list = S.inst.filter(i=>i.type!=='pos').map(i => ({ key: 'inst:' + i.id, id: i.id, name: nm[i.id], type: i.type, title: DEV[i.type].name,
     spec: DEV[i.type].spec + (i.type === 'relay' ? ' · 장착 릴레이 KACON HR705-4PL' : i.type === 'timer' ? ' · 장착 타이머 한영넉스 T38N-A' : ''), box: devBox(i) }));
   if (S.servo.placed) list.push({ key: 'servo', name: 'SV', type: 'servo', title: DEV.servo.name, spec: DEV.servo.spec, box: SERVO });
   if (S.op.hmi) list.push({ key: 'op:hmi', name: 'HMI', type: 'hmi', title: OP_TYPES.hmi.name, spec: OP_TYPES.hmi.spec });
@@ -5781,7 +5836,7 @@ $('#deviceDetails').addEventListener('toggle', () => updateDeviceLive(true));
 function inspectDeviceAt(p) {
   if (S.exam && S.exam.on) return;
   const list = deviceCatalog(), i = instAt(p);
-  if (i) return openDevicePanel('inst:' + i.id);
+  if (i) return openDevicePanel('inst:' + plcAssembly(i)[0].id);
   if (S.servo.placed && inRect(p, SERVO)) return openDevicePanel('servo');
   const lp = opLocal(p);
   if (inRect(lp, { x:0,y:0,w:OP.w,h:OP.h })) {
@@ -6094,7 +6149,7 @@ function fitTo(b,all=false,focus=null) {
 function roomForBounds(b){
   if(b.w>=ROOM.width)return panelWorkplace()||'desk';
   const x=b.x+b.w/2+ROOM_X;
-  return ROOM_ORDER.find(id=>x>=roomLeft(id)&&x<roomLeft(id)+ROOM.width)||panelWorkplace()||'desk';
+  return ROOM_ORDER.find(id=>x>=roomLeft(id)&&x<roomRight(id))||panelWorkplace()||'desk';
 }
 function roomFitCamera(id,rect){
   const r=rect||svg.getBoundingClientRect(),a=roomArea(id),aspect=Math.max(1,r.width)/Math.max(1,r.height),w=Math.min(a.w,a.h*aspect),h=w/aspect;
@@ -6477,7 +6532,7 @@ $('#modal').addEventListener('click', e => {
   else if (a.startsWith('wl-')) wireAct(a);
 });
 /* ---------- 시연 보기: 처음부터 끝까지 예시대로, 한 동작씩 (영상처럼 재생) ---------- */
-const FIT_V = { get x(){return ROOM.deskLeft-ROOM_X;}, get y(){return ROOM.top-60-ROOM_Y;}, w:ROOM.width*4,h:ROOM.bottom-ROOM.top+600 };
+const FIT_V = { get x(){return ROOM.deskLeft-ROOM_X;}, get y(){return ROOM.top-60-ROOM_Y;}, get w(){return roomRight('robotTop')-ROOM.deskLeft;},h:2200 };
 function demoScript() {   // 예시 채우기를 동작 하나 단위로 쪼갠다. 동작 ops: [set|push, 경로, 값]
   const keep = S, out = [];
   const add = (st, text, ops, o = {}) => out.push({ st, text, ops, ...o });
@@ -6500,7 +6555,7 @@ function demoScript() {   // 예시 채우기를 동작 하나 단위로 쪼갠�
     fillStage(1);
     add(1, '여백 선 긋기: 덕트를 판 왼쪽 끝 바깥에 대고 빨간 펜으로 (40mm)', [['set', ['marginSide'], 'L']], { focus: PANEL_V, hl: { box: gaugeRect('L') } });
     const FLOOR_V = { x: ROOM.deskPanelX-30, y: 620, w: 820, h: 500 }, ALL_V = { x: ROOM.deskPanelX-30, y: -40, w: 3220, h: 1160 };
-    const fl = FRAME_INIT.map(([id, type], k) => ({ id: 'f' + (900 + k), kind: 'fr', key: type, pid: id, x: ROOM.deskPanelX+380-ROOM_X, y: 670-ROOM_Y + k * 50 }));
+    const fl = FRAME_INIT.map(([id, type], k) => ({ id: 'f' + (900 + k), kind: 'fr', key: type, pid: id, x: ROOM.deskPanelX+380-ROOM_X, y: 670-ROOM_Y + k * 50 }));const previousFloor=S.floor;S.floor=fl;arrangeLooseFloor();S.floor=previousFloor;
     const flName = f => f.key === 'duct' ? `덕트 ${+f.pid.slice(1)}` : `찬넬 ${FRAME_TYPES[f.key].len} (${f.pid.slice(1)}번)`;
     add(1, '덕트 6개, 찬넬 3개를 작업 책상에 내려놓기', [['set', ['floor'], fl]], { focus: FLOOR_V, sub: '덕트 40×40×600, 찬넬 500 1개, 575 2개', hl: { boxes: fl.map(floorRect) } });
     for (const f of fl) add(1, `양면테이프 붙이기: ${flName(f)}`, [['set', ['fr', f.pid, 'taped'], true]], { focus: FLOOR_V, hl: { box: floorRect(f) } });
@@ -6516,11 +6571,11 @@ function demoScript() {   // 예시 채우기를 동작 하나 단위로 쪼갠�
     add(1, '장갑 벗기', [['set', ['gloves'], false], ['set', ['gloveOffDone'], true]], { focus: PANEL_V });
     for (const [id] of FRAME_INIT) { const q = S.fr[id]; add(1, `M4 볼트 ${q.holes.length}개로 고정: ${frName(q)}`, [['set', ['fr', id, 'bolted'], true]], { focus: PANEL_V, hl: { box: frRect(q) } }); }
     for (const sd of ['L', 'R']) { const js = JUNC.filter(j => j.id.endsWith(':' + sd)); add(1, `덕트 이음부 부러뜨리기: ${SLOT[js[0].v].name} 안쪽 벽 (4곳)`, js.map(j => ['set', ['dbreak', j.id], true]), { focus: PANEL_V, sub: '가로 덕트가 붙는 자리의 벽을 손으로 꺾어 부러뜨려요. 덕트끼리 전선이 지나가는 길', hl: { boxes: js } }); }
-    add(1,'제어판을 작업 책상으로 옮겨 설치 계속하기',[['set',['panelPos'],{x:ROOM.deskPanelX,y:0}]],{focus:FIT_V});
-    positionPanel(ROOM.deskPanelX,0);
+    add(1,'제어판을 작업 책상으로 옮겨 설치 계속하기',[['set',['panelPos'],{x:ROOM.deskPanelX,y:ROOM.deskPanelY}]],{focus:FIT_V});
+    positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);
     // 3. 기구 설치: 찬넬 단마다 기기 → 스톱퍼, 서보, 퓨즈
     fillStage(2); const nm = names(), RAILS = ['c1', 'c2', 'c3'];
-    for (const i of S.inst) add(2, `${DEV[i.type].name} ${nm[i.id]} → ${ROW[RAIL_ROW[i.rail]].name} 찬넬`, [['push', ['inst'], i], ['set', ['nid'], S.nid]], { focus: rowV(i.rail), sub: DEV[i.type].spec, hl: { box: devR(i) } });
+    for (const i of S.inst.filter(i=>i.type!=='pos')) add(2, `${DEV[i.type].name} ${nm[i.id]} → ${ROW[RAIL_ROW[i.rail]].name} 찬넬`, [['push', ['inst'], i],...(i.type==='plc'?[['push',['inst'],S.inst.find(q=>q.type==='pos')]]:[]), ['set', ['nid'], S.nid]], { focus: rowV(i.rail), sub: DEV[i.type].spec, hl: { box: devR(i) } });
     add(2, '서보 드라이버를 1단 오른쪽 빈자리에 대기', [['set', ['servo'], { placed: true, bolted: false }]], { focus: rowV('c1'), hl: { box: SERVO } });
     add(2, '서보 드라이버를 볼트 2개로 고정', [['set', ['servo'], { placed: true, bolted: true }]], { focus: rowV('c1'), hl: { box: SERVO } });
     for (let k = 0; k < S.stoppers.length; k += 2) {   // 기기를 다 끼운 다음 스톱퍼 (묶음마다 양쪽 2개)
@@ -6528,7 +6583,7 @@ function demoScript() {   // 예시 채우기를 동작 하나 단위로 쪼갠�
       add(2, `스톱퍼 2개로 양쪽 고정 (${ROW[RAIL_ROW[a.rail]].name})`, [['push', ['stoppers'], a], ['push', ['stoppers'], b]], { focus: rowV(a.rail), hl: { boxes: [a, b].map(t => ({ x: t.x, y: cy - 23, w: STOPPER_W, h: 46 })) } });
     }
     // 4. 배선: 7묶음 (교류 전원부 → 자동 → 수동 → +24V → 0V → PLC·아이오 링크 → 조작판)
-    positionPanel(ROOM.deskPanelX,0);S.opBack = true; buildTerms(); S.wires = [];
+    positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);S.opBack = true; buildTerms(); S.wires = [];
     const dressSteps = gi => {   // 선 정리: 지금까지 꽂고 아직 안 넣은 선 → 구멍, 그다음 남는 선 접기
       const ws = S.wires.filter(w => dressable(w) && !tucked(w)); if (!ws.length) return;
       const grp = gi === WIRE_GROUPS.length - 1 ? `${gi + 1}) 나머지 선 선 정리` : `${gi + 1}) ${WIRE_GROUPS[gi].t.replace(/ · 회로도 \d/, '')} 선 정리`, was = S.wires.map(w => [w.ha, w.hb]), hs = new Set(), ops = [];
@@ -7067,7 +7122,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.46.0', date: '2026.11.16', notes: ['선택한 칸이 작업 화면을 꽉 채우고 최대 축소·이동 범위도 칸 안으로 제한', '좌우 원형 화살표에 마우스를 1초 올리면 이웃 칸으로 이동', '화살표를 벗어나면 대기 취소, 한 번 올릴 때 한 칸씩 이동하며 들고 있는 재료 유지', '모든 칸 보기와 내부 프레임 전달 방식 유지'] };
+const APP_VER = { v: '2.47.0', date: '2026.11.16', notes: ['로봇 상판을 제외한 세 칸을 줄여 기구가 크게 보이도록 조정', '로봇 제어기를 누르면 단색 오른쪽 면으로 90도 회전하고 다시 누르면 앞면 복귀', '열린 뚜껑까지 포함한 재료 겹침 방지와 받침 프로파일 위 접촉 그림자', 'PLC와 위치 결정 카드를 처음부터 PLC 한 묶음으로 제공'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -7092,7 +7147,61 @@ function migrateLampTies() {
   });
 }
 
-function fixState() {   // 예전에 저장한 상태를 지금 형식으로
+function normalizePlcAssembly(){
+  if(S.plcUnitV)return;
+  const plc=S.inst.find(i=>i.type==='plc'),card=S.inst.find(i=>i.type==='pos');
+  if(plc){if(card){card.rail=plc.rail;card.x=plc.x+DEV.plc.w;}else S.inst.push({id:'i'+S.nid++,type:'pos',rail:plc.rail,x:plc.x+DEV.plc.w});}
+  if(!plc&&card){S.inst=S.inst.filter(i=>i!==card);if(!S.floor.some(f=>f.kind==='dev'&&f.key==='plc'))S.floor.push({id:'f'+S.nid++,kind:'dev',key:'plc',x:ROOM.deskPanelX+380-ROOM_X,y:250-ROOM_Y});}
+  for(const f of S.floor.filter(f=>f.kind==='dev'&&f.key==='pos')){
+    if(!plc&&!S.floor.some(q=>q.kind==='dev'&&q.key==='plc'))f.key='plc';
+    else S.floor=S.floor.filter(q=>q!==f);
+  }
+  S.plcUnitV=1;
+}
+function freeLooseSpot(item,placed=[...fixedLooseObstacles(),...S.floor.map(looseBounds)]){
+  const id=item.kind==='op'?'robotTop':'desk',area=roomArea(id),a={x:area.x-ROOM_X+6,y:area.y-ROOM_Y+6,w:area.w-12,h:area.h-12};
+  const free=f=>{const r=looseBounds(f);return inRect({x:r.x,y:r.y},a)&&inRect({x:r.x+r.w,y:r.y+r.h},a)&&placed.every(b=>!rectsOverlap(r,b,5));};
+  if(free(item))return{...item};
+  for(const vertical of item.kind==='fr'?[false,true]:[false]){
+    const sample={...item,vertical},r=looseBounds(sample),dx=r.x-item.x,dy=r.y-item.y;
+    for(let y=a.y-dy;y<=a.y+a.h-r.h-dy;y+=8)for(let x=a.x-dx;x<=a.x+a.w-r.w-dx;x+=8){const f={...sample,x,y};if(free(f))return f;}
+  }return null;
+}
+function arrangeLooseFloor(){
+  const placed=fixedLooseObstacles();
+  const items=[...S.floor].sort((a,b)=>{const A=floorRect(a),B=floorRect(b);return B.w*B.h-A.w*A.h;});
+  for(const f of items){const spot=freeLooseSpot(f,placed);if(spot)Object.assign(f,{x:spot.x,y:spot.y,vertical:spot.vertical});placed.push(looseBounds(f));}
+}
+function migrateCompactRoom(place,oldPos,passed,faultPassed){
+  const old={...LEGACY_ROOM},origin={...oldPos};
+  const target=S.panelDocked?panelDockPosition():place==='desk'?{x:ROOM.deskPanelX,y:ROOM.deskPanelY}:{x:clamp(origin.x/2,ROOM.floorLeft+40,roomRight('floor')-PANEL.w-40),y:clamp(origin.y/2,0,ROOM.bottom-PANEL.h-40)};
+  const move=(o,area)=>{if(!o)return;const wx=o.x+origin.x,wy=o.y+origin.y;let x,y;
+    if(area==='robotTop'){x=ROOM.robotTopLeft+wx-old.robotTopLeft;y=wy;}
+    else if(area==='floor'){x=clamp(380+(wx-380)/2,ROOM.floorLeft+420,roomRight('floor')-420);y=clamp(300+(wy-300)/2,ROOM.top+340,ROOM.bottom-340);}
+    else{x=ROOM.deskLeft+(wx-old.deskLeft)/2;y=ROOM.top+(wy-old.top)/2;}
+    o.x=x-target.x;o.y=y-target.y;
+  };
+  for(const f of S.floor)move(f,f.kind==='op'?'robotTop':'desk');
+  move(S.wood,'floor');if(S.setup){move(S.setup.opPlate,'robotTop');move(S.setup.panelPlate,'floor');}
+  if(S.conveyor)Object.assign(S.conveyor,{x:ROOM.deskLeft+40-target.x,y:600-target.y});
+  if(S.cables?.outlet)Object.assign(S.cables.outlet,{x:ROOM.deskLeft+920-target.x,y:600-target.y});
+  if(S.cables?.powerPlaced)Object.assign(S.cables.powerPlaced,{x:ROOM.deskLeft+1080-target.x,y:600-target.y});
+  S.panelPos=target;S.compactV=1;syncRoom();normalizePlcAssembly();buildTerms();
+  withAllTerms(()=>{for(const tie of S.ties||[]){if(!tie.ws?.some(isOPWire))continue;for(const r of tie.ws){delete r.x;delete r.y;}delete tie.c;delete tie.u;tieToNew(tie);}});
+  arrangeLooseFloor();
+  if(passed&&S.judge)S.judge.key=judgeKey();if(faultPassed&&S.fault?.lastCheck)S.fault.lastCheck.key=judgeKey();
+}
+function fixState(){
+  const legacy=!S.compactV,layout={...ROOM};let place,oldPos,passed=false,faultPassed=false;
+  if(legacy)Object.assign(ROOM,LEGACY_ROOM);
+  try{fixStateBase();if(legacy){place=panelWorkplace();oldPos={...S.panelPos};passed=S.judge?.key===judgeKey();faultPassed=S.fault?.lastCheck?.key===judgeKey();}}
+  finally{if(legacy)Object.assign(ROOM,layout);}
+  if(legacy)migrateCompactRoom(place,oldPos,passed,faultPassed);
+  else if(!S.plcUnitV){normalizePlcAssembly();arrangeLooseFloor();}
+  S.controllerRight=S.controllerRight===true;
+}
+
+function fixStateBase() {   // 예전에 저장한 상태를 지금 형식으로
   S.mountClamps=Object.fromEntries(MOUNT_SLOTS.filter(s=>S.mountClamps?.[s.id]===true).map(s=>[s.id,true]));
   if(S.wood===undefined)S.wood={x:380-(S.panelPos?.x||0),y:300-(S.panelPos?.y||0)};
   const oldRoom=!S.roomV;if(oldRoom){for(const t of S.ties||[]){delete t.c;delete t.u;for(const r of t.ws||[]){delete r.x;delete r.y;if(r.f===undefined&&r.d===undefined)r.d=30;}}S.roomV=1;}
@@ -7187,7 +7296,7 @@ let PR_REF = null, PR_NM = null;   // 끝까지 정답으로 채운 상태 (레�
 function pracRef() {
   if (PR_REF) return PR_REF;
   const keep = S; S = newState(true);syncRoom();
-  try { for (let k = 0; k < 6; k++) { fillStage(k); buildTerms(); } positionPanel(ROOM.deskPanelX,0);PR_REF = JSON.parse(JSON.stringify(S)); PR_NM = names(); } finally { S = keep; buildTerms(); }
+  try { for (let k = 0; k < 6; k++) { fillStage(k); buildTerms(); } positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);PR_REF = JSON.parse(JSON.stringify(S)); PR_NM = names(); } finally { S = keep; buildTerms(); }
   return PR_REF;
 }
 const pClone = o => JSON.parse(JSON.stringify(o));
@@ -7196,8 +7305,8 @@ const tOK = (nm, v) => nm === 'T3' ? v > 0 && v <= 1 + 1e-9 : v >= 1 - 1e-9 && v
 const opHole = h => ({ x: OPW.x + OP.holes[h][0], y: OPW.y + OP.holes[h][1], r: 17 });
 const devBox = i => ({ x: i.x, y: devY(i), w: DEV[i.type].w, h: DEV[i.type].h });
 const tRing = (id, r = 5) => TERM[id] ? { x: TERM[id].x, y: TERM[id].y, r } : null;
-const FLOOR_ZONE = {get x(){return ROOM.deskPanelX+60-ROOM_X;},get y(){return 650-ROOM_Y;},w:640,h:440};
-const P_V = {panel:{x:-30,y:-40,w:820,h:690},op:{get x(){return OPW.x-40;},get y(){return OPW.y-60;},w:OP.w+80,h:OP.h+100},floor:{x:-30,y:-40,w:820,h:690},supplies:{get x(){return ROOM.deskPanelX-40-ROOM_X;},get y(){return 620-ROOM_Y;},w:900,h:580},conv:{get x(){return ROOM.deskPanelX-40-ROOM_X;},get y(){return 440-ROOM_Y;},w:900,h:580},live:FIT_V};
+const FLOOR_ZONE = {get x(){return ROOM.deskLeft+20-ROOM_X;},get y(){return ROOM.top+20-ROOM_Y;},get w(){return ROOM.width-40;},get h(){return ROOM.bottom-ROOM.top-40;}};
+const P_V = {panel:{x:-30,y:-40,w:820,h:690},op:{get x(){return OPW.x-40;},get y(){return OPW.y-60;},w:OP.w+80,h:OP.h+100},floor:{x:-30,y:-40,w:820,h:690},supplies:{get x(){return ROOM.deskLeft+20-ROOM_X;},get y(){return ROOM.top+20-ROOM_Y;},w:1160,h:760},conv:{get x(){return ROOM.deskLeft+20-ROOM_X;},get y(){return 440-ROOM_Y;},w:1160,h:260},live:FIT_V};
 const rowV = rail => { const r = ROW[RAIL_ROW[rail]]; return { x: -20, y: r.y0 - 50, w: 800, h: r.y1 - r.y0 + 100 }; };
 // 연습에서 바뀌면 안 되는 작업 결과. 레슨마다 바꿔도 되는 것만 keys에 둔다 (바닥에 내려놓기, 도구, 뒤집기, 뚜껑 열기는 언제나 괜찮다)
 const frMap = f => Object.fromEntries(frList().map(([id, q]) => [id, f(q)]));
@@ -7260,9 +7369,9 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
     next: () => {
       const f = S.floor.find(x => x.kind === 'fr' && S.fr[x.pid] && !S.fr[x.pid].taped);
       if (f) return { tx: `양면테이프로 책상의 ${FRAME_TYPES[f.key].name} 누르기`, sub: '도구 줄의 양면테이프를 들고 빨간 테두리를 눌러요', tool: 'tape', hl: { box: floorRect(f) } };
-      if (UI.carry && UI.carry.kind === 'fr') return { tx: '작업 책상에 내려놓기', sub: '제어판 아래 빈 책상(빨간 테두리)을 눌러요. 누를 때마다 하나씩 내려놓아요', hl: { box: FLOOR_ZONE } };
+      if (UI.carry && UI.carry.kind === 'fr') return { tx: '작업 책상에 내려놓기', sub: '작업 책상의 빈 자리(빨간 테두리)을 눌러요. 누를 때마다 하나씩 내려놓아요', hl: { box: FLOOR_ZONE } };
       const t = ['duct', 'ch500', 'ch575'].find(k => frList().some(([id, q]) => q.type === k && !q.taped && !q.slot && !onFloor(id))); if (!t) return P_DONE;
-      return { tx: `${FRAME_TYPES[t].name} 꺼내서 책상에 놓기`, sub: "재료함 '덕트·찬넬'에서 들고, 제어판 아래 책상을 눌러요", tray: t, hl: { box: FLOOR_ZONE } };
+      return { tx: `${FRAME_TYPES[t].name} 꺼내서 책상에 놓기`, sub: "재료함 '덕트·찬넬'에서 들고, 빈 작업 책상을 눌러요", tray: t, hl: { box: FLOOR_ZONE } };
     } });
   L(1, '왼쪽 세로 덕트 먼저 붙이기', '테이프 붙인 덕트 하나를 여백 선 바로 안쪽 왼쪽 세로 자리에 먼저 붙여요. 이 덕트에 자를 대고 간격을 표시해요', { keys: ['stuck'], focus: P_V.floor,
     fill: () => { const r = R(), id = Object.keys(r.fr).find(i => r.fr[i].slot === 'dL'); Object.assign(S.fr[id], { slot: 'dL', stuck: true }); S.floor = S.floor.filter(f => f.pid !== id); },
@@ -7311,16 +7420,16 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
     fill: () => { S.dbreak = allBreak(); }, prog: () => [nBroken(), 8], goal: () => nBroken() === 8,
     next: () => { const j = JUNC.find(x => !S.dbreak[x.id]); if (!j) return P_DONE; return { tx: `이음부 부러뜨리기: ${SLOT[j.d].name} ↔ ${SLOT[j.v].name}`, sub: '손으로 빨간 테두리를 눌러요', tool: 'hand', hl: { box: j } }; } });
   // 3. 기구 설치
-  L(2, '기구 끼우기', '1단 MCB·FS1·FS2·SMPS·PLC+POS, 2단 R1~R6·T1~T3·아이오 링크 1, 3단 TB·아이오 링크 2. 서보는 1단 오른쪽에 대고 볼트로', { keys: ['inst', 'servo'], focus: P_V.panel,
+  L(2, '기구 끼우기', '1단 MCB·FS1·FS2·SMPS·PLC, 2단 R1~R6·T1~T3·아이오 링크 1, 3단 TB·아이오 링크 2. 서보는 1단 오른쪽에 대고 볼트로', { keys: ['inst', 'servo'], focus: P_V.panel,
     fill: () => { const r = R(); S.inst = pClone(r.inst); S.nid = r.nid; S.servo = { placed: true, bolted: true }; S.plug = {}; },
     prog: () => [devPlaced(), devTotal()], goal: () => devPlaced() === devTotal(),
     next: () => {
       const r = R(), have = {}, used = {}, c = UI.carry; for (const i of S.inst) have[i.type] = (have[i.type] || 0) + 1;
-      const miss = r.inst.filter(i => { used[i.type] = (used[i.type] || 0) + 1; return used[i.type] > (have[i.type] || 0); });
+      const miss = r.inst.filter(i => i.type!=='pos').filter(i => { used[i.type] = (used[i.type] || 0) + 1; return used[i.type] > (have[i.type] || 0); });
       const want = c && c.kind === 'dev' && c.key !== 'servo' ? miss.find(i => i.type === c.key) : null;
       const tgt = i => {   // 같은 묶음이 이미 있으면 그 바로 오른쪽, 아니면 정답 자리 (찬넬에 실제로 놓이는 곳)
-        const w = DEV[i.type].w, mates = SOLO.has(i.type) ? [] : S.inst.filter(q => q.rail === i.rail && GROUP_OF[q.type] === GROUP_OF[i.type]);
-        let x = mates.length ? Math.max(...mates.map(q => q.x + DEV[q.type].w)) : resolvePos(i.rail, i.type, i.x + w / 2); if (x === null || x === undefined) x = i.x;
+        const w = deviceUnitWidth(i.type), mates = SOLO.has(i.type) ? [] : S.inst.filter(q => q.rail === i.rail && GROUP_OF[q.type] === GROUP_OF[i.type]);
+        let x = mates.length ? Math.max(...mates.map(q => q.x + DEV[q.type].w)) : resolvePos(i.rail, i.type, i.x + w / 2,w); if (x === null || x === undefined) x = i.x;
         return { x, y: devY(i), w, h: DEV[i.type].h };
       };
       if (want) return { tx: `${DEV[want.type].name} → ${ROW[RAIL_ROW[want.rail]].name} 찬넬 (${PR_NM[want.id]})`, sub: '빨간 테두리를 눌러 끼워요. 다른 단이나 순서가 틀리면 실패예요', hl: { box: tgt(want) } };
@@ -7363,10 +7472,10 @@ const PR_CH = [...GROUP_TITLE, '고장 찾기'];   // 연습 챕터 (7. 고장 �
   const conv = () => S.conveyor || { x: CVW.x, y: CVW.y }, sen = mm => ({ x: conv().x + mm, y: conv().y + CVW.bw / 2, r: 26 });
   L(4, '전원 케이블 놓기·RTE 연결', '작업 책상에 놓고 갈색 R·파란색 T·초록색 E를 한 가닥씩 연결해요. 기본 예시는 1·2·3번이며 실제 R·T 회로와 접지 전용 단자에 맞춰요', { keys: ['cables'], focus: P_V.conv,
     fill: () => { S.cables={outlet:{...OUTLET_POS},plugged:true,power:true,powerPlaced:{...POWER_POS},powerLeads:{R:'TB.1.b',T:'TB.2.b',E:'TB.3.b'}}; },prog:()=>[POWER_LEADS.filter(([k])=>powerLeadMap(S.cables)[k]).length,3],goal:()=>powerConnected()&&!powerFault(S.cables,staticLinks(S.wires)),
-    next:()=>{if(!powerPlaced())return {tx:'전원 케이블 → 작업 책상',sub:'책상에 내려놓은 뒤 선을 하나씩 연결해요',tray:'power',hl:{box:{x:-35,y:730,w:200,h:110}}};if(!S.cables.outlet)return {tx:'접지 콘센트를 책상에 놓아요',tray:'outlet',tool:'hand',hl:{box:{x:180,y:755,w:60,h:60}}};if(!S.cables.plugged){const p=powerPlaced();return {tx:UI.powerPlug?'콘센트 가운데를 눌러요':'플러그를 눌러 선택해요',tool:'hand',hl:{rings:[{...(UI.powerPlug?S.cables.outlet:{x:p.x+82,y:p.y+20}),r:18}]}};}const l=POWER_LEADS.find(([k])=>!powerLeadMap(S.cables)[k]);if(!l)return P_DONE;const e=powerLeadEnd(l[0]),t=tRing(l[3]);return {tx:`${l[1]} ${l[0]}선 연결`,sub:UI.pending==='PWR.'+l[0]?'단자대 아래쪽 빨간 원을 눌러요':'책상의 선 끝을 누른 뒤 단자대에 연결해요',hl:{rings:[UI.pending==='PWR.'+l[0]?t:{...e,r:7}].filter(Boolean)}};} });
+    next:()=>{if(!powerPlaced())return {tx:'전원 케이블 → 작업 책상',sub:'책상에 내려놓은 뒤 선을 하나씩 연결해요',tray:'power',hl:{ring:{...POWER_POS,r:24}}};if(!S.cables.outlet)return {tx:'접지 콘센트를 책상에 놓아요',tray:'outlet',tool:'hand',hl:{box:{x:OUTLET_POS.x-30,y:OUTLET_POS.y-30,w:60,h:60}}};if(!S.cables.plugged){const p=powerPlaced();return {tx:UI.powerPlug?'콘센트 가운데를 눌러요':'플러그를 눌러 선택해요',tool:'hand',hl:{rings:[{...(UI.powerPlug?S.cables.outlet:{x:p.x+82,y:p.y+20}),r:18}]}};}const l=POWER_LEADS.find(([k])=>!powerLeadMap(S.cables)[k]);if(!l)return P_DONE;const e=powerLeadEnd(l[0]),t=tRing(l[3]);return {tx:`${l[1]} ${l[0]}선 연결`,sub:UI.pending==='PWR.'+l[0]?'단자대 아래쪽 빨간 원을 눌러요':'책상의 선 끝을 누른 뒤 단자대에 연결해요',hl:{rings:[UI.pending==='PWR.'+l[0]?t:{...e,r:7}].filter(Boolean)}};} });
   L(4, '컨베이어 내려놓기', '컨베이어를 작업 책상에 내려놓아요', { keys: ['conveyor'], focus: P_V.conv,
-    fill: () => { S.conveyor = { x: ROOM.deskPanelX+130-ROOM_X, y: 880-ROOM_Y }; S.convLeads = {}; }, prog: () => [S.conveyor ? 1 : 0, 1], goal: () => !!S.conveyor,
-    next: () => ({ tx: '컨베이어 → 작업 책상', sub: "재료함 '동작 검사 재료'의 컨베이어를 들고 빨간 테두리 책상을 눌러요", tray: 'conveyor', hl: { box: { x: 130 - 16, y: 880 - 100, w: CONV.L + 32, h: CVW.bw + 112 } } }) });
+    fill: () => { S.conveyor = { x: ROOM.deskLeft+40-ROOM_X, y: 600-ROOM_Y }; S.convLeads = {}; }, prog: () => [S.conveyor ? 1 : 0, 1], goal: () => !!S.conveyor,
+    next: () => ({ tx: '컨베이어 → 작업 책상', sub: "재료함 '동작 검사 재료'의 컨베이어를 들고 빨간 원 가운데를 눌러요", tray: 'conveyor', hl: { ring: { x: CVW.x+CONV.L/2, y: CVW.y+CVW.bw/2, r:35 } } }) });
   L(4, '컨베이어 선 결선', '컨베이어 선 6가닥을 단자대 아래(바깥쪽)에: 번호는 자유예요. 센서 전원·출력·모터 신호가 실제 회로에 맞게 연결되어야 해요', { keys: ['leads'], focus: P_V.conv,
     fill: () => { S.convLeads = { ...CV_REF }; }, prog: () => [CV_LEADS.filter(l => S.convLeads[l[0]] === l[3]).length, 6], goal: () => CV_LEADS.every(l => S.convLeads[l[0]] === l[3]),
     check: () => { for (const [k, , , t] of CV_LEADS) if (S.convLeads[k] && S.convLeads[k] !== t) return `컨베이어 ${k === 'S-' ? 'S−' : k}선은 ${TERM[t] ? TERM[t].nm : t}에 꽂아요`; return ''; },
@@ -7536,13 +7645,13 @@ const FAIL_WHY = [   // 실패 문구 → 왜 안 되는지 한 줄
 const failWhy = msg => (FAIL_WHY.find(([re]) => re.test(msg)) || [null, ''])[1];
 function pracSetup(L) {   // 이 레슨을 시작하는 상태: 앞 챕터는 정답으로, 같은 챕터의 앞 레슨도 정답으로
   pracRef(); const keep = S; S = newState(true);syncRoom();
-  if(L.ch>=2)positionPanel(ROOM.deskPanelX,0);
+  if(L.ch>=2)positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);
   try {
     for (let k = 0; k < (L.base ?? L.ch); k++) { fillStage(k); buildTerms(); }   // base: 고장 찾기는 동작 검사까지 마친 상태에서
     if (L.ch >= 3) S.opBack = true;
     for (const P of LESSONS) { if (P === L) break; if (P.ch === L.ch && P.fill) { P.fill(); buildTerms(); } }
     if (L.prep) L.prep();
-    S.usedFill = true; S.elapsed = 0;
+    S.usedFill = true; S.elapsed = 0;arrangeLooseFloor();
     return S;
   } finally { S = keep; buildTerms(); }
 }
@@ -7872,7 +7981,7 @@ function fdBuild(ids, kind = ids.length === 2 ? 'challenge' : 'intro') {
     S = newState(false);syncRoom();
     for (let k = 0; k < 5; k++) { fillStage(k); buildTerms(); }
     for (const id of ids) FD_SOURCE[id].apply();
-    positionPanel(ROOM.deskPanelX,0);S.judge = null; S.usedFill = true; S.opBack = false; buildTerms();
+    positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);S.judge = null; S.usedFill = true; S.opBack = false; buildTerms();
     const broken = pClone(S), report = fdReport();
     const symptoms = [...new Set(JUDGE.filter(c => !report.judge.res[c.id].ok).map(c => report.judge.res[c.id].why[0]).filter(t => t && !t.startsWith('앞 항목')))];
     if (!report.bad.length || !symptoms.length) return null;
