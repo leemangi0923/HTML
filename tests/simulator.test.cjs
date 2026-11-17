@@ -250,11 +250,11 @@ test('pending arrow navigation cancels on explicit selection, blur and overview'
   await page.waitForTimeout(600);assert.equal(await page.evaluate(()=>UI.roomFocus),null);assert.equal(await page.evaluate(()=>ROOM_NAV.timer),0);
 });
 
-test('animated camera changes keep the selected room filling every frame',async()=>{
+test('animated camera changes keep the selected scene clipped and undistorted every frame',async()=>{
   await page.locator('[data-home="free"]').click();await page.locator('#zDesk').click();
   const result=await page.evaluate(async()=>{
     const original=applyCam;let frames=0,inside=true;DEMO.speed=20;
-    applyCam=(...args)=>{const a=roomArea(UI.roomFocus),c=UI.cam,x=c.x+ROOM_X,y=c.y+ROOM_Y;frames++;inside&&=x>=a.x-.01&&y>=a.y-.01&&x+c.w<=a.x+a.w+.01&&y+c.h<=a.y+a.h+.01;return original(...args);};
+    applyCam=(...args)=>{const result=original(...args),r=svg.getBoundingClientRect(),fit=roomFitCamera(UI.roomFocus,r),a=roomArea(UI.roomFocus),c=UI.cam,m=svg.getScreenCTM(),clip=$('#roomClipRect');frames++;inside&&=c.x>=fit.x-.01&&c.y>=fit.y-.01&&c.x+c.w<=fit.x+fit.w+.01&&c.y+c.h<=fit.y+fit.h+.01&&Math.abs(m.a/m.d-1)<.0001&&$('#workspaceScene').getAttribute('clip-path')==='url(#roomClip)'&&Math.abs(+clip.getAttribute('x')-(a.x-ROOM_X))<.01&&Math.abs(+clip.getAttribute('width')-a.w)<.01;return result;};
     try{demoCam({x:OPW.x-100,y:OPW.y-100,w:OP.w+200,h:OP.h+200});await new Promise(r=>setTimeout(r,400));return{frames,inside,room:UI.roomFocus};}
     finally{cancelAnimationFrame(DEMO.raf);applyCam=original;}
   });assert.ok(result.frames>0);assert.equal(result.inside,true);assert.equal(result.room,'robotTop');
@@ -1500,7 +1500,7 @@ test('label tool opens the physical white terminal label and cancel leaves data 
 });
 
 test('power cable is placed on the desk and its three colored leads connect individually', async () => {
-  await fullState();await page.evaluate(()=>{S.cables={power:false};S.tbCover=false;LIVE.inp.mcb=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};buildTerms();renderAll();fitTo({x:POWER_POS.x-230,y:POWER_POS.y-150,w:340,h:250});});
+  await fullState();for(const id of ['togTray','togSide'])if(await page.locator('#'+id).getAttribute('aria-expanded')==='true')await page.locator('#'+id).click();await page.waitForTimeout(380);await page.evaluate(()=>{S.cables={power:false};S.tbCover=false;LIVE.inp.mcb=false;UI.carry={kind:'cable',key:'power',from:'tray',count:1};buildTerms();renderAll();fitTo({x:POWER_POS.x-230,y:POWER_POS.y-150,w:340,h:250});});
   const floorPoint=await page.evaluate(()=>({...POWER_POS}));await clickWorld(floorPoint.x,floorPoint.y);
   assert.deepEqual(await page.evaluate(()=>S.cables.powerLeads),{});
   assert.equal(await page.evaluate(()=>S.cables.power),false);
@@ -1757,7 +1757,7 @@ test('helical covering pins wires while ties move exposed tails in either endpoi
 
 test('middle-button pan batches camera writes, reuses geometry and preserves the final position', async()=>{
   await fullState();await page.evaluate(()=>{hideHome();const r=svg.getBoundingClientRect(),a=roomArea('desk');UI.cam={x:a.x-ROOM_X+300,y:a.y-ROOM_Y+150,w:600,h:600*r.height/r.width};applyCam(r);});
-  const b=await page.locator('#board').boundingBox(),x=b.x+100,y=b.y+100;
+  const b=await page.locator('#board').boundingBox(),x=b.x+b.width/2,y=b.y+100;
   await page.mouse.move(x,y);await page.mouse.down({button:'middle'});
   const r=await page.evaluate(async({x,y})=>{
     const snapshot=()=>JSON.stringify({...S,elapsed:0}); // The running work clock is allowed to advance while panning.

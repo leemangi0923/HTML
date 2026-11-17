@@ -59,7 +59,7 @@ test('external connections block carrying, disconnecting preserves the passed in
 });
 
 test('the fixed five-socket grounded strip stays in the floor upper-right and accepts a plug in every socket',async()=>{
- await reference();await page.evaluate(()=>{S.cables.plugged=false;renderAll();fitRoom('floor');});
+ await reference();if(await page.locator('#togSide').getAttribute('aria-expanded')==='true')await page.locator('#togSide').click();await page.waitForTimeout(380);await page.evaluate(()=>{S.cables.plugged=false;renderAll();fitRoom('floor');});
  assert.equal(await page.locator('[data-outlet-port]').count(),5);assert.equal(await page.evaluate(()=>trayItems().some(i=>i.key==='outlet')),false);
  const strip=await page.evaluate(()=>({r:powerStripRect(),a:roomArea('floor'),origin:{x:ROOM_X,y:ROOM_Y}}));assert.ok(strip.r.x+strip.origin.x>strip.a.x+strip.a.w/2);assert.ok(strip.r.y+strip.origin.y<strip.a.y+60);
  for(let i=0;i<5;i++){await page.evaluate(()=>{UI.powerPlug=true;S.cables.plugged=false;});const point=await page.evaluate(i=>powerStripSocket(i),i),screen=await workPoint(point.x,point.y);await page.mouse.click(screen.x,screen.y);assert.equal(await page.evaluate(()=>S.cables.outletPort),i);assert.equal(await page.evaluate(()=>S.cables.plugged),true);}
