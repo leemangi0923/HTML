@@ -26,7 +26,7 @@ test('loose operator nuts and the detached emergency cap pick up one complete ki
     trayTap('lampW');drop({x,y});drop({x,y:y+44});returnCarry();trayTap('ems');drop({x:x+200,y});returnCarry();renderAll();fitTo({x:x-80,y:y-70,w:420,h:240});
     return{x,y,first:S.floor.find(f=>f.key==='lampW').id};
   });
-  const before=await page.evaluate(()=>({count:S.floor.length,collision:S.floor.some((f,i)=>S.floor.slice(i+1).some(g=>rectsOverlap(looseBounds(f),looseBounds(g)))),stock:preparedKit('op').n}));assert.deepEqual(before,{count:3,collision:false,stock:3});
+  const before=await page.evaluate(()=>({count:S.floor.length,collision:S.floor.some((f,i)=>S.floor.slice(i+1).some(g=>rectsOverlap(looseBounds(f),looseBounds(g)))),stock:preparedKit('op').n,spacing:Math.abs(S.floor[0].x-S.floor[1].x)}));assert.deepEqual(before,{count:3,collision:false,stock:3,spacing:32});
   await clickPoint({x:origin.x+13.6,y:origin.y+44});
   assert.deepEqual(await page.evaluate(()=>({kind:UI.carry?.key,n:UI.carry?.count,floor:S.floor.length,left:trayItems().find(i=>i.key==='lampW').left})),{kind:'lampW',n:1,floor:2,left:0});
   await clickPoint({x:origin.x+100,y:origin.y+90});assert.equal(await page.evaluate(()=>S.floor.length),3);

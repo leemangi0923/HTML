@@ -1994,9 +1994,11 @@ function drawBZ(cx,cy,plate=true){let s=`<g data-buzzer-face="slotted-cream">`+(
 // Detached nuts and emergency caps stay with their kit through installation and return.
 function opStockGeometry(type,x,y){
   const lamp=type.startsWith('lamp'),buzzer=type==='bz';
-  return{body:{x:x-(buzzer?18:16),y:y-18,w:buzzer?36:32,h:36},
-    nut:{x:x+(lamp?0:44),y:y+(lamp?44:0)},cap:type==='ems'?{x:x+38,y:y+37}:null,
-    bounds:{x:x-20,y:y-20,w:lamp?40:80,h:lamp||type==='ems'?80:40}};
+  const body={x:x-(buzzer?18:16),y:y-18,w:buzzer?36:32,h:36};
+  const nut={x:x+(lamp?0:44),y:y+(lamp?44:0)},cap=type==='ems'?{x:x+38,y:y+37}:null;
+  const pieces=[body,{x:nut.x-15,y:nut.y-15,w:30,h:30},...(cap?[{x:cap.x-17,y:cap.y-17,w:34,h:34}]:[])];
+  const left=Math.min(...pieces.map(p=>p.x)),top=Math.min(...pieces.map(p=>p.y));
+  return{body,nut,cap,bounds:{x:left,y:top,w:Math.max(...pieces.map(p=>p.x+p.w))-left,h:Math.max(...pieces.map(p=>p.y+p.h))-top}};
 }
 function annulusPath(x,y,outer,inner){return `M${F(x+outer)} ${F(y)}a${outer} ${outer} 0 1 0 ${-2*outer} 0a${outer} ${outer} 0 1 0 ${2*outer} 0ZM${F(x+inner)} ${F(y)}a${inner} ${inner} 0 1 0 ${-2*inner} 0a${inner} ${inner} 0 1 0 ${2*inner} 0Z`;}
 function drawLocknut(x,y,loose=true){
