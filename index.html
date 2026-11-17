@@ -1999,7 +1999,23 @@ function opStockGeometry(type,x,y){
     bounds:{x:x-20,y:y-20,w:lamp?40:80,h:lamp||type==='ems'?80:40}};
 }
 function annulusPath(x,y,outer,inner){return `M${F(x+outer)} ${F(y)}a${outer} ${outer} 0 1 0 ${-2*outer} 0a${outer} ${outer} 0 1 0 ${2*outer} 0ZM${F(x+inner)} ${F(y)}a${inner} ${inner} 0 1 0 ${-2*inner} 0a${inner} ${inner} 0 1 0 ${2*inner} 0Z`;}
-function drawLocknut(x,y,loose=true){let s=`<g data-op-locknut="${loose?'loose':'mounted'}">`+surfaceStart(x-15,y-15,30,30,loose?4:2,'round-locknut')+`<path d="${annulusPath(x,y,15,11.9)}" fill-rule="evenodd" fill="url(#gChrome)" stroke="#7d8781" stroke-width=".35"/>`+C(x,y,13.9,'fill="none" stroke="#e7ece8" stroke-width=".55"')+C(x,y,12.1,'fill="none" stroke="#515d56" stroke-width=".65"');if(SET.sideDetail)for(let i=0;i<64;i++){const a=i*Math.PI/32;s+=LN(x+Math.cos(a)*14.2,y+Math.sin(a)*14.2,x+Math.cos(a)*15,y+Math.sin(a)*15,`stroke="${i%2?'#e3e8e3':'#6c7772'}" stroke-width=".35"`);}return s+SURFACE_END+'</g>';}
+function drawLocknut(x,y,loose=true){
+  let s=`<g data-op-locknut="${loose?'loose':'mounted'}">`
+    +surfaceStart(x-15,y-15,30,30,loose?4:2,'round-locknut')
+    +`<path d="${annulusPath(x,y,15,11.9)}" fill-rule="evenodd" fill="url(#gChrome)" stroke="#7d8781" stroke-width=".35"/>`
+    +C(x,y,13.9,'fill="none" stroke="#e7ece8" stroke-width=".55"')
+    +C(x,y,12.1,'fill="none" stroke="#515d56" stroke-width=".65"');
+  if(SET.sideDetail){
+    // Keep the 64 knurls in two paths so preparing ten operators adds 20 nodes.
+    const ribs=['',''];
+    for(let i=0;i<64;i++){
+      const a=i*Math.PI/32,c=Math.cos(a),v=Math.sin(a);
+      ribs[i%2]+=`M${F(x+c*14.2)} ${F(y+v*14.2)}L${F(x+c*15)} ${F(y+v*15)}`;
+    }
+    s+=`<path d="${ribs[0]}" fill="none" stroke="#6c7772" stroke-width=".35"/><path d="${ribs[1]}" fill="none" stroke="#e3e8e3" stroke-width=".35"/>`;
+  }
+  return s+SURFACE_END+'</g>';
+}
 function stockContactBlock(type,x,y){let s=surfaceStart(x-15,y-18,30,36,22,type.startsWith('lamp')?'op-lamp':'op-contact')+R(x-15,y-18,30,36,'rx=".6" fill="url(#gBlackMoulding)" stroke="#131c1b" stroke-width=".5"');if(type.startsWith('lamp')){for(const dx of [-11,8])for(const yy of [-14,10])s+=R(x+dx,y+yy,3,5,'rx=".4" fill="#101918" stroke="#6b7470" stroke-width=".4"');}else{for(const[dx,gradient]of [[-14,'gContactRed'],[.8,'gContactBlue']]){s+=R(x+dx,y-17,13.2,34,`rx=".5" fill="url(#${gradient})" stroke="#344543" stroke-width=".5"`);for(const yy of [-12,12])s+=R(x+dx+3.5,y+yy-2.4,6,4.8,'rx=".3" fill="url(#gChrome)" stroke="#5e6a60" stroke-width=".4"')+SCRS(x+dx+6.5,y+yy);}}s+=surfaceStart(x-16,y-15,32,30,6,'graphite')+R(x-16,y-15,32,30,'rx=".6" fill="url(#gBlackMoulding)" stroke="#0f1717" stroke-width=".5"');for(const yy of [-12,10])s+=LN(x-13,y+yy,x+13,y+yy,'stroke="#69736d" stroke-opacity=".4" stroke-width=".4"');return s;}
 function drawLooseOperator(type,x,y){const g=opStockGeometry(type,x,y);let s=`<g data-op-stock="${type}">`;if(type==='bz'){s+=surfaceStart(x-18,y-18,36,36,8,'pale')+R(x-18,y-18,36,36,'rx=".5" fill="url(#gBuzzerShell)" stroke="#8b8c78" stroke-width=".6"')+surfaceStart(x-14.5,y-14.5,29,29,20,'round-buzzer')+drawBZ(x,y,false)+SURFACE_END+SURFACE_END;}else{s+=stockContactBlock(type,x,y)+surfaceStart(x-12.5,y-12.5,25,25,13,'round-graphite')+C(x,y,12.5,'fill="url(#gBlackMoulding)" stroke="#7c8580" stroke-width=".45"');for(let r=10;r<12.5;r+=.65)s+=C(x,y,r,'fill="none" stroke="#68716b" stroke-opacity=".5" stroke-width=".3"');s+=surfaceStart(x-15,y-15,30,30,type.startsWith('lamp')?11:5,'round-graphite');s+=type==='ems'?`<g data-emergency-actuator="open">`+bezel(x,y)+C(x,y,10.5,'fill="#d9dcd5" stroke="#949f96" stroke-width=".7"')+C(x,y,7.2,'fill="#4f5951" stroke="#a2ada5" stroke-width=".9"')+C(x+.7,y+1.2,5.9,'fill="#202b28"')+'</g>':drawOpDev(type,x,y);s+=SURFACE_END+SURFACE_END+SURFACE_END+SURFACE_END;}
   s+=drawLocknut(g.nut.x,g.nut.y);if(g.cap)s+=`<g data-op-stock-cap="detached">`+surfaceStart(g.cap.x-17,g.cap.y-17,34,34,5,'round-graphite')+drawMushroomCap(g.cap.x,g.cap.y)+SURFACE_END+'</g>';return s+'</g>';}
