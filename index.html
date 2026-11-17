@@ -680,6 +680,8 @@ body.gfx-no-animations .hm-lamp { opacity:1; }
 .relief[data-relief-kind="op-contact"] .relief-x,.relief[data-relief-kind="op-lamp"] .relief-x,.relief[data-relief-kind="op-hmi"] .relief-x,.relief[data-relief-kind="tb"] .relief-x { fill:#28373e; }
 .relief[data-relief-kind="op-contact"] .relief-y,.relief[data-relief-kind="op-lamp"] .relief-y,.relief[data-relief-kind="op-hmi"] .relief-y,.relief[data-relief-kind="tb"] .relief-y { fill:#162831; }
 .relief[data-relief-kind="round-buzzer"] .relief-x { fill:#b4b299; }
+.relief[data-relief-kind="round-locknut"] .relief-x { fill:#9da4a1; stroke:#636d69; }
+.relief[data-relief-kind="round-locknut"] .relief-shadow { display:none; }
 .relief[data-relief-kind="hmi-shell"] .relief-x,.relief[data-relief-kind="hmi-ports"] .relief-x { fill:#3b4243; }
 .relief[data-relief-kind="hmi-shell"] .relief-y,.relief[data-relief-kind="hmi-ports"] .relief-y { fill:#2b363a; }
 [data-power-cable][data-plugged="true"] [data-power-pin] { display:none; }
@@ -762,9 +764,9 @@ body.gfx-no-animations .hm-lamp { opacity:1; }
             <linearGradient id="gGlass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b9c9d2" stop-opacity=".85"/><stop offset=".3" stop-color="#ffffff" stop-opacity=".9"/><stop offset=".7" stop-color="#e3edf2" stop-opacity=".55"/><stop offset="1" stop-color="#a9bbc5" stop-opacity=".85"/></linearGradient>
             <linearGradient id="gChrome" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fdf8e9"/><stop offset="0.16" stop-color="#b1b6b8"/><stop offset="0.32" stop-color="#f8fbfc"/><stop offset="0.48" stop-color="#929fa8"/><stop offset="0.64" stop-color="#e6ecee"/><stop offset="0.85" stop-color="#a6a9a4"/><stop offset="1" stop-color="#f9f6ea"/></linearGradient>
             <radialGradient id="gLW" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c3c8cb"/></radialGradient>
-            <radialGradient id="gLR" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ff8e8e"/><stop offset="1" stop-color="#a5121a"/></radialGradient>
-            <radialGradient id="gLG" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#9df2b6"/><stop offset="1" stop-color="#0f7c35"/></radialGradient>
-            <radialGradient id="gLY" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#fff3a8"/><stop offset="1" stop-color="#c88e00"/></radialGradient>
+            <radialGradient id="gLR" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#e95655"/><stop offset=".5" stop-color="#ba2230"/><stop offset="1" stop-color="#670f18"/></radialGradient>
+            <radialGradient id="gLG" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#43b77a"/><stop offset=".5" stop-color="#0b7a40"/><stop offset="1" stop-color="#004c2a"/></radialGradient>
+            <radialGradient id="gLY" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#e8d366"/><stop offset=".5" stop-color="#b29320"/><stop offset="1" stop-color="#77600d"/></radialGradient>
             <radialGradient id="gBtn" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".22"/></radialGradient>
             <radialGradient id="gEms" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ff7474"/><stop offset="1" stop-color="#a50e16"/></radialGradient>
             <linearGradient id="gSmps" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c3c8cc"/><stop offset=".5" stop-color="#e0e3e6"/><stop offset="1" stop-color="#bec3c7"/></linearGradient>
@@ -1972,19 +1974,36 @@ const drawCross = (x, y) => `<path d="M${F(x - 5)} ${F(y)}H${F(x + 5)}M${F(x)} $
 const drawRuler = r => `<path d="M76 ${F(r.cy - 17.5)}H684M76 ${F(r.cy + 17.5)}H684" class="redmark thin"/>`;
 
 /* --- 조작판 기기 --- */
-const bezel = (cx, cy, r = 15) => C(cx + .6, cy + 1, r, 'fill="#000" fill-opacity=".3"') + C(cx, cy, r, 'fill="url(#gChrome)" stroke="#7f878d" stroke-width=".5"');
+const bezel = (cx, cy, r = 15) => C(cx,cy,r,'fill="url(#gBlackMoulding)" stroke="#101719" stroke-width=".65"')+C(cx,cy,r-1.3,'fill="none" stroke="#6b7471" stroke-opacity=".45" stroke-width=".5"');
 const LAMP_GLOW = { W: '#ffffff', R: '#ff4d4d', G: '#3dff7a', Y: '#ffd400' };
-function drawLamp(cx, cy, col, lit) {
-  let s = bezel(cx, cy) + C(cx, cy, 12, 'fill="#2b3035"') + C(cx, cy, 10.8, `fill="url(#gL${col})"`) + `<ellipse cx="${F(cx - 3.4)}" cy="${F(cy - 4)}" rx="3.6" ry="2.2" fill="#fff" fill-opacity=".5"/>`;
+function drawLamp(cx, cy, col, lit=false) {
+  let s = `<g data-op-lens="${col}" data-lens-shape="dome">`+bezel(cx,cy)+C(cx,cy,12.3,'fill="#101819" stroke="#7c8480" stroke-width=".35"')+C(cx,cy,11.8,`fill="url(#gL${col})" stroke="${col==='W'?'#d3d6d0':'#3d4030'}" stroke-width=".35"`);
+  if(col!=='W')s+=C(cx,cy,9.8,'fill="none" stroke="#fff" stroke-opacity=".2" stroke-width=".5"')+C(cx,cy,8.5,'fill="none" stroke="#141e18" stroke-opacity=".3" stroke-width=".45"');
+  s+=`<ellipse cx="${F(cx-3.4)}" cy="${F(cy-4.7)}" rx="${col==='W'?4.9:2.9}" ry="2.7" fill="#fff" fill-opacity="${col==='W'?'.58':'.43'}"/>`;
   if (lit === true) s = C(cx, cy, 21, `fill="${LAMP_GLOW[col]}" fill-opacity=".38"`) + s + C(cx, cy, 10.8, 'fill="#fff" fill-opacity=".3"');
-  else if (lit === false) s += C(cx, cy, 10.8, 'fill="#000" fill-opacity=".5"');
-  return s;
+  else if(lit===false&&col!=='W')s+=C(cx,cy,11.8,'fill="#07140e" fill-opacity=".22"');
+  return s+'</g>';
 }
-function drawPB(cx, cy, col) { return bezel(cx, cy) + C(cx, cy, 11.6, 'fill="#3a3f44"') + C(cx, cy, 10.2, `fill="${col === 'R' ? '#d3262e' : '#21994a'}"`) + C(cx, cy, 10.2, 'fill="url(#gBtn)"'); }
-function drawSS(cx, cy, pos = 'M') { const a = pos === 'A' ? 40 : -40; return bezel(cx, cy) + C(cx, cy, 12, 'fill="#1f2225"') + `<g transform="rotate(${a} ${F(cx)} ${F(cy)})">${R(cx - 3, cy - 12.5, 6, 25, 'rx="2.6" fill="#3b4045" stroke="#15181a" stroke-width=".4"')}${LN(cx, cy - 11, cx, cy - 5, 'stroke="#f2f2f2" stroke-width="1.1" stroke-linecap="round"')}</g>`; }
-function drawEMS(cx, cy) { return bezel(cx, cy) + C(cx + .7, cy + 1.3, 14, 'fill="#000" fill-opacity=".35"') + C(cx, cy, 14, 'fill="url(#gEms)" stroke="#7a0f13" stroke-width=".5"') + `<path d="M${F(cx - 6)} ${F(cy + 2)}a6.5 6.5 0 0 1 11-5.5" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1"/><path d="M${F(cx + 5)} ${F(cy - 6.4)}l1.2 3.4-3.5-.8z" fill="#fff" fill-opacity=".75"/>`; }
-function drawBZ(cx, cy) { let s = C(cx + .6, cy + 1, 15.5, 'fill="#000" fill-opacity=".3"') + C(cx, cy, 15.5, 'fill="#eceae2" stroke="#a9a69b" stroke-width=".5"') + C(cx, cy, 12.4, 'fill="none" stroke="#c9c6bb" stroke-width=".6"');
-  for (let r = -2; r <= 2; r++) for (let c = -2; c <= 2; c++) if (r * r + c * c <= 5) s += C(cx + c * 2.6, cy + r * 2.6, .8, 'fill="#8f8c82"'); return s; }
+function drawPB(cx,cy,col){return `<g data-op-button="${col}">`+bezel(cx,cy)+C(cx,cy,12.2,'fill="#0c1515"')+C(cx,cy,11.3,`fill="${col==='R'?'#d92229':'#139c47'}" stroke="${col==='R'?'#a72124':'#136b36'}" stroke-width=".5"`)+C(cx,cy,11.3,'fill="url(#gBtn)"')+'</g>';}
+function drawSS(cx,cy,pos='M'){const a=pos==='A'?40:-40;return bezel(cx,cy)+C(cx,cy,12.4,'fill="#13191b" stroke="#444d4c" stroke-width=".6"')+`<g data-selector-handle="${pos}" transform="rotate(${a} ${F(cx)} ${F(cy)})">`+R(cx-4.2,cy-15,8.4,32,'rx="1.1" fill="url(#gBlackMoulding)" stroke="#090e12" stroke-width=".65"')+LN(cx-1.4,cy-13,cx-1.4,cy+13,'stroke="#5e6866" stroke-width=".5"')+LN(cx,cy-11,cx,cy-5,'stroke="#bdc9cb" stroke-width="1.2" stroke-linecap="round"')+'</g>';}
+function drawMushroomCap(cx,cy){let s=`<g data-emergency-cap="true">`+C(cx,cy,17,'fill="url(#gEms)" stroke="#8b191e" stroke-width=".6"')+C(cx,cy,14.2,'fill="none" stroke="#ee6867" stroke-width=".7"');for(let a=0;a<360;a+=120)s+=`<g transform="rotate(${a} ${F(cx)} ${F(cy)})"><path d="M${F(cx-9.8)} ${F(cy-4.8)}a11 11 0 0 1 9.5-6.2" fill="none" stroke="#f4d9d4" stroke-width="1.2"/><path d="M${F(cx-1.8)} ${F(cy-13.4)}l3.3 2.5-3.4 1.5z" fill="#f4d9d4"/></g>`;return s+'</g>';}
+function drawEMS(cx,cy){return bezel(cx,cy)+drawMushroomCap(cx,cy);}
+function drawBZ(cx,cy,plate=true){let s=`<g data-buzzer-face="slotted-cream">`+(plate?R(cx-18,cy-18,36,36,'rx=".5" fill="url(#gBuzzerShell)" stroke="#8b8c78" stroke-width=".6"'):'')+C(cx,cy,14.5,'fill="#171e1a"')+C(cx,cy,12.9,'fill="url(#gBuzzerShell)" stroke="#95967f" stroke-width=".5"');for(const r of [11.8,10.8])s+=C(cx,cy,r,'fill="none" stroke="#e0dac3" stroke-width=".45"');for(let a=0;a<360;a+=60)s+=`<path transform="rotate(${a} ${F(cx)} ${F(cy)})" d="M${F(cx-3)} ${F(cy-9.5)}a10 10 0 0 1 6 0" fill="none" stroke="#30362b" stroke-width="1.9" stroke-linecap="round"/>`;return s+C(cx,cy,7.7,'fill="url(#gBuzzerShell)" stroke="#8d927d" stroke-width=".45"')+'</g>';}
+
+// Preparation photos: the threaded operator and its retaining nut are one kit.
+// Only the nut is detached; installing / returning the kit never changes counts.
+function opStockGeometry(type,x,y){
+  const lamp=type.startsWith('lamp'),buzzer=type==='bz';
+  return{body:{x:x-(buzzer?18:16),y:y-18,w:buzzer?36:32,h:36},
+    nut:{x:x+(lamp?0:44),y:y+(lamp?44:0)},cap:type==='ems'?{x:x+38,y:y+37}:null,
+    bounds:{x:x-20,y:y-20,w:lamp?40:80,h:lamp||type==='ems'?80:40}};
+}
+function annulusPath(x,y,outer,inner){return `M${F(x+outer)} ${F(y)}a${outer} ${outer} 0 1 0 ${-2*outer} 0a${outer} ${outer} 0 1 0 ${2*outer} 0ZM${F(x+inner)} ${F(y)}a${inner} ${inner} 0 1 0 ${-2*inner} 0a${inner} ${inner} 0 1 0 ${2*inner} 0Z`;}
+function drawLocknut(x,y,loose=true){let s=`<g data-op-locknut="${loose?'loose':'mounted'}">`+surfaceStart(x-15,y-15,30,30,loose?4:2,'round-locknut')+`<path d="${annulusPath(x,y,15,11.9)}" fill-rule="evenodd" fill="url(#gChrome)" stroke="#7d8781" stroke-width=".35"/>`+C(x,y,13.9,'fill="none" stroke="#e7ece8" stroke-width=".55"')+C(x,y,12.1,'fill="none" stroke="#515d56" stroke-width=".65"');if(SET.sideDetail)for(let i=0;i<64;i++){const a=i*Math.PI/32;s+=LN(x+Math.cos(a)*14.2,y+Math.sin(a)*14.2,x+Math.cos(a)*15,y+Math.sin(a)*15,`stroke="${i%2?'#e3e8e3':'#6c7772'}" stroke-width=".35"`);}return s+SURFACE_END+'</g>';}
+function stockContactBlock(type,x,y){let s=surfaceStart(x-15,y-18,30,36,22,type.startsWith('lamp')?'op-lamp':'op-contact')+R(x-15,y-18,30,36,'rx=".6" fill="url(#gBlackMoulding)" stroke="#131c1b" stroke-width=".5"');if(type.startsWith('lamp')){for(const dx of [-11,8])for(const yy of [-14,10])s+=R(x+dx,y+yy,3,5,'rx=".4" fill="#101918" stroke="#6b7470" stroke-width=".4"');}else{for(const[dx,gradient]of [[-14,'gContactRed'],[.8,'gContactBlue']]){s+=R(x+dx,y-17,13.2,34,`rx=".5" fill="url(#${gradient})" stroke="#344543" stroke-width=".5"`);for(const yy of [-12,12])s+=R(x+dx+3.5,y+yy-2.4,6,4.8,'rx=".3" fill="url(#gChrome)" stroke="#5e6a60" stroke-width=".4"')+SCRS(x+dx+6.5,y+yy);}}s+=surfaceStart(x-16,y-15,32,30,6,'graphite')+R(x-16,y-15,32,30,'rx=".6" fill="url(#gBlackMoulding)" stroke="#0f1717" stroke-width=".5"');for(const yy of [-12,10])s+=LN(x-13,y+yy,x+13,y+yy,'stroke="#69736d" stroke-opacity=".4" stroke-width=".4"');return s;}
+function drawLooseOperator(type,x,y){const g=opStockGeometry(type,x,y);let s=`<g data-op-stock="${type}">`;if(type==='bz'){s+=surfaceStart(x-18,y-18,36,36,8,'pale')+R(x-18,y-18,36,36,'rx=".5" fill="url(#gBuzzerShell)" stroke="#8b8c78" stroke-width=".6"')+surfaceStart(x-14.5,y-14.5,29,29,20,'round-buzzer')+drawBZ(x,y,false)+SURFACE_END+SURFACE_END;}else{s+=stockContactBlock(type,x,y)+surfaceStart(x-12.5,y-12.5,25,25,13,'round-graphite')+C(x,y,12.5,'fill="url(#gBlackMoulding)" stroke="#7c8580" stroke-width=".45"');for(let r=10;r<12.5;r+=.65)s+=C(x,y,r,'fill="none" stroke="#68716b" stroke-opacity=".5" stroke-width=".3"');s+=surfaceStart(x-15,y-15,30,30,type.startsWith('lamp')?11:5,'round-graphite');s+=type==='ems'?`<g data-emergency-actuator="open">`+bezel(x,y)+C(x,y,10.5,'fill="#d9dcd5" stroke="#949f96" stroke-width=".7"')+C(x,y,7.2,'fill="#4f5951" stroke="#a2ada5" stroke-width=".9"')+C(x+.7,y+1.2,5.9,'fill="#202b28"')+'</g>':drawOpDev(type,x,y);s+=SURFACE_END+SURFACE_END+SURFACE_END+SURFACE_END;}
+  s+=drawLocknut(g.nut.x,g.nut.y);if(g.cap)s+=`<g data-op-stock-cap="detached">`+surfaceStart(g.cap.x-17,g.cap.y-17,34,34,5,'round-graphite')+drawMushroomCap(g.cap.x,g.cap.y)+SURFACE_END+'</g>';return s+'</g>';}
+function operatorStockContact(f){if(!SET.shadows)return '';const g=opStockGeometry(f.key,f.x,f.y),ring=`<path d="${annulusPath(g.nut.x+.6,g.nut.y+1,15.4,11.5)}" fill-rule="evenodd" fill="#17201b" fill-opacity=".18"/>`,cap=g.cap?C(g.cap.x+.6,g.cap.y+1,17.4,'fill="#17201b" fill-opacity=".15"'):'';return contactShadow(g.body).replace('</g>',ring+cap+'</g>');}
 function drawHMI() {
   const c = OP.cut, b = { x: c.x - 8, y: c.y - 8, w: c.w + 16, h: c.h + 16 }, sx = c.x + 6, sy = c.y + 6, sw = c.w - 12, sh = c.h - 12;
   let s = surfaceStart(b.x,b.y,b.w,b.h,18,'graphite',OPW.x,OPW.y)+R(b.x + 1, b.y + 1.6, b.w, b.h, 'rx="4" fill="#000" fill-opacity=".35"') + R(b.x, b.y, b.w, b.h, 'rx="4" fill="url(#gGraphite)" stroke="#16191c" stroke-width=".6"');
@@ -1999,6 +2018,18 @@ function drawOpDev(type, x, y) {
     case 'lampW': return drawLamp(x, y, 'W'); case 'lampR': return drawLamp(x, y, 'R'); case 'lampG': return drawLamp(x, y, 'G'); case 'lampY': return drawLamp(x, y, 'Y');
     case 'pbG': return drawPB(x, y, 'G'); case 'pbR': return drawPB(x, y, 'R'); case 'ss': return drawSS(x, y); case 'ems': return drawEMS(x, y); case 'bz': return drawBZ(x, y);
   } return '';
+}
+function opFrontHoleAt(p){
+  for(const [hid,type]of Object.entries(S.op.dev)){
+    const hole=OP.holes[hid];if(!hole)continue;const [x,y]=hole,dx=p.x-x,dy=p.y-y;
+    if(type==='bz'?Math.abs(dx)<=18.5&&Math.abs(dy)<=18.5:Math.hypot(dx,dy)<=(type==='ems'?17.5:16))return hid;
+    if(type==='ss'){
+      const angle=(LIVE.on?LIVE.inp.ss:'M')==='A'?40:-40,a=angle*Math.PI/180;
+      const u=dx*Math.cos(a)+dy*Math.sin(a),v=-dx*Math.sin(a)+dy*Math.cos(a);
+      if(Math.abs(u)<=4.7&&v>=-15.5&&v<=17.5)return hid;
+    }
+  }
+  return null;
 }
 function drawLabel(z, text) { return R(z.x + .4, z.y + .6, z.w, z.h, 'rx=".6" fill="#000" fill-opacity=".18"') + R(z.x, z.y, z.w, z.h, 'rx=".6" fill="#fcfcf8" stroke="#c4c4ba" stroke-width=".35"') + T(z.x + z.w / 2, z.y + z.h / 2 + (z.small ? 1.45 : 1.7), text, TX(z.small ? 4 : 4.8, '#151515', 'font-weight="700"')); }
 
@@ -3032,7 +3063,7 @@ function liveHit(p) {   // 손으로 누르는 순간 동작하는 곳
   const lp = opLocal(p);
   if (S.op.hmi && LIVE.out.HMI && inRect(lp, HMI_BZ())) return 'bz';
   if (!LIVE.inp.mcb) return null;   // 전원이 꺼져 있으면 손은 기기를 다룬다
-  const h = nearestHole(lp, 14), t = h && S.op.dev[h], sym = h && OP.answer[h].sym;
+  const h = opFrontHoleAt(lp), t = h && S.op.dev[h], sym = h && OP.answer[h].sym;
   if (t === 'ss') return 'ss';
   if ((t === 'pbG' || t === 'pbR') && (sym === 'PB1' || sym === 'PB0')) return sym.toLowerCase();
   return null;
@@ -3235,6 +3266,7 @@ function worldOp() {
     const type = S.op.dev[hid]; if (!type) continue;
     const x = W - hx, sym = OP.answer[hid].sym, k = OP_KIND[type];
     s+=`<g data-depth-object="${sym}">`;
+    s+=drawLocknut(x,y,false);
     s += k==='lamp'?surfaceStart(x-12,y-12,24,24,35,'op-lamp',OPW.x,OPW.y):surfaceStart(x-14,y-13,28,26,k==='bz'?7:35,k==='bz'?'pale':'op-contact',OPW.x,OPW.y);
     s += k === 'lamp' ? lampBack(x, y, type.slice(-1), lv ? !!lv[sym] : null) : k === 'bz' ? bzBack(x, y, !!(lv && lv.BZ)) : swBack(x, y);
     if(k!=='bz')for(const[,dx,dy]of OP_TERM_DEF[k])s+=projectAt(OPW.x+x-dx,OPW.y+y+dy,SCRS(x-dx,y+dy));
@@ -3419,7 +3451,7 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-prep="start"]')
 function newState(guide = true) {
   return { v: VERSION, stage: 0, guide, tool: 'hand', gloves: false, gloveOnDone: false, gloveOffDone: false, mistakes: [0, 0, 0, 0], hints: 0, violations: [],
     elapsed: 0, stageEl: 0, stageTime: [0, 0, 0, 0], done: [false, false, false, false], auto: [false, false, false, false], finished: false,
-    wood:{x:380,y:300}, stationV:7,rowV:1,panelDocked:false,mountClamps:{},compactV:1,gridV:1,plcUnitV:1,tabletopV:1,fixedOutletV:1,controllerRight:false,roomWidthV:1, roomV:1, bundleV:1, panelPos:{x:0,y:0}, op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
+    wood:{x:380,y:300}, stationV:7,rowV:1,panelDocked:false,mountClamps:{},compactV:1,gridV:1,opStockV:1,plcUnitV:1,tabletopV:1,fixedOutletV:1,controllerRight:false,roomWidthV:1, roomV:1, bundleV:1, panelPos:{x:0,y:0}, op: { hmi: false, dev: {}, labels: {} }, lampRouteV: 1, tbLabels: [...TB_LABELS], floor: [], opBack: false, fr: newFrame(), marginSide: null, gauge: null, rulerPlaced: false, rulerSide: null, ruled: false, svMarks: [false, false], svHoles: [false, false],
     inst: [], nid: 1, stoppers: [], fuses: {}, servo: { placed: false, bolted: false }, wires: [], cables: { power: false }, conveyor: null, convLeads: {}, xtbClosed: {}, plcLid: { t: false, b: false }, smpsLid: {t:false,b:false}, plug: {}, tset: {}, dressV: 2, dbreak: {}, extV: 2, hgath: [], hcov: 0 };
 }
 function save() { if (DEMO.on || MODE === 'prac'||UI.gesture?.type==='panelmove'&&UI.gesture.moved) return; try { localStorage.setItem(MODE === 'exam' ? STORE_EXAM : MODE === 'fault' ? STORE_FAULT : STORE, JSON.stringify(S)); } catch (e) { /* 저장할 수 없는 환경 */ } }   // 연습은 저장하지 않는다
@@ -4225,7 +4257,7 @@ function floorRect(f) {
   if(f.kind==='plug')return{x:f.x-20,y:f.y-30,w:40,h:60};
   if(f.kind==='pack')return{x:f.x-20,y:f.y-20,w:40,h:40};
   if (f.kind === 'fr') { const len = FRAME_TYPES[f.key].len, thick = f.key === 'duct' ? 40 : 35,w=f.vertical?thick:len,h=f.vertical?len:thick; return {x:f.x-w/2,y:f.y-h/2,w,h}; }
-  if (f.kind === 'op') return f.key === 'hmi' ? { x: f.x - 122, y: f.y - 87, w: 244, h: 174 } : { x: f.x - 16, y: f.y - 16, w: 32, h: 32 };
+  if (f.kind === 'op') return f.key === 'hmi' ? { x: f.x - 122, y: f.y - 87, w: 244, h: 174 } : opStockGeometry(f.key,f.x,f.y).bounds;
   if (f.kind === 'fuse') return { x: f.x - 6, y: f.y - 17, w: 12, h: 34 };
   if (f.kind === 'cover') return { x: f.x - 300, y: f.y - 20, w: 600, h: 40 };
   if (f.kind === 'tbcover') return { x: f.x - DEV.tb.w / 2, y: f.y - DEV.tb.h / 2, w: DEV.tb.w, h: DEV.tb.h };
@@ -4277,7 +4309,7 @@ function drawFloorItem(f) {
   if (f.kind === 'fr') {
     const len=FRAME_TYPES[f.key].len,h=f.key==='duct'?40:35,body=drawFrameBack({x:f.x-len/2,y:f.y-h/2,w:len,h,o:'h'},f.key,!!S.fr[f.pid]?.taped);return f.vertical?`<g transform="rotate(90 ${f.x} ${f.y})">${body}</g>`:body;
   }
-  if (f.kind === 'op') return f.key === 'hmi' ? `<g transform="translate(${F(f.x - 146.75)} ${F(f.y - 100)})">${drawHMI()}</g>` : drawOpDev(f.key, f.x, f.y);
+  if (f.kind === 'op') return f.key === 'hmi' ? `<g transform="translate(${F(f.x - 146.75)} ${F(f.y - 100)})">${drawHMI()}</g>` : drawLooseOperator(f.key,f.x,f.y);
   if (f.kind === 'fuse') return `<g transform="translate(${F(r.x)} ${F(r.y)})">${fuseIcon(f.key)}</g>`;
   if (f.kind === 'cover') return drawDuctCover({ ...r, o: 'h' });
   if (f.kind === 'tbcover') return drawTBCover(r);
@@ -4289,7 +4321,7 @@ function drawDeviceUnit(type,x,y){return drawDevice(type,x,y,'',null)+(type==='p
 function floorSVG() {
   let s = '<g data-depth-layer="floor">';
   for (const f of S.floor) {
-    s+=`<g data-depth-object="floor-${f.id}">`+contactShadow(floorRect(f))+drawFloorItem(f)+'</g>';
+    s+=`<g data-depth-object="floor-${f.id}">`+(f.kind==='op'&&f.key!=='hmi'?operatorStockContact(f):contactShadow(floorRect(f)))+drawFloorItem(f)+'</g>';
     if (S.guide && S.tool === 'tape' && f.kind === 'fr' && !S.fr[f.pid].taped) { const r = floorRect(f); s += R(r.x - 3, r.y - 3, r.w + 6, r.h + 6, 'rx="2" class="guide-slot"'); }
   }
   return s+'</g>';
@@ -4484,7 +4516,7 @@ function dropOp(p) {
   if (S.op.dev[h]) return say('이미 기기가 있어요', 'info');
   const ans = OP.answer[h];
   if (ans.type !== type) return mistake(S.guide ? `여기는 ${ans.sym} (${OP_TYPES[ans.type].name}) 자리예요` : '자리가 틀렸어요');
-  snap(); S.op.dev[h] = type; say(`${OP_TYPES[type].name}을(를) 끼웠어요`, 'ok');
+  snap(); S.op.dev[h] = type; say(`${OP_TYPES[type].name}을(를) 끼우고 고정 링을 체결했어요`, 'ok');
   consumeCarry(); commit();
 }
 function dropFrame(p) {
@@ -4617,7 +4649,7 @@ function handleTap(p, e) {
 function tap0(p, e) {
   const t = S.tool;
   if (t === 'hand') {
-    const h = nearestHole(p, 16);
+    const h = opFrontHoleAt(p);
     if (LIVE.inp.mcb && ((h && S.op.dev[h]) || (S.op.hmi && inRect(p, OP.cut, 4)))) return say('전원이 켜져 있어요. 기기를 빼려면 MCB를 내려요', 'info');
     if (h && S.op.dev[h]) { snap(); const type = S.op.dev[h]; delete S.op.dev[h]; UI.carry = { kind: 'op', key: type }; say('기기를 다시 들었어요', 'info'); return commit(); }
     if (S.op.hmi && inRect(p, OP.cut, 4)) { snap(); S.op.hmi = false; UI.carry = { kind: 'op', key: 'hmi' }; say('HMI를 다시 들었어요', 'info'); return commit(); }
@@ -4632,7 +4664,7 @@ function tap0(p, e) {
   }
   if (t === 'cut') {
     const z = zoneAt(p); if (z && S.op.labels[z.id]) { snap(); delete S.op.labels[z.id]; say('견출지를 뗐어요', 'info'); return commit(); }
-    const h = nearestHole(p, 16);
+    const h = opFrontHoleAt(p);
     if (h && S.op.dev[h]) { snap(); delete S.op.dev[h]; for (const zz of OP_ZONES) if (zz.hole === h) delete S.op.labels[zz.id]; say('기기를 뺐어요', 'info'); return commit(); }
     return say('뺄 것이 없어요', 'info');
   }
@@ -5204,7 +5236,7 @@ function trayThumb(it,state=thumbnailState()) {
   const cacheKey=it.kind+'|'+it.key,cached=TRAY_THUMBS.get(cacheKey);if(cached!==undefined)return cached;
   const k = it.key; let vb = '0 0 40 24', inner = '';
   if(it.kind==='prep'){vb=it.key==='opplate'?'0 0 375 300':'-40 -40 840 700';inner=it.key==='wood'?woodMarkup({x:380,y:300}):prepPlateMarkup(it.key,{x:it.key==='opplate'?OP.w/2:PANEL.w/2,y:it.key==='opplate'?OP.h/2:PANEL.h/2});}
-  else if (it.kind === 'op') { if (k === 'hmi') { vb = '0 0 60 44'; inner = R(1, 1, 58, 42, 'rx="3" fill="#30353a"') + R(5, 5, 50, 34, 'fill="#173246"'); } else { vb = '-17 -17 34 34'; inner = drawOpDev(k, 0, 0); } }
+  else if (it.kind === 'op') { if (k === 'hmi') { vb = '0 0 60 44'; inner = R(1, 1, 58, 42, 'rx="3" fill="#30353a"') + R(5, 5, 50, 34, 'fill="#173246"'); } else { const b=opStockGeometry(k,0,0).bounds;vb=`${b.x-2} ${b.y-2} ${b.w+4} ${b.h+4}`;inner=drawLooseOperator(k,0,0); } }
   else if (it.kind === 'fr') { vb = k === 'duct' ? '0 0 90 40' : '0 -2 90 39'; inner = drawFrameBack({x:0,y:0,w:90,h:k==='duct'?40:35,o:'h'},k,false); }
   else if (it.kind === 'dev') { const d = k === 'servo' ? SERVO : DEV[k]; vb = `-2 -2 ${(k==='plc'?deviceUnitWidth(k):d.w) + 4} ${d.h + 4}`; inner = k === 'servo' ? dServo(0, 0, false) : drawDeviceUnit(k, 0, 0); }
   else if (it.kind === 'fuse') { vb = '0 0 12 34'; inner = fuseIcon(k); }
@@ -5376,7 +5408,7 @@ function drawPowerCable() {
 
 function world0() {
   let s = drawOpPlate();
-  for (const [hid, [x, y]] of Object.entries(OP.holes)) { const type = S.op.dev[hid]; if (type) s += surfaceStart(x-15.5,y-15.5,31,31,type==='ems'?22:12,'round-graphite',OPW.x,OPW.y)+(LIVE.on && OP_KIND[type] === 'lamp' ? drawLamp(x, y, type.slice(-1), !!LIVE.out[OP.answer[hid].sym]) : LIVE.on && type === 'ss' ? drawSS(x, y, LIVE.inp.ss) : drawOpDev(type, x, y))+SURFACE_END; else if (S.guide) s += T(x, y + 1.7, OP.answer[hid].sym, TX(4.8, '#ffffff', 'font-weight="700" fill-opacity=".6"')); }
+  for (const [hid, [x, y]] of Object.entries(OP.holes)) { const type = S.op.dev[hid],r=type==='bz'?18:type==='ems'?17:15.5; if (type) s += surfaceStart(x-r,y-r,r*2,r*2,type==='ems'?22:12,type==='bz'?'pale':'round-graphite',OPW.x,OPW.y)+(LIVE.on && OP_KIND[type] === 'lamp' ? drawLamp(x, y, type.slice(-1), !!LIVE.out[OP.answer[hid].sym]) : LIVE.on && type === 'ss' ? drawSS(x, y, LIVE.inp.ss) : drawOpDev(type, x, y))+SURFACE_END; else if (S.guide) s += T(x, y + 1.7, OP.answer[hid].sym, TX(4.8, '#ffffff', 'font-weight="700" fill-opacity=".6"')); }
   if (S.op.hmi) {
     const c = OP.cut, b = HMI_BZ(); s += drawHMI();
     if (!LIVE.out.HMI) s += projectFaceAt(c.x-8,c.y-8,c.w+16,c.h+16,18,R(c.x + 6, c.y + 6, c.w - 12, c.h - 12, 'fill="#05080a" fill-opacity=".93"') + T(c.x + c.w / 2, c.y + c.h / 2 + 4, 'HMI 전원 꺼짐', TX(9, '#5b6670', 'font-weight="700"')),OPW.x,OPW.y);
@@ -5508,7 +5540,7 @@ function ghost(p) {
     if (c.key === 'hmi') return !S.opBack && inRect(lp, OP.cut, 20) ? `<g opacity=".6" transform="${tr}">${drawHMI()}</g>` : R(p.x - 40, p.y - 28, 80, 56, 'rx="3" fill="#30353a" opacity=".6"');
     const h = !S.opBack && nearestHole(lp, 25);
     if (h && !S.op.dev[h]) return `<g opacity=".7" transform="${tr}">${drawOpDev(c.key, OP.holes[h][0], OP.holes[h][1])}</g>`;
-    return `<g opacity=".7">${drawOpDev(c.key, p.x, p.y)}</g>`;
+    return `<g opacity=".7">${drawLooseOperator(c.key,p.x,p.y)}</g>`;
   }
   if (c.kind === 'fr') {
     const id=c.ids?.[0]||availPart(c.key),taped=!!S.fr[id]?.taped;
@@ -5569,7 +5601,7 @@ function hoverHL(p) {   // 지금 누르면 바뀌는 대상을 빨간 테두리
   const lp = opLocal(p);
   if (lp.x > -15 && lp.y > -15 && lp.x < OP.w + 15 && lp.y < OP.h + 15) {
     if (S.opBack || (t !== 'hand' && t !== 'cut')) return '';
-    const h = nearestHole(lp, 16); if (h && S.op.dev[h]) return ring(OPW.x + OP.holes[h][0], OPW.y + OP.holes[h][1], 16);
+    const h = opFrontHoleAt(lp); if (h) return S.op.dev[h]==='bz'?box({x:OPW.x+OP.holes[h][0]-18,y:OPW.y+OP.holes[h][1]-18,w:36,h:36}):ring(OPW.x+OP.holes[h][0],OPW.y+OP.holes[h][1],S.op.dev[h]==='ss'?18:17);
     if (t === 'hand' && S.op.hmi && inRect(lp, OP.cut, 4)) return box({ x: OPW.x + OP.cut.x, y: OPW.y + OP.cut.y, w: OP.cut.w, h: OP.cut.h });
     return '';
   }
@@ -5959,7 +5991,7 @@ function inspectDeviceAt(p) {
   if (inRect(lp, { x:0,y:0,w:OP.w,h:OP.h })) {
     const rows = termCatalog().filter(t => t.op).sort((a,b) => Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
     if (S.opBack && rows.length && Math.hypot(rows[0].x-p.x,rows[0].y-p.y) < 20) { const d = list.find(d => d.key.startsWith('op:') && d.name === rows[0].dev); if (d) return openDevicePanel(d.key); }
-    if (!S.opBack) { const h = nearestHole(lp,17); if (h && S.op.dev[h]) return openDevicePanel('op:' + h); }
+    if (!S.opBack) { const h = opFrontHoleAt(lp); if (h) return openDevicePanel('op:' + h); }
     const hx = S.opBack ? OP.w-lp.x : lp.x; if (S.op.hmi && inRect({x:hx,y:lp.y},OP.cut,8)) return openDevicePanel('op:hmi');
   }
   if (S.conveyor && inRect(p, { x:CVW.x-15,y:CVW.y-80,w:CONV.L+30,h:CVW.bw+100 })) return openDevicePanel('conveyor');
@@ -7210,7 +7242,7 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- 모드: 연습(챕터별 한 가지씩) · 자유 · 시험 ---------- */
-const APP_VER = { v: '2.50.0', date: '2026.11.17', notes: ['책상·로봇 윗면을 위쪽으로 옮긴 2×2 작업 지도', '화살표 칸 이동 제거 · 빈 공간 드래그·휠·보기 버튼으로 연속 이동', '칸 경계에서 배선·헬리컬 밴드를 자르지 않고 표시', '위쪽 HMI로 이어지는 밴드 경로와 이전 작업 저장 호환'] };
+const APP_VER = { v: '2.51.0', date: '2026.11.17', notes: ['실물 사진 기준 조작 기구의 검은 몸체·나사산·돔형 표시등', '준비 중 고정 링 분리 · 비상정지 캡과 흰 작동부 분리 표시', '기구·고정 링을 함께 집고 설치 · 링까지 포함한 겹침 방지', '기존 준비 재료를 새 외형에 맞춰 정리하고 수량·배선·검사 기록 유지'] };
 const loadKey = k => { try { const o = JSON.parse(localStorage.getItem(k) || 'null'); if (o && o.v === VERSION) return o; } catch (e) { /* 무시 */ } return null; };
 function migrateLampTies() {
   if (S.lampRouteV) return;
@@ -7260,6 +7292,13 @@ function arrangeLooseFloor(){
   const items=[...S.floor].sort((a,b)=>{const A=floorRect(a),B=floorRect(b);return B.w*B.h-A.w*A.h;});
   for(const f of items){const spot=freeLooseSpot(f,placed);if(spot)Object.assign(f,{x:spot.x,y:spot.y,vertical:spot.vertical});placed.push(looseBounds(f));}
 }
+function normalizeOperatorStock(){
+  if(S.opStockV)return;
+  S.opStockV=1;
+  const stock=S.floor.filter(f=>f.kind==='op'&&f.key!=='hmi');
+  const placed=[...fixedLooseObstacles(),...S.floor.filter(f=>!stock.includes(f)).map(looseBounds)];
+  for(const f of stock){const spot=freeLooseSpot(f,placed);if(spot)Object.assign(f,{x:spot.x,y:spot.y});placed.push(looseBounds(f));}
+}
 function migrateCompactRoom(place,oldPos,passed,faultPassed){
   const old={...LEGACY_ROOM},origin={...oldPos};
   const target=S.panelDocked?panelDockPosition():place==='desk'?{x:ROOM.deskPanelX,y:ROOM.deskPanelY}:{x:clamp(origin.x/2,ROOM.floorLeft+40,roomRight('floor')-PANEL.w-40),y:clamp(origin.y/2,0,ROOM.bottom-PANEL.h-40)};
@@ -7286,7 +7325,7 @@ function fixState(){
     fixRowState();
     if(migrate){place=panelWorkplace();oldPos={...S.panelPos};passed=S.judge?.key===judgeKey();faultPassed=S.fault?.lastCheck?.key===judgeKey();}
   }finally{if(migrate)Object.assign(ROOM,layout);}
-  if(!migrate)return;
+  if(!migrate){normalizeOperatorStock();return;}
   // Each saved surface moves as a rigid unit. Installed coordinates stay plate-local.
   const target={x:oldPos.x+(place==='desk'?1200:0),y:oldPos.y-(place==='desk'?800:0)};
   const move=(o,id)=>{if(!o)return;const a=roomArea(id),ox=ROW_ROOM[id==='robotTop'?'robotTopLeft':id==='desk'?'deskLeft':id==='robot'?'robotLeft':'floorLeft'];o.x+=oldPos.x-target.x+a.x-ox;o.y+=oldPos.y-target.y+a.y-ROW_ROOM.top;};
@@ -7296,6 +7335,7 @@ function fixState(){
   S.panelPos=target;S.gridV=1;syncRoom();buildTerms();
   withAllTerms(()=>{for(const t of S.ties||[]){if(!t.ws?.some(isOPWire))continue;for(const r of t.ws){delete r.x;delete r.y;}delete t.c;delete t.u;tieToNew(t);}});
   if(passed&&S.judge)S.judge.key=judgeKey();if(faultPassed&&S.fault?.lastCheck)S.fault.lastCheck.key=judgeKey();
+  normalizeOperatorStock();
 }
 function fixRowState(){
   const legacy=!S.compactV,layout={...ROOM};let place,oldPos,passed=false,faultPassed=false;
