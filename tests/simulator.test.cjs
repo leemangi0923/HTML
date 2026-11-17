@@ -452,8 +452,8 @@ test('floor fabrication includes marking, rails, holes and screws while device a
     S.fr[id].holes=drillPoints(S.fr[id]);S.tool='driver';tap1({x:SLOT.dL.x+20,y:300});const screwed=S.fr[id].bolted;
     positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);UI.carry={kind:'fr',key:'duct',count:1};const next=availPart('duct');S.fr[next].taped=true;dropFrame({x:SLOT.dR.x+20,y:300});const deskBlocked=!S.fr[next].stuck;
     const before=JSON.stringify(S.svHoles);S.tool='drill';tap1({x:SERVO.holes[1][0],y:SERVO.holes[1][1]});const drillBlocked=before===JSON.stringify(S.svHoles);
-    const locations=LESSONS.filter(L=>L.ch>=1&&L.ch<=2).map(L=>{const st=pracSetup(L);return{ch:L.ch,x:st.panelPos.x,loose:st.floor.every(f=>f.x+st.panelPos.x<ROOM.floorLeft)};});
-    return{drilled,floorMounted,screwed,deskBlocked,drillBlocked,lessons:locations.every(l=>l.x===(l.ch===1?0:ROOM.deskPanelX)&&l.loose)};
+    const locations=LESSONS.filter(L=>L.ch>=1&&L.ch<=2).map(L=>{const st=pracSetup(L);return{ch:L.ch,x:st.panelPos.x,y:st.panelPos.y,loose:st.floor.every(f=>roomAt(f.x+st.panelPos.x,f.y+st.panelPos.y)===(f.kind==='op'?'robotTop':'desk'))};});
+    return{drilled,floorMounted,screwed,deskBlocked,drillBlocked,lessons:locations.every(l=>l.x===(l.ch===1?0:ROOM.deskPanelX)&&l.y===(l.ch===1?0:ROOM.deskPanelY)&&l.loose)};
   });assert.deepEqual(result,{drilled:true,floorMounted:true,screwed:true,deskBlocked:true,drillBlocked:true,lessons:true});
 });
 
