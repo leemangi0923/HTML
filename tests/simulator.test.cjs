@@ -43,7 +43,7 @@ async function fullState() {
 // Lay out real tray stock; counts, footprints, carry consumption and save behavior
 // are exercised instead of changing the production preparation checks.
 async function stagePreparationKits(){
-  await page.evaluate(()=>{for(const kind of ['op','fr','dev'])for(const it of trayItems().filter(i=>i.kind===kind&&i.left)){trayTap(it.key);let guard=0;while(UI.carry?.key===it.key&&guard++<20){const p=freeLooseSpot({...UI.carry,x:roomLeft(kind==='op'?'robotTop':'desk')+500-ROOM_X,y:roomTop(kind==='op'?'robotTop':'desk')+300-ROOM_Y});if(!p)throw Error('no preparation space: '+it.key);const n=UI.carry.count;UI.carry.vertical=p.vertical;drop(p);if(UI.carry?.count===n)throw Error('preparation stock was rejected: '+it.key+' '+$('#toast').textContent);}}});
+  await page.evaluate(()=>{for(const kind of ['op','opnut','emscap','fr','dev'])for(const it of trayItems().filter(i=>i.kind===kind&&i.left)){trayTap(it.key);let guard=0;while(UI.carry?.key===it.key&&guard++<20){const p=freeLooseSpot({...UI.carry,x:roomLeft(isOperatorMaterial(kind)?'robotTop':'desk')+500-ROOM_X,y:roomTop(isOperatorMaterial(kind)?'robotTop':'desk')+300-ROOM_Y});if(!p)throw Error('no preparation space: '+it.key);const n=UI.carry.count;UI.carry.vertical=p.vertical;drop(p);if(UI.carry?.count===n)throw Error('preparation stock was rejected: '+it.key+' '+$('#toast').textContent);}}});
 }
 
 async function focusPoint(p){await page.evaluate(p=>fitTo({x:p.x-100,y:p.y-75,w:200,h:150}),p);}
@@ -106,7 +106,7 @@ test('all preparation stock fits the compact desks without physical overlap and 
     const collisions=[];for(let i=0;i<parts.length;i++)for(let j=i+1;j<parts.length;j++){const a=parts[i],b=parts[j];if(a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y)collisions.push([a.key,b.key]);}
     return{ready:preparationReady(),count:S.floor.length,collisions,contacts:document.querySelectorAll('[data-ground-contact]').length,plc:parts.find(p=>p.key==='plc').m.w,pos:S.floor.some(p=>p.key==='pos'),stock:preparedKit('dev')};
   });
-  const before=await measure();assert.equal(before.ready,true);assert.equal(before.count,38);assert.deepEqual(before.collisions,[]);assert.equal(before.contacts,38);assert.equal(before.plc,142);assert.equal(before.pos,false);assert.deepEqual(before.stock,{n:18,m:18,done:true});
+  const before=await measure();assert.equal(before.ready,true);assert.equal(before.count,49);assert.deepEqual(before.collisions,[]);assert.equal(before.contacts,49);assert.equal(before.plc,142);assert.equal(before.pos,false);assert.deepEqual(before.stock,{n:18,m:18,done:true});
   for(const [x,y]of [[-10000,-10000],[10000,10000]]){await page.evaluate(({x,y})=>{fitRoom('desk');UI.cam.w*=.5;UI.cam.h*=.5;UI.cam.x=x;UI.cam.y=y;applyCam();renderOver();},{x,y});assert.deepEqual((await measure()).collisions,[]);}
   await page.evaluate(()=>{SET.shadows=false;applyGraphics();renderAll();});assert.equal((await measure()).contacts,0);assert.deepEqual((await measure()).collisions,[]);
 });
@@ -129,7 +129,7 @@ test('real v2.46 saves migrate once without losing completed wiring, inspection 
     const first=JSON.stringify(S);fixState();complete.stable=first===JSON.stringify(S);
     const oldFloor=pClone(fixtures.completed);rebaseRoomObjects(oldFloor,800-oldFloor.panelPos.x,160-oldFloor.panelPos.y);oldFloor.panelPos={x:800,y:160};oldFloor.wood={x:380,y:300};setMode('free',oldFloor);complete.floorFits=rectOnSurface({x:0,y:0,w:PANEL.w,h:PANEL.h},'floor')&&panelOnFloorWood();
     setMode('free',pClone(fixtures.preparing));const stock=S.floor.map(f=>f.key).sort(),boxes=S.floor.map(looseBounds);let overlaps=0;for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)if(rectsOverlap(boxes[i],boxes[j],0))overlaps++;
-    const prep={stock,overlaps,allOnSurface:S.floor.every(f=>rectOnSurface(looseBounds(f),f.kind==='op'?'robotTop':'desk')),preparing:isPreparing(),sameIds:S.floor.filter(f=>f.key!=='pos').every(f=>fixtures.preparing.floor.some(o=>o.id===f.id)),wood:rectOnSurface(prepRect('wood',S.wood),'floor')};
+    const prep={stock,overlaps,allOnSurface:S.floor.every(f=>rectOnSurface(looseBounds(f),isOperatorMaterial(f.kind)?'robotTop':'desk')),preparing:isPreparing(),sameIds:S.floor.filter(f=>f.key!=='pos').every(f=>fixtures.preparing.floor.some(o=>o.id===f.id)),wood:rectOnSurface(prepRect('wood',S.wood),'floor')};
     save();return{complete,prep};
   },fixtures);
   assert.deepEqual(result.complete,{score:30,wires:true,inst:true,ties:true,judge:true,place:'desk',pos:{x:0,y:-880},op:true,stable:true,floorFits:true});
@@ -369,8 +369,8 @@ test('fresh work starts on a bare tiled floor and preparation uses real tray ite
   await page.locator('#zRobotTop').click();
   const plate=await page.evaluate(()=>({...S.setup.opPlate}));await clickWorld(plate.x,plate.y);assert.equal(await page.evaluate(()=>UI.carry.key),'opplate');
   await page.locator('#zRobotTop').click();assert.equal(await page.evaluate(()=>UI.carry.key),'opplate');
-  const robot=await page.evaluate(()=>({x:OPW.x+190,y:OPW.y+85}));await clickWorld(robot.x,robot.y);assert.equal(await page.evaluate(()=>opPlateMounted()),true);
-  assert.equal(await page.locator('#gWorld [data-prep-plate="opplate"]').count(),0);
+  const dock=await page.evaluate(()=>opDockRect());await clickWorld(dock.x+190,dock.y+85);assert.equal(await page.evaluate(()=>opPlateMounted()),false);
+  await page.evaluate(()=>drop(hmiPrepPosition()));
   const staged=await page.evaluate(()=>({...S.floor[0]}));await clickWorld(staged.x,staged.y);assert.equal(await page.evaluate(()=>UI.carry.key),'hmi');await page.locator('#zRobotTop').click();
   const hmi=await page.evaluate(()=>({x:OPW.x+OP.cut.x+OP.cut.w/2,y:OPW.y+OP.cut.y+OP.cut.h/2}));
   await clickWorld(hmi.x,hmi.y);assert.equal(await page.evaluate(()=>S.op.hmi),true);assert.equal(await page.evaluate(()=>S.floor.filter(f=>f.key==='hmi').length),0);
@@ -403,7 +403,7 @@ test('exam and the first lesson prepare before assembly while old saved work kee
   assert.equal(await page.locator('#btnExam').isEnabled(),true);assert.match(await page.locator('#clock').textContent(),/남은/);
   await page.evaluate(()=>pracStart(LESSONS[0].id));assert.equal(await page.evaluate(()=>isPreparing()),true);assert.equal(await page.evaluate(()=>PRAC.state),'run');
   await page.evaluate(()=>{trayTap('hmi');drop({x:STATION.topX+900-ROOM_X,y:STATION.topY+700-ROOM_Y});S.wood={x:380,y:350};S.setup.panelPlate={x:380,y:350};S.setup.opPlate=hmiPrepPosition();});
-  await stagePreparationKits();await page.evaluate(()=>{beginWork();pickPrepObject('opplate');drop({x:OPW.x+100,y:OPW.y+100});});
+  await stagePreparationKits();await page.evaluate(()=>{beginWork();});
   assert.equal(await page.evaluate(()=>PRAC.state),'run');assert.equal(await page.evaluate(()=>PRAC.cur.tray),'hmi');
   await page.evaluate(()=>{const old=pClone(pracRef());delete old.wood;setMode('free',old);});
   assert.equal(await page.evaluate(()=>isPreparing()),false);assert.equal(await page.evaluate(()=>opPlateMounted()),true);assert.ok(await page.evaluate(()=>S.wires.length>100));assert.deepEqual(await page.evaluate(()=>({x:S.wood.x+ROOM_X,y:S.wood.y+ROOM_Y})),{x:380,y:300});
@@ -452,7 +452,7 @@ test('floor fabrication includes marking, rails, holes and screws while device a
     S.fr[id].holes=drillPoints(S.fr[id]);S.tool='driver';tap1({x:SLOT.dL.x+20,y:300});const screwed=S.fr[id].bolted;
     positionPanel(ROOM.deskPanelX,ROOM.deskPanelY);UI.carry={kind:'fr',key:'duct',count:1};const next=availPart('duct');S.fr[next].taped=true;dropFrame({x:SLOT.dR.x+20,y:300});const deskBlocked=!S.fr[next].stuck;
     const before=JSON.stringify(S.svHoles);S.tool='drill';tap1({x:SERVO.holes[1][0],y:SERVO.holes[1][1]});const drillBlocked=before===JSON.stringify(S.svHoles);
-    const locations=LESSONS.filter(L=>L.ch>=1&&L.ch<=2).map(L=>{const st=pracSetup(L);return{ch:L.ch,x:st.panelPos.x,y:st.panelPos.y,loose:st.floor.every(f=>roomAt(f.x+st.panelPos.x,f.y+st.panelPos.y)===(f.kind==='op'?'robotTop':'desk'))};});
+    const locations=LESSONS.filter(L=>L.ch>=1&&L.ch<=2).map(L=>{const st=pracSetup(L);return{ch:L.ch,x:st.panelPos.x,y:st.panelPos.y,loose:st.floor.every(f=>roomAt(f.x+st.panelPos.x,f.y+st.panelPos.y)===(isOperatorMaterial(f.kind)?'robotTop':'desk'))};});
     return{drilled,floorMounted,screwed,deskBlocked,drillBlocked,lessons:locations.every(l=>l.x===(l.ch===1?0:ROOM.deskPanelX)&&l.y===(l.ch===1?0:ROOM.deskPanelY)&&l.loose)};
   });assert.deepEqual(result,{drilled:true,floorMounted:true,screwed:true,deskBlocked:true,drillBlocked:true,lessons:true});
 });
@@ -461,7 +461,7 @@ test('preparation requires all HMI, frame and device stock on their designated w
   await page.evaluate(()=>{setMode('free',newPreparationState());trayTap('opplate');drop(hmiPrepPosition());trayTap('wood');drop({x:380,y:350});trayTap('panelplate');drop({x:380,y:350});beginWork();});
   assert.equal(await page.evaluate(()=>isPreparing()),true);assert.equal(await page.locator('#pracCap [data-prep="start"]').isDisabled(),true);
   await stagePreparationKits();
-  assert.deepEqual(await page.evaluate(()=>['op','fr','dev'].map(k=>preparedKit(k))),[{n:11,m:11,done:true},{n:9,m:9,done:true},{n:18,m:18,done:true}]);
+  assert.deepEqual(await page.evaluate(()=>['op','fr','dev'].map(k=>preparedKit(k))),[{n:22,m:22,done:true},{n:9,m:9,done:true},{n:18,m:18,done:true}]);
   assert.equal(await page.evaluate(()=>S.op.hmi),false);assert.equal(await page.evaluate(()=>S.elapsed),0);
   const first=await page.evaluate(()=>{const f=S.floor.find(f=>f.kind==='dev');pickFloor(f);beginWork();return UI.carry.key;});
   assert.equal(await page.evaluate(()=>isPreparing()),true);await page.evaluate(()=>{returnCarry();});

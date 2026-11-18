@@ -2,15 +2,7 @@ name: Windows installer
 on:
   workflow_dispatch:
   push:
-    branches: [main]
     tags: ['v*']
-    paths:
-      - index.html
-      - desktop/**
-      - package.json
-      - package-lock.json
-      - tests/electron.smoke.cjs
-      - .github/workflows/desktop.yml
 permissions:
   contents: read
 concurrency:
